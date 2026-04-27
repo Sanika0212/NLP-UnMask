@@ -72,20 +72,47 @@ _PHASE_TRANSITION_MSGS = {
 }
 
 
-def _parse_onboarding(text: str) -> tuple[str, str]:
-    """Extract study_focus and learning_mode from the user's first greeting reply."""
-    lower = text.lower()
-    if any(w in lower for w in ("diagram", "visual", "image", "picture", "figure", "draw")):
-        learning_mode = "visual"
-    else:
-        learning_mode = "text"
-    if any(w in lower for w in ("revise", "revision", "review", "recap", "revisit")):
-        study_focus = "revision"
-    elif any(w in lower for w in ("everything", "all", "full", "complete", "entire", "whole")):
-        study_focus = "everything"
-    else:
-        study_focus = f"specific: {text.strip()[:120]}"
-    return study_focus, learning_mode
+async def _parse_onboarding(text: str) -> tuple[str, str]:
+    """Use LLM to extract study_focus and learning_mode from the user's first message."""
+    import json as _json
+    from openai import AsyncOpenAI
+    from dotenv import load_dotenv
+    load_dotenv()
+    try:
+        client = AsyncOpenAI()
+        resp = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            max_tokens=120,
+            temperature=0,
+            messages=[
+                {"role": "system", "content": (
+                    "You parse a student's first message to an NBCOT anatomy tutor. "
+                    "Return JSON with exactly two keys:\n"
+                    '  "study_focus": one of "revision" | "everything" | "specific: <topic phrase>"\n'
+                    '  "learning_mode": "visual" if they mention diagrams/images/visual, else "text"\n'
+                    "Available topics: brachial_plexus, peripheral_nerves, rotator_cuff, spinal_cord, "
+                    "shoulder_joint, elbow_joint, wrist_hand, dermatomes, nerve_injuries, upper_limb_muscles.\n"
+                    "For study_focus: if they mention specific topics write them in the phrase. "
+                    'If they want everything or are unsure use "everything". '
+                    'If they mention reviewing/revising use "revision". '
+                    "Return ONLY the JSON object, no other text."
+                )},
+                {"role": "user", "content": text},
+            ],
+        )
+        data = _json.loads(resp.choices[0].message.content.strip())
+        return data.get("study_focus", f"specific: {text[:120]}"), data.get("learning_mode", "text")
+    except Exception:
+        # Fallback to keyword matching if LLM call fails
+        lower = text.lower()
+        learning_mode = "visual" if any(w in lower for w in ("diagram", "visual", "image", "picture")) else "text"
+        if any(w in lower for w in ("revise", "revision", "review", "recap")):
+            study_focus = "revision"
+        elif any(w in lower for w in ("everything", "all", "full", "complete", "entire")):
+            study_focus = "everything"
+        else:
+            study_focus = f"specific: {text.strip()[:120]}"
+        return study_focus, learning_mode
 
 
 # ── Session lifecycle ─────────────────────────────────────────────────────────
@@ -129,7 +156,7 @@ async def on_message(message: cl.Message):
     # ── Capture study preferences from first message (before graph call) ────
     warmup_already_done = cl.user_session.get("warmup_done", False)
     if not warmup_already_done:
-        study_focus, learning_mode = _parse_onboarding(message.content)
+        study_focus, learning_mode = await _parse_onboarding(message.content)
         state["study_focus"] = study_focus
         state["learning_mode"] = learning_mode
 
@@ -182,13 +209,12 @@ async def on_message(message: cl.Message):
     response = result.get("generated_response", "")
     warmup_done = cl.user_session.get("warmup_done", False)
 
-    # During rapport: first turn = warmup ack, then inject reordered diagnostic Qs
+    # During rapport: first turn = warmup ack, then inject topic-relevant diagnostic Qs
     if phase == "rapport" and not diagnostic_complete:
         diag_idx = cl.user_session.get("diag_q_index", 0)
         if not warmup_done:
-            # Build question order from study_focus on first message
-            # Use state (just set) not result (nodes don't echo study_focus back)
-            order = get_diagnostic_order(state.get("study_focus") or "")
+            # Build question order from study_focus — returns bank indices prioritised by topic
+            order = get_diagnostic_order(state.get("study_focus") or "", n=_DIAGNOSTIC_QUESTIONS)
             cl.user_session.set("diag_order", order)
             cl.user_session.set("warmup_done", True)
             cl.user_session.set("diag_q_index", 1)

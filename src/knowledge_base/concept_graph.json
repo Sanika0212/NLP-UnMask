@@ -8,77 +8,234 @@
     "spinal_cord.anterior_rami": {
       "label": "Anterior Rami of Spinal Nerves",
       "topic": "spinal_cord",
-      "prerequisites": ["spinal_cord.anatomy"]
+      "prerequisites": [
+        "spinal_cord.anatomy"
+      ]
     },
     "brachial_plexus.origin": {
       "label": "Brachial Plexus Origin (C5-T1)",
       "topic": "brachial_plexus",
-      "prerequisites": ["spinal_cord.anterior_rami"]
+      "prerequisites": [
+        "spinal_cord.anterior_rami"
+      ]
     },
     "brachial_plexus.trunks": {
       "label": "Brachial Plexus Trunks",
       "topic": "brachial_plexus",
-      "prerequisites": ["brachial_plexus.origin"]
+      "prerequisites": [
+        "brachial_plexus.origin"
+      ]
     },
     "brachial_plexus.divisions": {
       "label": "Anterior and Posterior Divisions",
       "topic": "brachial_plexus",
-      "prerequisites": ["brachial_plexus.trunks"]
+      "prerequisites": [
+        "brachial_plexus.trunks"
+      ]
     },
     "brachial_plexus.cords": {
       "label": "Lateral, Medial, Posterior Cords",
       "topic": "brachial_plexus",
-      "prerequisites": ["brachial_plexus.divisions"]
+      "prerequisites": [
+        "brachial_plexus.divisions"
+      ]
     },
     "brachial_plexus.terminal_branches": {
       "label": "Terminal Branches (5 major nerves)",
       "topic": "brachial_plexus",
-      "prerequisites": ["brachial_plexus.cords"]
+      "prerequisites": [
+        "brachial_plexus.cords"
+      ]
     },
     "peripheral_nerves.axillary": {
       "label": "Axillary Nerve (C5-C6)",
       "topic": "peripheral_nerves",
-      "prerequisites": ["brachial_plexus.cords"]
+      "prerequisites": [
+        "brachial_plexus.cords"
+      ]
     },
     "peripheral_nerves.radial": {
       "label": "Radial Nerve (C5-T1)",
       "topic": "peripheral_nerves",
-      "prerequisites": ["brachial_plexus.cords"]
+      "prerequisites": [
+        "brachial_plexus.cords"
+      ]
     },
     "peripheral_nerves.median": {
       "label": "Median Nerve (C5-T1)",
       "topic": "peripheral_nerves",
-      "prerequisites": ["brachial_plexus.cords"]
+      "prerequisites": [
+        "brachial_plexus.cords"
+      ]
     },
     "peripheral_nerves.ulnar": {
       "label": "Ulnar Nerve (C8-T1)",
       "topic": "peripheral_nerves",
-      "prerequisites": ["brachial_plexus.cords"]
+      "prerequisites": [
+        "brachial_plexus.cords"
+      ]
     },
     "rotator_cuff.muscles": {
       "label": "Rotator Cuff (SITS muscles)",
       "topic": "rotator_cuff",
-      "prerequisites": ["peripheral_nerves.axillary", "peripheral_nerves.radial"]
+      "prerequisites": [
+        "peripheral_nerves.axillary",
+        "peripheral_nerves.radial"
+      ]
     },
     "rotator_cuff.supraspinatus": {
-      "label": "Supraspinatus — Abduction initiation",
+      "label": "Supraspinatus \u2014 Abduction initiation",
       "topic": "rotator_cuff",
-      "prerequisites": ["rotator_cuff.muscles"]
+      "prerequisites": [
+        "rotator_cuff.muscles"
+      ]
     },
     "rotator_cuff.infraspinatus": {
-      "label": "Infraspinatus — External rotation",
+      "label": "Infraspinatus \u2014 External rotation",
       "topic": "rotator_cuff",
-      "prerequisites": ["rotator_cuff.muscles"]
+      "prerequisites": [
+        "rotator_cuff.muscles"
+      ]
     },
     "rotator_cuff.teres_minor": {
-      "label": "Teres Minor — External rotation",
+      "label": "Teres Minor \u2014 External rotation",
       "topic": "rotator_cuff",
-      "prerequisites": ["rotator_cuff.muscles"]
+      "prerequisites": [
+        "rotator_cuff.muscles"
+      ]
     },
     "rotator_cuff.subscapularis": {
-      "label": "Subscapularis — Internal rotation",
+      "label": "Subscapularis \u2014 Internal rotation",
       "topic": "rotator_cuff",
-      "prerequisites": ["rotator_cuff.muscles"]
+      "prerequisites": [
+        "rotator_cuff.muscles"
+      ]
+    },
+    "shoulder_joint.glenohumeral": {
+      "label": "Glenohumeral Joint",
+      "prerequisites": [
+        "spinal_cord.anterior_rami",
+        "peripheral_nerves.axillary"
+      ]
+    },
+    "shoulder_joint.stabilizers": {
+      "label": "Shoulder Stabilizers",
+      "prerequisites": [
+        "spinal_cord.anterior_rami",
+        "rotator_cuff.muscles"
+      ]
+    },
+    "shoulder_joint.ac_joint": {
+      "label": "Acromioclavicular Joint",
+      "prerequisites": [
+        "spinal_cord.anterior_rami"
+      ]
+    },
+    "elbow_joint.anatomy": {
+      "label": "Elbow Joint Anatomy",
+      "prerequisites": [
+        "spinal_cord.anterior_rami"
+      ]
+    },
+    "elbow_joint.ligaments": {
+      "label": "Elbow Ligaments",
+      "prerequisites": [
+        "spinal_cord.anterior_rami",
+        "peripheral_nerves.radial",
+        "peripheral_nerves.ulnar"
+      ]
+    },
+    "elbow_joint.cubital_tunnel": {
+      "label": "Cubital Tunnel",
+      "prerequisites": [
+        "spinal_cord.anterior_rami",
+        "peripheral_nerves.ulnar"
+      ]
+    },
+    "wrist_hand.carpals": {
+      "label": "Carpal Bones",
+      "prerequisites": [
+        "spinal_cord.anterior_rami"
+      ]
+    },
+    "wrist_hand.intrinsic_muscles": {
+      "label": "Intrinsic Hand Muscles",
+      "prerequisites": [
+        "spinal_cord.anterior_rami",
+        "peripheral_nerves.median",
+        "peripheral_nerves.ulnar"
+      ]
+    },
+    "wrist_hand.flexor_tendons": {
+      "label": "Flexor Tendons and Extensor Compartments",
+      "prerequisites": [
+        "spinal_cord.anterior_rami",
+        "peripheral_nerves.median",
+        "peripheral_nerves.radial",
+        "peripheral_nerves.ulnar"
+      ]
+    },
+    "dermatomes.upper_limb": {
+      "label": "Upper Limb Dermatomes",
+      "prerequisites": [
+        "spinal_cord.anatomy"
+      ]
+    },
+    "dermatomes.clinical": {
+      "label": "Clinical Application of Dermatomes",
+      "prerequisites": [
+        "dermatomes.upper_limb",
+        "spinal_cord.anatomy"
+      ]
+    },
+    "nerve_injuries.radial": {
+      "label": "Radial Nerve Injuries",
+      "prerequisites": [
+        "peripheral_nerves.radial",
+        "upper_limb_muscles.elbow_extensors"
+      ]
+    },
+    "nerve_injuries.ulnar": {
+      "label": "Ulnar Nerve Injuries",
+      "prerequisites": [
+        "peripheral_nerves.ulnar",
+        "wrist_hand.intrinsic_muscles"
+      ]
+    },
+    "nerve_injuries.median": {
+      "label": "Median Nerve Injuries",
+      "prerequisites": [
+        "peripheral_nerves.median",
+        "wrist_hand.intrinsic_muscles"
+      ]
+    },
+    "nerve_injuries.brachial_plexus": {
+      "label": "Brachial Plexus Injuries",
+      "prerequisites": [
+        "brachial_plexus.terminal_branches"
+      ]
+    },
+    "upper_limb_muscles.shoulder": {
+      "label": "Shoulder Muscles",
+      "prerequisites": [
+        "spinal_cord.anterior_rami",
+        "peripheral_nerves.axillary"
+      ]
+    },
+    "upper_limb_muscles.elbow_flexors": {
+      "label": "Elbow Flexor Muscles",
+      "prerequisites": [
+        "spinal_cord.anterior_rami",
+        "peripheral_nerves.radial",
+        "peripheral_nerves.radial"
+      ]
+    },
+    "upper_limb_muscles.elbow_extensors": {
+      "label": "Elbow Extensor Muscles",
+      "prerequisites": [
+        "spinal_cord.anterior_rami",
+        "peripheral_nerves.radial"
+      ]
     }
   }
 }

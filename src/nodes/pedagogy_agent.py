@@ -140,52 +140,153 @@ def _find_prerequisite_gaps(topic: str, mastery: dict, G: nx.DiGraph) -> list[st
 
 # ── Diagnostic probe ──────────────────────────────────────────────────────────
 
-def get_diagnostic_order(study_focus: str) -> list[int]:
-    """Return question indices [0-3] reordered by relevance to study_focus.
-    0=brachial_plexus, 1=rotator_cuff, 2=axillary_nerve, 3=supraspinatus
-    """
-    focus = (study_focus or "").lower()
-    if any(k in focus for k in ["brachial", "plexus", "nerve", "axillary", "radial", "median", "ulnar"]):
-        return [0, 2, 3, 1]   # nerve-focused: lead with plexus, push rotator cuff last
-    if any(k in focus for k in ["rotator", "cuff", "shoulder", "supraspinatus", "infraspinatus", "teres"]):
-        return [1, 3, 2, 0]   # shoulder-focused: lead with rotator cuff
-    return [0, 1, 2, 3]       # default order
-
-
-_DIAGNOSTIC_PROMPTS = [
-    "What spinal cord levels make up the brachial plexus?",
-    "Name the four rotator cuff muscles.",
-    "Which nerve innervates the deltoid muscle?",
-    "What is the function of the supraspinatus?",
+# One entry per major concept. Each has: question, concept, keywords (for scoring), topic (for ordering).
+_DIAGNOSTIC_BANK: list[dict] = [
+    # brachial_plexus
+    {"question": "What spinal cord levels make up the brachial plexus?",
+     "concept": "brachial_plexus.origin", "topic": "brachial_plexus",
+     "keywords": ["c5", "c6", "c7", "c8", "t1"]},
+    {"question": "What are the five terminal branches of the brachial plexus?",
+     "concept": "brachial_plexus.terminal_branches", "topic": "brachial_plexus",
+     "keywords": ["musculocutaneous", "axillary", "radial", "median", "ulnar"]},
+    # rotator_cuff
+    {"question": "Name the four rotator cuff muscles.",
+     "concept": "rotator_cuff.muscles", "topic": "rotator_cuff",
+     "keywords": ["supraspinatus", "infraspinatus", "teres minor", "subscapularis"]},
+    {"question": "What is the function of the supraspinatus and which nerve innervates it?",
+     "concept": "rotator_cuff.supraspinatus", "topic": "rotator_cuff",
+     "keywords": ["abduction", "suprascapular"]},
+    # peripheral_nerves
+    {"question": "Which nerve innervates the deltoid, and at what spinal levels?",
+     "concept": "peripheral_nerves.axillary", "topic": "peripheral_nerves",
+     "keywords": ["axillary", "c5", "c6"]},
+    {"question": "What motor and sensory deficits result from a high radial nerve injury?",
+     "concept": "peripheral_nerves.radial", "topic": "peripheral_nerves",
+     "keywords": ["wrist drop", "finger extension", "dorsum"]},
+    {"question": "A patient cannot oppose the thumb and has a flat thenar eminence — which nerve is injured?",
+     "concept": "peripheral_nerves.median", "topic": "peripheral_nerves",
+     "keywords": ["median", "ape hand", "thenar"]},
+    {"question": "What is the ulnar nerve's role in intrinsic hand function?",
+     "concept": "peripheral_nerves.ulnar", "topic": "peripheral_nerves",
+     "keywords": ["interossei", "hypothenar", "claw", "adduction"]},
+    # spinal_cord
+    {"question": "At what vertebral level does the spinal cord end, and what continues below?",
+     "concept": "spinal_cord.anatomy", "topic": "spinal_cord",
+     "keywords": ["l1", "l2", "conus", "cauda equina"]},
+    # shoulder_joint
+    {"question": "What type of joint is the glenohumeral joint, and what structures provide its stability?",
+     "concept": "shoulder_joint.glenohumeral", "topic": "shoulder_joint",
+     "keywords": ["ball and socket", "labrum", "rotator cuff", "glenohumeral ligament"]},
+    {"question": "Which bones articulate at the acromioclavicular joint and why is it clinically important?",
+     "concept": "shoulder_joint.ac_joint", "topic": "shoulder_joint",
+     "keywords": ["acromion", "clavicle", "separation", "fall"]},
+    # elbow_joint
+    {"question": "What is the carrying angle of the elbow and which condition alters it?",
+     "concept": "elbow_joint.anatomy", "topic": "elbow_joint",
+     "keywords": ["valgus", "cubitus valgus", "cubitus varus", "degrees"]},
+    {"question": "Where does the ulnar nerve pass at the elbow, and what symptoms result from compression there?",
+     "concept": "elbow_joint.cubital_tunnel", "topic": "elbow_joint",
+     "keywords": ["cubital tunnel", "medial epicondyle", "ring", "little finger", "tingling"]},
+    # wrist_hand
+    {"question": "Name the two rows of carpal bones in order from radial to ulnar.",
+     "concept": "wrist_hand.carpals", "topic": "wrist_hand",
+     "keywords": ["scaphoid", "lunate", "triquetrum", "pisiform", "trapezium", "trapezoid", "capitate", "hamate"]},
+    {"question": "What muscles form the thenar eminence and what nerve innervates them?",
+     "concept": "wrist_hand.intrinsic_muscles", "topic": "wrist_hand",
+     "keywords": ["abductor pollicis", "flexor pollicis brevis", "opponens", "median"]},
+    # dermatomes
+    {"question": "Which dermatome supplies the thumb, and which supplies the little finger?",
+     "concept": "dermatomes.upper_limb", "topic": "dermatomes",
+     "keywords": ["c6", "c8", "thumb", "little finger"]},
+    {"question": "A patient reports numbness over the lateral forearm — which spinal level is involved?",
+     "concept": "dermatomes.clinical", "topic": "dermatomes",
+     "keywords": ["c6", "lateral", "musculocutaneous"]},
+    # nerve_injuries
+    {"question": "What is Saturday night palsy and which nerve is involved?",
+     "concept": "nerve_injuries.radial", "topic": "nerve_injuries",
+     "keywords": ["radial", "spiral groove", "wrist drop", "compression"]},
+    {"question": "Describe Erb's palsy — which roots are injured and what is the classic limb posture?",
+     "concept": "nerve_injuries.brachial_plexus", "topic": "nerve_injuries",
+     "keywords": ["c5", "c6", "waiter's tip", "adduction", "internal rotation"]},
+    # upper_limb_muscles
+    {"question": "What is the innervation and primary action of the biceps brachii?",
+     "concept": "upper_limb_muscles.elbow_flexors", "topic": "upper_limb_muscles",
+     "keywords": ["musculocutaneous", "c5", "c6", "flexion", "supination"]},
+    {"question": "Which nerve innervates the triceps and at what spinal level?",
+     "concept": "upper_limb_muscles.elbow_extensors", "topic": "upper_limb_muscles",
+     "keywords": ["radial", "c7", "extension"]},
 ]
 
-_DIAGNOSTIC_ANSWERS = {
-    0: ["c5", "c6", "c7", "c8", "t1"],
-    1: ["supraspinatus", "infraspinatus", "teres minor", "subscapularis"],
-    2: ["axillary"],
-    3: ["abduction", "abduct"],
+# topic → bank indices (for priority ordering)
+_TOPIC_BANK_MAP: dict[str, list[int]] = {}
+for _i, _entry in enumerate(_DIAGNOSTIC_BANK):
+    _TOPIC_BANK_MAP.setdefault(_entry["topic"], []).append(_i)
+
+# keyword triggers per topic for focus detection
+_TOPIC_KEYWORDS: dict[str, list[str]] = {
+    "brachial_plexus": ["brachial", "plexus"],
+    "rotator_cuff": ["rotator", "cuff", "supraspinatus", "infraspinatus"],
+    "peripheral_nerves": ["nerve", "axillary", "radial", "median", "ulnar", "musculocutaneous"],
+    "spinal_cord": ["spinal cord", "spinal", "cord", "conus", "cauda"],
+    "shoulder_joint": ["shoulder", "glenohumeral", "ac joint", "acromioclavicular"],
+    "elbow_joint": ["elbow", "cubital", "carrying angle"],
+    "wrist_hand": ["wrist", "hand", "carpal", "thenar", "hypothenar", "intrinsic"],
+    "dermatomes": ["dermatome", "dermatomes", "sensation", "numbness", "sensory level"],
+    "nerve_injuries": ["nerve injury", "palsy", "erb", "klumpke", "wrist drop", "claw", "saturday night"],
+    "upper_limb_muscles": ["muscle", "biceps", "triceps", "deltoid", "brachialis", "innervation"],
 }
 
 
-def _init_mastery_from_diagnostic(
-    answer: str, question_idx: int, mastery: dict
-) -> dict:
-    """Initialize mastery from a diagnostic probe answer."""
-    ans = answer.lower()
-    expected = _DIAGNOSTIC_ANSWERS.get(question_idx, [])
-    score = sum(1 for e in expected if e in ans) / max(len(expected), 1)
-    updated = dict(mastery)
+def get_diagnostic_order(study_focus: str, n: int = 4) -> list[int]:
+    """Return n bank indices prioritised by topics mentioned in study_focus."""
+    focus = (study_focus or "").lower()
 
-    # Map diagnostic questions to concept IDs
-    concept_map = {
-        0: "brachial_plexus.origin",
-        1: "rotator_cuff.muscles",
-        2: "peripheral_nerves.axillary",
-        3: "rotator_cuff.supraspinatus",
-    }
-    concept = concept_map.get(question_idx)
-    if concept:
-        updated[concept] = 0.5 if score > 0.5 else 0.1
+    # Score each topic by keyword matches
+    topic_scores: dict[str, int] = {}
+    for topic, kws in _TOPIC_KEYWORDS.items():
+        topic_scores[topic] = sum(1 for k in kws if k in focus)
+
+    # Build ordered list: highest-score topics first, then remainder
+    ordered_topics = sorted(topic_scores, key=lambda t: -topic_scores[t])
+    seen: set[int] = set()
+    result: list[int] = []
+    for topic in ordered_topics:
+        for idx in _TOPIC_BANK_MAP.get(topic, []):
+            if idx not in seen:
+                seen.add(idx)
+                result.append(idx)
+            if len(result) == n:
+                return result
+
+    # Fill remaining slots from bank in order
+    for idx in range(len(_DIAGNOSTIC_BANK)):
+        if idx not in seen:
+            result.append(idx)
+        if len(result) == n:
+            return result
+
+    return result[:n]
+
+
+def generate_diagnostic_question(bank_idx: int) -> str:
+    """Return the diagnostic question for a bank index."""
+    if 0 <= bank_idx < len(_DIAGNOSTIC_BANK):
+        return _DIAGNOSTIC_BANK[bank_idx]["question"]
+    return ""
+
+
+def _init_mastery_from_diagnostic(
+    answer: str, bank_idx: int, mastery: dict
+) -> dict:
+    """Score a diagnostic answer and initialise mastery for its concept."""
+    if bank_idx < 0 or bank_idx >= len(_DIAGNOSTIC_BANK):
+        return mastery
+    entry = _DIAGNOSTIC_BANK[bank_idx]
+    ans = answer.lower()
+    keywords = entry["keywords"]
+    score = sum(1 for k in keywords if k in ans) / max(len(keywords), 1)
+    updated = dict(mastery)
+    updated[entry["concept"]] = 0.5 if score > 0.5 else 0.1
     return updated
 
 
@@ -212,9 +313,9 @@ def pedagogy_agent(state: TutoringState) -> dict:
         # turn 1 = warmup exchange (no anatomy answer), turn 2+ = diagnostic answers
         # display_idx is 0-based position in the diagnostic sequence (0 = first Q shown)
         display_idx = turn - 2
-        if 0 <= display_idx < len(_DIAGNOSTIC_PROMPTS):
-            # Map display position back to the actual question ID via study_focus order
-            order = get_diagnostic_order(state.get("study_focus") or "")
+        n_diag = _cfg["session"]["diagnostic_questions"]
+        if 0 <= display_idx < n_diag:
+            order = get_diagnostic_order(state.get("study_focus") or "", n=n_diag)
             actual_q_id = order[min(display_idx, len(order) - 1)]
             mastery = _init_mastery_from_diagnostic(student_msg, actual_q_id, mastery)
 
@@ -311,8 +412,3 @@ def _extract_topic_from_message(msg: str) -> str:
     return ""
 
 
-def generate_diagnostic_question(question_idx: int) -> str:
-    """Return the next diagnostic probe question."""
-    if question_idx < len(_DIAGNOSTIC_PROMPTS):
-        return _DIAGNOSTIC_PROMPTS[question_idx]
-    return ""

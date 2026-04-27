@@ -24,6 +24,12 @@ FILES = {
     "axillary_nerve.png":   "Gray817.png",
     "peripheral_nerves.png":"Gray808.png",
     "spinal_cord.png":      "Gray672.png",
+    # New topics
+    "elbow_joint.png":           "Gray329.png",
+    "carpal_bones.png":          "Gray219.png",
+    "upper_limb_muscles.png":    "Gray408.png",
+    "dermatomes.png":            "Gray799.png",
+    "nerve_injury_syndromes.png":"Gray812and814.PNG",
 }
 
 HEADERS = {
