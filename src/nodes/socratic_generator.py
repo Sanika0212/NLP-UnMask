@@ -559,6 +559,7 @@ def socratic_generator(state: TutoringState) -> dict:
 
         # Build visual hint separately — shown as a UI card by app.py, NOT in the LLM response
         visual_hint = None
+        # visual mode: hint after 1 wrong (spatial learners need diagram sooner); text mode: 2
         visual_threshold = 1 if state.get("learning_mode") == "visual" else 2
         if consecutive_incorrect >= visual_threshold:
             # Prefer figure chunks that match the current topic
@@ -634,11 +635,10 @@ def socratic_generator(state: TutoringState) -> dict:
                     {"role": "user", "content": user_msg},
                 ]
                 continue
+        response_text = candidate
         break  # accept on second attempt regardless
 
-        response_text = candidate
-
-    response_text = _deduplicate_sentences(candidate)  # remove adjacent duplicates
+    response_text = _deduplicate_sentences(response_text)  # remove adjacent duplicates
 
     # ── Assessment: generate explicit feedback on student's clinical answer ──
     assessment_feedback = None
@@ -682,4 +682,4 @@ def _response_leaks_answer(response: str, correct_answer: str) -> bool:
     answer_words = significant_words(correct_answer)
     response_words = significant_words(response)
     overlap = answer_words & response_words
-    return len(overlap) >= 4  # 4+ significant words overlap signals a leak
+    return len(overlap) >= 3  # ≥3 significant words overlap signals a leak

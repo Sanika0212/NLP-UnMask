@@ -230,7 +230,7 @@ def retrieval_planner(state: TutoringState) -> dict:
         topic_readable = state["revisit_topic"].replace("_", " ").replace(".", " ")
         query = f"{query} {topic_readable}" if query.strip() else topic_readable
 
-    mastery = state["mastery_scores"].get(topic, _cfg["mastery"]["default_prior"])
+    mastery = state.get("mastery_scores", {}).get(topic, _cfg["mastery"]["default_prior"])
     mode = _get_retrieval_mode(mastery)
 
     collection = os.getenv("QDRANT_COLLECTION", _cfg["qdrant"]["collection"])

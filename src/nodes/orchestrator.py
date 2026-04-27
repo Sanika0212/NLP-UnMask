@@ -56,7 +56,7 @@ def orchestrator(state: TutoringState) -> dict:
 
     elif phase == "tutoring":
         # Advance if student has demonstrated sufficient mastery across topics
-        if consecutive_correct >= _M["consecutive_correct_for_advance"]:
+        if turn >= 3 and consecutive_correct >= max(1, _M["consecutive_correct_for_advance"]):
             return _transition("assessment", {"consecutive_correct": 0})
 
         # Proactive revisit: after revisit_after_sec, steer back to weakest topic
