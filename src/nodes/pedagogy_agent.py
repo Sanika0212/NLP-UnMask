@@ -237,8 +237,27 @@ _TOPIC_KEYWORDS: dict[str, list[str]] = {
 }
 
 
+
+# Broad diagnostic sample: one representative question from each topic group.
+# Used when no specific topic is mentioned so the diagnostic covers the full curriculum.
+_BROAD_DIAGNOSTIC = [
+    _TOPIC_BANK_MAP["brachial_plexus"][0],      # plexus origin
+    _TOPIC_BANK_MAP["rotator_cuff"][0],          # SITS muscles
+    _TOPIC_BANK_MAP["peripheral_nerves"][2],     # median nerve (ape hand)
+    _TOPIC_BANK_MAP["shoulder_joint"][0],        # glenohumeral
+    _TOPIC_BANK_MAP["elbow_joint"][0],           # carrying angle
+    _TOPIC_BANK_MAP["wrist_hand"][0],            # carpal bones
+    _TOPIC_BANK_MAP["dermatomes"][0],            # C6/C8 landmarks
+    _TOPIC_BANK_MAP["nerve_injuries"][0],        # Saturday night palsy
+    _TOPIC_BANK_MAP["upper_limb_muscles"][1],    # biceps innervation
+    _TOPIC_BANK_MAP["spinal_cord"][0],           # conus level
+]
+
+
 def get_diagnostic_order(study_focus: str, n: int = 4) -> list[int]:
-    """Return n bank indices prioritised by topics mentioned in study_focus."""
+    """Return n bank indices prioritised by topics mentioned in study_focus.
+    Falls back to a broad cross-topic sample when no topic is detected.
+    """
     focus = (study_focus or "").lower()
 
     # Score each topic by keyword matches
@@ -246,7 +265,13 @@ def get_diagnostic_order(study_focus: str, n: int = 4) -> list[int]:
     for topic, kws in _TOPIC_KEYWORDS.items():
         topic_scores[topic] = sum(1 for k in kws if k in focus)
 
-    # Build ordered list: highest-score topics first, then remainder
+    max_score = max(topic_scores.values(), default=0)
+
+    # No topic signal — return a spread across all topic groups
+    if max_score == 0:
+        return _BROAD_DIAGNOSTIC[:n]
+
+    # Build ordered list: highest-score topics first
     ordered_topics = sorted(topic_scores, key=lambda t: -topic_scores[t])
     seen: set[int] = set()
     result: list[int] = []
@@ -258,9 +283,10 @@ def get_diagnostic_order(study_focus: str, n: int = 4) -> list[int]:
             if len(result) == n:
                 return result
 
-    # Fill remaining slots from bank in order
-    for idx in range(len(_DIAGNOSTIC_BANK)):
+    # Fill remaining slots from the broad sample (preserves topic diversity)
+    for idx in _BROAD_DIAGNOSTIC:
         if idx not in seen:
+            seen.add(idx)
             result.append(idx)
         if len(result) == n:
             return result
