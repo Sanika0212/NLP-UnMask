@@ -255,23 +255,34 @@ _BROAD_DIAGNOSTIC = [
 
 
 def get_diagnostic_order(study_focus: str, n: int = 4) -> list[int]:
-    """Return n bank indices prioritised by topics mentioned in study_focus.
-    Falls back to a broad cross-topic sample when no topic is detected.
+    """Return bank indices for pre-assessment.
+
+    - "topic:<key>" → all questions for that topic only (up to n)
+    - no topic signal → broad sample across topic groups
+    - keyword match → questions from matched topics first
     """
-    focus = (study_focus or "").lower()
+    focus = (study_focus or "").strip()
+
+    # Explicit topic selection from onboarding menu
+    if focus.startswith("topic:"):
+        key = focus[len("topic:"):].strip()
+        indices = _TOPIC_BANK_MAP.get(key, [])
+        return indices[:n] if indices else _BROAD_DIAGNOSTIC[:n]
+
+    focus_lower = focus.lower()
 
     # Score each topic by keyword matches
     topic_scores: dict[str, int] = {}
     for topic, kws in _TOPIC_KEYWORDS.items():
-        topic_scores[topic] = sum(1 for k in kws if k in focus)
+        topic_scores[topic] = sum(1 for k in kws if k in focus_lower)
 
     max_score = max(topic_scores.values(), default=0)
 
-    # No topic signal — return a spread across all topic groups
+    # No topic signal → broad cross-topic sample
     if max_score == 0:
         return _BROAD_DIAGNOSTIC[:n]
 
-    # Build ordered list: highest-score topics first
+    # Keyword match → all questions for the top-scoring topic(s)
     ordered_topics = sorted(topic_scores, key=lambda t: -topic_scores[t])
     seen: set[int] = set()
     result: list[int] = []
@@ -283,7 +294,6 @@ def get_diagnostic_order(study_focus: str, n: int = 4) -> list[int]:
             if len(result) == n:
                 return result
 
-    # Fill remaining slots from the broad sample (preserves topic diversity)
     for idx in _BROAD_DIAGNOSTIC:
         if idx not in seen:
             seen.add(idx)
@@ -336,16 +346,19 @@ def pedagogy_agent(state: TutoringState) -> dict:
 
     # ── Rapport: handle diagnostic probe ──────────────────────────────────
     if phase == "rapport":
-        # turn 1 = warmup exchange (no anatomy answer), turn 2+ = diagnostic answers
+        # turn 1 = topic selection (no anatomy answer); turn 2+ = diagnostic answers
         # display_idx is 0-based position in the diagnostic sequence (0 = first Q shown)
         display_idx = turn - 2
-        n_diag = _cfg["session"]["diagnostic_questions"]
+        sf = state.get("study_focus") or ""
+        n_max = _cfg["session"]["diagnostic_questions"]
+        order = get_diagnostic_order(sf, n=n_max)
+        n_diag = len(order)  # actual number of questions for this topic
+
         if 0 <= display_idx < n_diag:
-            order = get_diagnostic_order(state.get("study_focus") or "", n=n_diag)
             actual_q_id = order[min(display_idx, len(order) - 1)]
             mastery = _init_mastery_from_diagnostic(student_msg, actual_q_id, mastery)
 
-        complete = (turn - 1) >= _cfg["session"]["diagnostic_questions"]
+        complete = (turn - 1) >= n_diag
         return {
             "mastery_scores": mastery,
             "diagnostic_complete": complete,

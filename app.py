@@ -28,12 +28,12 @@ with open("config.yaml") as f:
 _DIAGNOSTIC_QUESTIONS = cfg["session"]["diagnostic_questions"]
 
 
-def _fmt_diag_q(idx: int, question: str, first: bool = False) -> str:
+def _fmt_diag_q(idx: int, question: str, total: int, first: bool = False) -> str:
     prefix = (
-        f"---\n\n**Quick diagnostic — {_DIAGNOSTIC_QUESTIONS} questions to calibrate where we start:**\n\n"
+        f"---\n\n**Pre-assessment — {total} questions to see what you already know:**\n\n"
         if first else "---\n\n"
     )
-    return f"{prefix}**🩺 Q{idx + 1} of {_DIAGNOSTIC_QUESTIONS}:** {question}"
+    return f"{prefix}**Q{idx + 1} of {total}:** {question}"
 
 # Phase display names and icons
 _PHASE_INFO = {
@@ -72,47 +72,62 @@ _PHASE_TRANSITION_MSGS = {
 }
 
 
-async def _parse_onboarding(text: str) -> tuple[str, str]:
-    """Use LLM to extract study_focus and learning_mode from the user's first message."""
+# Topic menu: display name, topic key, keywords for matching
+_TOPIC_MENU = [
+    ("Brachial Plexus",                        "brachial_plexus",     ["1", "brachial", "plexus"]),
+    ("Rotator Cuff",                            "rotator_cuff",        ["2", "rotator", "cuff", "sits"]),
+    ("Peripheral Nerves (median, ulnar, radial)","peripheral_nerves",   ["3", "peripheral", "median", "ulnar", "radial", "axillary"]),
+    ("Shoulder Joint",                          "shoulder_joint",      ["4", "shoulder", "glenohumeral", "ac joint"]),
+    ("Elbow Joint",                             "elbow_joint",         ["5", "elbow", "cubital", "carrying angle"]),
+    ("Wrist & Hand",                            "wrist_hand",          ["6", "wrist", "hand", "carpal", "thenar"]),
+    ("Dermatomes (C5–T1)",                      "dermatomes",          ["7", "dermatome", "sensation", "sensory", "numbness"]),
+    ("Nerve Injury Syndromes",                  "nerve_injuries",      ["8", "nerve injur", "erb", "klumpke", "wrist drop", "claw", "palsy", "saturday"]),
+    ("Upper Limb Muscles",                      "upper_limb_muscles",  ["9", "muscle", "biceps", "triceps", "deltoid"]),
+    ("Spinal Cord",                             "spinal_cord",         ["10", "spinal cord", "spinal", "conus", "cauda"]),
+]
+
+
+async def _parse_topic_choice(text: str) -> tuple[str, str]:
+    """Extract chosen topic key and learning_mode from the student's first message.
+    Returns (topic_key, learning_mode). Falls back to LLM if keyword match fails.
+    """
+    lower = text.lower().strip()
+    learning_mode = "visual" if any(w in lower for w in ("diagram", "visual", "image", "picture", "figure")) else "text"
+
+    # Keyword / number matching (fast path)
+    for _, key, keywords in _TOPIC_MENU:
+        if any(kw in lower for kw in keywords):
+            return f"topic:{key}", learning_mode
+
+    # LLM fallback for free-form answers
     import json as _json
     from openai import AsyncOpenAI
     from dotenv import load_dotenv
     load_dotenv()
+    topic_list = ", ".join(k for _, k, _ in _TOPIC_MENU)
     try:
         client = AsyncOpenAI()
         resp = await client.chat.completions.create(
             model="gpt-4o-mini",
-            max_tokens=120,
+            max_tokens=60,
             temperature=0,
             messages=[
                 {"role": "system", "content": (
-                    "You parse a student's first message to an NBCOT anatomy tutor. "
-                    "Return JSON with exactly two keys:\n"
-                    '  "study_focus": one of "revision" | "everything" | "specific: <topic phrase>"\n'
-                    '  "learning_mode": "visual" if they mention diagrams/images/visual, else "text"\n'
-                    "Available topics: brachial_plexus, peripheral_nerves, rotator_cuff, spinal_cord, "
-                    "shoulder_joint, elbow_joint, wrist_hand, dermatomes, nerve_injuries, upper_limb_muscles.\n"
-                    "For study_focus: if they mention specific topics write them in the phrase. "
-                    'If they want everything or are unsure use "everything". '
-                    'If they mention reviewing/revising use "revision". '
-                    "Return ONLY the JSON object, no other text."
+                    f"Pick the single best matching topic key from: {topic_list}. "
+                    "Return ONLY the key, nothing else."
                 )},
                 {"role": "user", "content": text},
             ],
         )
-        data = _json.loads(resp.choices[0].message.content.strip())
-        return data.get("study_focus", f"specific: {text[:120]}"), data.get("learning_mode", "text")
+        key = resp.choices[0].message.content.strip().lower().replace(" ", "_")
+        valid_keys = {k for _, k, _ in _TOPIC_MENU}
+        if key in valid_keys:
+            return f"topic:{key}", learning_mode
     except Exception:
-        # Fallback to keyword matching if LLM call fails
-        lower = text.lower()
-        learning_mode = "visual" if any(w in lower for w in ("diagram", "visual", "image", "picture")) else "text"
-        if any(w in lower for w in ("revise", "revision", "review", "recap")):
-            study_focus = "revision"
-        elif any(w in lower for w in ("everything", "all", "full", "complete", "entire")):
-            study_focus = "everything"
-        else:
-            study_focus = f"specific: {text.strip()[:120]}"
-        return study_focus, learning_mode
+        pass
+
+    # Last resort: brachial_plexus (most foundational)
+    return "topic:brachial_plexus", learning_mode
 
 
 # ── Session lifecycle ─────────────────────────────────────────────────────────
@@ -126,13 +141,17 @@ async def on_chat_start():
     cl.user_session.set("warmup_done", False)    # Track casual warm-up exchange
     cl.user_session.set("diag_q_index", 0)      # Next diagnostic question to inject
 
+    topic_list = "\n".join(
+        f"{i+1}. {name}" for i, (name, _, _) in enumerate(_TOPIC_MENU)
+    )
     welcome = (
-        "# 👋 Hey! Welcome to UnMask\n\n"
-        "I'm your NBCOT anatomy study companion. "
-        "I use the **Socratic method** — I'll guide you *toward* answers rather than just giving them. "
-        "Takes more effort but the understanding actually sticks. 💪\n\n"
-        "**What are you finding toughest right now — and do you prefer learning with diagrams or written Q&A?**\n\n"
-        "*(Just reply naturally, I'll calibrate from there!)*"
+        "# 👋 Welcome to UnMask\n\n"
+        "I'm your NBCOT anatomy study companion. I use the **Socratic method** — "
+        "I'll ask questions to build real understanding, not just hand you the answers.\n\n"
+        "**Which topic do you want to study today?**\n\n"
+        f"{topic_list}\n\n"
+        "Also — do you prefer **diagrams** or **written explanations**?\n\n"
+        "*(Reply with a number, topic name, or just describe what's giving you trouble!)*"
     )
 
     await cl.Message(content=welcome, author="UnMask").send()
@@ -153,10 +172,10 @@ async def on_message(message: cl.Message):
     # history again would double it on every turn (checkpointer already holds it).
     state["conversation_history"] = []
 
-    # ── Capture study preferences from first message (before graph call) ────
+    # ── Capture topic + learning mode from first message (before graph call) ────
     warmup_already_done = cl.user_session.get("warmup_done", False)
     if not warmup_already_done:
-        study_focus, learning_mode = await _parse_onboarding(message.content)
+        study_focus, learning_mode = await _parse_topic_choice(message.content)
         state["study_focus"] = study_focus
         state["learning_mode"] = learning_mode
 
@@ -175,14 +194,15 @@ async def on_message(message: cl.Message):
     just_finished_diag = (not prev_diag_complete) and result.get("diagnostic_complete", False)
 
     if just_finished_diag:
-        # Start on the weakest diagnosed topic so the first tutoring Q is relevant
-        mastery = result.get("mastery_scores", {})
-        if mastery:
-            weakest = min(mastery, key=lambda k: mastery[k])
-            trigger_msg = f"Let's work on {weakest.replace('_', ' ').replace('.', ' ')}"
-        else:
-            trigger_msg = "Let's start tutoring on upper limb anatomy"
+        # Start tutoring on the topic the student chose at onboarding
+        sf = result.get("study_focus") or state.get("study_focus") or ""
+        chosen = sf.replace("topic:", "").strip() if sf.startswith("topic:") else ""
+        if not chosen:
+            mastery = result.get("mastery_scores", {})
+            chosen = min(mastery, key=lambda k: mastery[k]) if mastery else "brachial_plexus.origin"
+        trigger_msg = f"Let's start tutoring on {chosen.replace('_', ' ').replace('.', ' ')}"
         result["student_message"] = trigger_msg
+        result["current_topic"] = chosen
         result["conversation_history"] = []
         result["elapsed_seconds"] = time.time() - start_time
         result = graph.invoke(result, config=config)
@@ -209,24 +229,30 @@ async def on_message(message: cl.Message):
     response = result.get("generated_response", "")
     warmup_done = cl.user_session.get("warmup_done", False)
 
-    # During rapport: first turn = warmup ack, then inject topic-relevant diagnostic Qs
+    # During rapport: first message = topic pick → immediately start pre-assessment
     if phase == "rapport" and not diagnostic_complete:
         diag_idx = cl.user_session.get("diag_q_index", 0)
         if not warmup_done:
-            # Build question order from study_focus — returns bank indices prioritised by topic
             order = get_diagnostic_order(state.get("study_focus") or "", n=_DIAGNOSTIC_QUESTIONS)
+            diag_total = len(order)
             cl.user_session.set("diag_order", order)
+            cl.user_session.set("diag_total", diag_total)
             cl.user_session.set("warmup_done", True)
             cl.user_session.set("diag_q_index", 1)
+            # Acknowledge the topic choice
+            sf = state.get("study_focus", "")
+            topic_key = sf.replace("topic:", "").replace("_", " ").title() if sf.startswith("topic:") else "this topic"
+            ack = f"**{topic_key}** — good choice. Let me see what you already know.\n\n"
             q0 = generate_diagnostic_question(order[0])
-            q0_block = _fmt_diag_q(0, q0, first=True)
-            response = (response + f"\n\n{q0_block}") if response else q0_block
+            q0_block = _fmt_diag_q(0, q0, diag_total, first=True)
+            response = ack + q0_block
         else:
             order = cl.user_session.get("diag_order", list(range(_DIAGNOSTIC_QUESTIONS)))
+            diag_total = cl.user_session.get("diag_total", len(order))
             if diag_idx < len(order):
                 next_q = generate_diagnostic_question(order[diag_idx])
                 if next_q:
-                    q_block = _fmt_diag_q(diag_idx, next_q)
+                    q_block = _fmt_diag_q(diag_idx, next_q, diag_total)
                     response = (response + f"\n\n{q_block}") if response else q_block
                     cl.user_session.set("diag_q_index", diag_idx + 1)
 
