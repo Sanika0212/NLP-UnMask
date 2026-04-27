@@ -147,9 +147,11 @@ Talk like a real human tutor — natural, conversational, not stiff or robotic.
 
 HARD RULES:
 1. You KNOW the correct answer (internal_analysis.correct_answer) — never state it aloud.
-2. socratic_question MUST end with "?" and nudge the student toward the answer.
+2. socratic_question MUST end with "?" — ask about a SYMPTOM, PRESENTATION, or SCENARIO. NEVER describe the function/role of the correct nerve or muscle in the question itself (that gives away the answer).
 3. Keep responses SHORT: encouragement = 1 natural sentence, question = 1 sentence.
 4. No bullet points, no headers, no "Rule 1:" style text in your response.
+5. Stay strictly on the student's selected study topic ({study_focus}). Do not introduce new anatomy regions not related to this topic.
+6. BAD question example: "Which nerve is associated with wrist drop due to its role in extending the wrist?" — this reveals the answer. GOOD: "A patient wakes up unable to lift their wrist after sleeping with their arm over a chair — what do you think happened?"
 
 CONTEXT (textbook source of truth):
 {context}
@@ -158,7 +160,7 @@ STUDENT MASTERY: {mastery:.0%} on current topic | RETRIEVAL MODE: {mode} (answer
 LEARNING MODE: {learning_mode} — if "visual", reference spatial/structural relationships and diagram features in your question
 CONVERSATION: {history}
 TURN: {turn} | CONSECUTIVE INCORRECT: {consecutive_incorrect}
-STUDY FOCUS: {study_focus} | LEARNING MODE: {learning_mode} — if "visual", use spatial anatomical descriptions and reference diagram layouts; if "text", use clear prose explanations.
+STUDY FOCUS: {study_focus} — ALL questions MUST stay within this topic area. Do not stray to unrelated anatomy concepts. If study_focus starts with "topic:", focus exclusively on that topic's clinical syndromes, mechanisms, and signs. | LEARNING MODE: {learning_mode} — if "visual", use spatial anatomical descriptions and reference diagram layouts; if "text", use clear prose explanations.
 
 TONE GUIDE — encouragement must be exactly ONE sentence, original, not canned:
 - consecutive_incorrect = 0 → specific praise e.g. "Nice — you've got the root level right!"
@@ -454,26 +456,20 @@ def socratic_generator(state: TutoringState) -> dict:
         # Turn 0: casual warmup. Turn 1+: reacting to a diagnostic answer.
         if turn == 0:
             system_prompt = _RAPPORT_WARMUP_SYSTEM
-            max_tok = 120
+            max_tok = 600
         else:
-            # Tell the LLM which question was just answered so the reaction is accurate
-            import yaml as _yaml
-            with open("config.yaml") as _f:
-                _session_cfg = _yaml.safe_load(_f)["session"]
-            _diag_prompts = [
-                "What spinal cord levels make up the brachial plexus?",
-                "Name the four rotator cuff muscles.",
-                "Which nerve innervates the deltoid muscle?",
-                "What is the function of the supraspinatus?",
-            ]
-            diag_q_idx = max(0, turn - 2)  # turn=1→warmup, turn=2→Q0 answer, etc.
-            asked_q = _diag_prompts[diag_q_idx] if diag_q_idx < len(_diag_prompts) else ""
+            # Get the actual diagnostic question and correct-answer keywords from state
+            asked_q = state.get("current_diagnostic_question", "")
+            answer_hint = state.get("current_diagnostic_answer_hint", "")
             system_prompt = _RAPPORT_SYSTEM + (
                 f"\n\nQUESTION THE STUDENT JUST ANSWERED: \"{asked_q}\"\n"
+                f"CORRECT ANSWER MUST INCLUDE THESE KEY TERMS: {answer_hint}\n"
+                "Judge correctness strictly: if the student's answer does not include "
+                "the key terms above, say 'Not quite' — do NOT say 'correct' or 'exactly right'. "
                 "React specifically to their answer to THIS question. "
                 "Do NOT reference other anatomy topics."
             )
-            max_tok = 80
+            max_tok = 600
         text = None
         if _use_local(phase):
             try:
@@ -488,7 +484,7 @@ def socratic_generator(state: TutoringState) -> dict:
                 max_tokens=max_tok,
                 temperature=0.6,
             )
-            text = resp.choices[0].message.content.strip()
+            text = (resp.choices[0].message.content or "").strip()
         # Strip any question the model generated — the next diagnostic Q is appended by app.py
         if text and "?" in text:
             import re
@@ -573,10 +569,11 @@ def socratic_generator(state: TutoringState) -> dict:
                 fig_chunks = [c for c in chunks if c.get("chunk_type") in ("figure", "figure_description")]
             if fig_chunks:
                 fc = fig_chunks[0]
-                # Store raw concept id for image lookup in app.py
-                visual_hint = f"__concept__:{fc.get('concept', topic or '')}\n{fc['text']}"
+                # Always use state topic for image lookup — not the retrieved chunk's concept,
+                # which may be from a different topic if retrieval drifted
+                visual_hint = f"__concept__:{topic or fc.get('concept', '')}\n{fc['text']}"
             else:
-                # Fall back: use the best non-answer context chunk for this topic
+                # Prefer chunks that actually match the current topic
                 ctx_chunks = [
                     c for c in chunks
                     if not c.get("is_answer_chunk")
@@ -586,7 +583,7 @@ def socratic_generator(state: TutoringState) -> dict:
                     ctx_chunks = [c for c in chunks if not c.get("is_answer_chunk")]
                 if ctx_chunks:
                     best = ctx_chunks[0]
-                    visual_hint = f"__concept__:{best.get('concept', topic or '')}\n{best['text'][:400]}"
+                    visual_hint = f"__concept__:{topic or best.get('concept', '')}\n{best['text'][:400]}"
     elif phase == "assessment":
         import json
         system = _ASSESSMENT_SYSTEM.format(

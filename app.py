@@ -19,7 +19,7 @@ import chainlit as cl
 import yaml
 
 from src.graph import graph, make_initial_state
-from src.nodes.pedagogy_agent import generate_diagnostic_question, get_diagnostic_order
+from src.nodes.pedagogy_agent import generate_diagnostic_question, get_diagnostic_order, get_diagnostic_answer_keywords
 from src.anatomy_images import get_image_for_topic
 
 with open("config.yaml") as f:
@@ -92,7 +92,8 @@ async def _parse_topic_choice(text: str) -> tuple[str, str]:
     Returns (topic_key, learning_mode). Falls back to LLM if keyword match fails.
     """
     lower = text.lower().strip()
-    learning_mode = "visual" if any(w in lower for w in ("diagram", "visual", "image", "picture", "figure")) else "text"
+    _visual_kw = ("diagram", "digram", "diagrams", "visual", "image", "picture", "figure", "draw", "sketch", "chart")
+    learning_mode = "visual" if any(w in lower for w in _visual_kw) else "text"
 
     # Keyword / number matching (fast path)
     for _, key, keywords in _TOPIC_MENU:
@@ -159,6 +160,10 @@ async def on_chat_start():
 
 @cl.on_message
 async def on_message(message: cl.Message):
+    if not message.content or not message.content.strip():
+        await cl.Message(content="Please type your answer before submitting.", author="UnMask").send()
+        return
+
     state = cl.user_session.get("state")
     start_time = cl.user_session.get("session_start", time.time())
 
@@ -194,18 +199,33 @@ async def on_message(message: cl.Message):
     just_finished_diag = (not prev_diag_complete) and result.get("diagnostic_complete", False)
 
     if just_finished_diag:
-        # Start tutoring on the topic the student chose at onboarding
+        # Start tutoring on the weakest specific concept within the chosen topic
         sf = result.get("study_focus") or state.get("study_focus") or ""
-        chosen = sf.replace("topic:", "").strip() if sf.startswith("topic:") else ""
-        if not chosen:
-            mastery = result.get("mastery_scores", {})
-            chosen = min(mastery, key=lambda k: mastery[k]) if mastery else "brachial_plexus.origin"
-        trigger_msg = f"Let's start tutoring on {chosen.replace('_', ' ').replace('.', ' ')}"
+        chosen_topic = sf.replace("topic:", "").strip() if sf.startswith("topic:") else ""
+        mastery = result.get("mastery_scores", {})
+
+        # Pick the weakest concept within the chosen topic (most in need of tutoring)
+        from src.nodes.pedagogy_agent import _TOPIC_BANK_MAP, _DIAGNOSTIC_BANK
+        topic_concepts = [_DIAGNOSTIC_BANK[i]["concept"] for i in _TOPIC_BANK_MAP.get(chosen_topic, [])]
+        if topic_concepts:
+            start_concept = min(topic_concepts, key=lambda c: mastery.get(c, 0))
+        elif mastery:
+            start_concept = min(mastery, key=lambda k: mastery[k])
+        else:
+            start_concept = chosen_topic or "nerve_injuries.radial"
+
+        trigger_msg = f"Let's work on {start_concept.replace('_', ' ').replace('.', ' ')}"
         result["student_message"] = trigger_msg
-        result["current_topic"] = chosen
+        result["current_topic"] = start_concept
         result["conversation_history"] = []
         result["elapsed_seconds"] = time.time() - start_time
+        result["consecutive_incorrect"] = 0
+        result["consecutive_correct"] = 0
         result = graph.invoke(result, config=config)
+        # Reset again after invoke — pedagogy_agent evaluates the synthetic trigger
+        # message as "wrong", which would poison the counter for the first real Q
+        result["consecutive_incorrect"] = 0
+        result["consecutive_correct"] = 0
 
     # Persist updated state
     cl.user_session.set("state", result)
@@ -239,13 +259,17 @@ async def on_message(message: cl.Message):
             cl.user_session.set("diag_total", diag_total)
             cl.user_session.set("warmup_done", True)
             cl.user_session.set("diag_q_index", 1)
-            # Acknowledge the topic choice
+            # Acknowledge the topic choice + learning mode
             sf = state.get("study_focus", "")
+            lm = state.get("learning_mode", "text")
             topic_key = sf.replace("topic:", "").replace("_", " ").title() if sf.startswith("topic:") else "this topic"
-            ack = f"**{topic_key}** — good choice. Let me see what you already know.\n\n"
+            mode_note = " I'll include diagrams as we go." if lm == "visual" else ""
+            ack = f"**{topic_key}** — good choice.{mode_note} Let me see what you already know.\n\n"
             q0 = generate_diagnostic_question(order[0])
             q0_block = _fmt_diag_q(0, q0, diag_total, first=True)
             response = ack + q0_block
+            result["current_diagnostic_question"] = q0
+            result["current_diagnostic_answer_hint"] = get_diagnostic_answer_keywords(order[0])
         else:
             order = cl.user_session.get("diag_order", list(range(_DIAGNOSTIC_QUESTIONS)))
             diag_total = cl.user_session.get("diag_total", len(order))
@@ -254,6 +278,8 @@ async def on_message(message: cl.Message):
                 if next_q:
                     q_block = _fmt_diag_q(diag_idx, next_q, diag_total)
                     response = (response + f"\n\n{q_block}") if response else q_block
+                    result["current_diagnostic_question"] = next_q
+                    result["current_diagnostic_answer_hint"] = get_diagnostic_answer_keywords(order[diag_idx])
                     cl.user_session.set("diag_q_index", diag_idx + 1)
 
     # Determine author label
@@ -265,12 +291,27 @@ async def on_message(message: cl.Message):
     author = author_map.get(phase, "UnMask")
 
     # Update thinking placeholder with the tutor response first
-    if thinking_msg is not None:
-        thinking_msg.content = response
-        thinking_msg.author = author
-        await thinking_msg.update()
-    else:
-        await cl.Message(content=response, author=author).send()
+    if response:  # skip send entirely if response is empty (avoids blank duplicate messages)
+        if thinking_msg is not None:
+            thinking_msg.content = response
+            thinking_msg.author = author
+            await thinking_msg.update()
+            thinking_msg = None
+        else:
+            await cl.Message(content=response, author=author).send()
+    elif thinking_msg is not None:
+        await thinking_msg.remove()
+
+    # ── Force visual hint if student explicitly requests a diagram mid-session ──
+    _student_msg_lower = (message.content or "").lower()
+    _diagram_keywords = ("diagram", "image", "picture", "figure", "visual", "show me", "illustrate")
+    if phase == "tutoring" and not result.get("visual_hint") and any(w in _student_msg_lower for w in _diagram_keywords):
+        topic_for_img = result.get("current_topic") or state.get("current_topic") or ""
+        result["visual_hint"] = f"__concept__:{topic_for_img}\nHere is a diagram for this topic."
+        # Also switch to visual mode for remainder of session
+        result["learning_mode"] = "visual"
+        state["learning_mode"] = "visual"
+        cl.user_session.set("state", result)
 
     # ── Visual hint card — always a fresh send() so cl.Image renders correctly ──
     visual_hint = result.get("visual_hint")
@@ -287,27 +328,53 @@ async def on_message(message: cl.Message):
 
         concept_label = hint_concept.replace("_", " ").replace(".", " › ").title()
 
+        # Build study-guide text from hint_text (figure description from KB)
+        # Trim to first 3 sentences so it's scannable, not overwhelming
+        import re as _re
+        _sentences = _re.split(r'(?<=[.!?])\s+', hint_text.strip())
+        _study_notes = " ".join(_sentences[:3]).strip() if _sentences else ""
+
         if img_data:
             elements = []
             image_file = img_data.get("image_file")
+            has_image = False
             if image_file:
                 img_path = os.path.abspath(os.path.join("public", "anatomy", image_file))
                 if os.path.exists(img_path):
                     elements.append(cl.Image(path=img_path, name=concept_label, display="inline"))
-                    image_file = None  # mark as loaded; skip ASCII fallback
+                    has_image = True
+
+            # Build card: image first, then caption, then guided notes
+            card_lines = [f"### 🖼️ {concept_label}", ""]
+            card_lines.append(f"*{img_data['caption']}*")
+            card_lines.append("")
+            if not has_image:
+                # ASCII fallback only when no real image
+                card_lines.append(f"```\n{img_data['diagram']}\n```")
+                card_lines.append("")
+            if _study_notes:
+                card_lines.append("**What to look for:**")
+                card_lines.append(f"> {_study_notes}")
+                card_lines.append("")
+            card_lines.append("---")
+            card_lines.append("*Study the diagram above, then try the question again.*")
+
             await cl.Message(
-                content=(
-                    f"### 🖼️ Visual Reference — {concept_label}\n\n"
-                    f"📌 *{img_data['caption']}*\n\n"
-                    + ("" if not image_file else f"```\n{img_data['diagram']}\n```\n\n")
-                    + "---\n*Study this, then try the question below.*"
-                ),
+                content="\n".join(card_lines),
                 elements=elements,
                 author="🖼️ Visual Aid",
             ).send()
         else:
+            # No image data at all — show the KB text as a clean reference block
+            card_lines = [f"### 📖 Reference — {concept_label}", ""]
+            if _study_notes:
+                card_lines.append("**What to know:**")
+                card_lines.append(f"> {_study_notes}")
+                card_lines.append("")
+            card_lines.append("---")
+            card_lines.append("*Review this, then try the question again.*")
             await cl.Message(
-                content=f"### 🖼️ Reference — {concept_label}\n\n```\n{hint_text}\n```\n\n---\n*Study this, then try again.*",
+                content="\n".join(card_lines),
                 author="🖼️ Visual Aid",
             ).send()
 
