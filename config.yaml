@@ -1,5 +1,6 @@
 llm:
-  model: gpt-4o           # or "openai/gpt-4o" for OpenRouter
+  model: openai/gpt-5       # main Socratic generation — gpt-5 via OpenRouter
+  utility_model: openai/gpt-4.1  # fast cheap model for CRAG grading, mastery eval, query reformulation
   temperature: 0.3
   local_model: llama3.1   # Ollama — used for rapport/wrapup phases
   use_local_for: []   # Ollama not running — route all phases through API

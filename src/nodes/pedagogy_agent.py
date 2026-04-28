@@ -90,12 +90,12 @@ def _evaluate_response(
         "Reply with 'correct' or 'incorrect' followed by one sentence of reason."
     )
     resp = client.chat.completions.create(
-        model=_cfg["llm"]["model"],
+        model=_cfg["llm"].get("utility_model", _cfg["llm"]["model"]),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=60,
         temperature=0,
     )
-    text = resp.choices[0].message.content.strip().lower()
+    text = (resp.choices[0].message.content or "incorrect").strip().lower()
     is_correct = text.startswith("correct")
     return is_correct, text
 
@@ -308,6 +308,13 @@ def generate_diagnostic_question(bank_idx: int) -> str:
     """Return the diagnostic question for a bank index."""
     if 0 <= bank_idx < len(_DIAGNOSTIC_BANK):
         return _DIAGNOSTIC_BANK[bank_idx]["question"]
+    return ""
+
+
+def get_diagnostic_answer_keywords(bank_idx: int) -> str:
+    """Return a comma-separated hint of correct-answer keywords for a bank question."""
+    if 0 <= bank_idx < len(_DIAGNOSTIC_BANK):
+        return ", ".join(_DIAGNOSTIC_BANK[bank_idx].get("keywords", []))
     return ""
 
 

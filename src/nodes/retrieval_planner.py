@@ -186,19 +186,20 @@ def _grade_chunks(query: str, chunks: list[dict]) -> bool:
         "Reply with only 'yes' or 'no'."
     )
     resp = client.chat.completions.create(
-        model=_cfg["llm"]["model"],
+        model=_cfg["llm"].get("utility_model", _cfg["llm"]["model"]),
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=5,
+        max_tokens=16,
         temperature=0,
     )
-    return resp.choices[0].message.content.strip().lower().startswith("y")
+    content = resp.choices[0].message.content or ""
+    return content.strip().lower().startswith("y")
 
 
 def _reformulate_query(original_query: str) -> str:
     """CRAG re-query: synonym expansion + sub-question decomposition."""
     client = _get_openai()
     resp = client.chat.completions.create(
-        model=_cfg["llm"]["model"],
+        model=_cfg["llm"].get("utility_model", _cfg["llm"]["model"]),
         messages=[{
             "role": "user",
             "content": (
@@ -210,7 +211,8 @@ def _reformulate_query(original_query: str) -> str:
         max_tokens=60,
         temperature=0.3,
     )
-    return resp.choices[0].message.content.strip()
+    content = resp.choices[0].message.content or original_query
+    return content.strip()
 
 
 # ── Main retrieval function ───────────────────────────────────────────────────

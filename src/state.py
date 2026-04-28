@@ -73,3 +73,7 @@ class TutoringState(TypedDict):
     # Onboarding preferences — captured from the first user message before diagnostics
     study_focus: Optional[str]   # "everything" | "revision" | "specific: <topic>"
     learning_mode: Optional[str] # "text" | "visual"
+
+    # Current diagnostic question (during rapport phase) — passed to socratic_generator
+    current_diagnostic_question: Optional[str]
+    current_diagnostic_answer_hint: Optional[str]  # correct-answer keywords — used by rapport LLM to judge correctness
