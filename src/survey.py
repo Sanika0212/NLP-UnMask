@@ -134,7 +134,7 @@ def save_results(data: dict) -> str:
 async def _ask_mcq(idx: int, total: int, question: dict, phase_label: str) -> str:
     """Send one MCQ and wait for the student's button click. Returns chosen option label."""
     actions = [
-        cl.Action(name=f"opt_{o[0]}", value=o[0], label=o)
+        cl.Action(name=f"opt_{o[0]}", value=o[0], label=o, payload={})
         for o in question["opts"]
     ]
     res = await cl.AskActionMessage(
@@ -149,7 +149,7 @@ async def _ask_mcq(idx: int, total: int, question: dict, phase_label: str) -> st
 async def _ask_likert(idx: int, total: int, question: str) -> int:
     """Send one Likert question (1–5) and return the integer rating."""
     actions = [
-        cl.Action(name=f"likert_{v}", value=str(v), label=label)
+        cl.Action(name=f"likert_{v}", value=str(v), label=label, payload={})
         for v, label in enumerate(LIKERT_LABELS, 1)
     ]
     res = await cl.AskActionMessage(
@@ -192,7 +192,7 @@ async def run_onboarding() -> tuple[str, str]:
     participant_id = (pid_res["output"] if pid_res else "unknown").strip() or "unknown"
 
     role_actions = [
-        cl.Action(name=f"role_{r.replace(' ', '_')}", value=r, label=r)
+        cl.Action(name=f"role_{r.replace(' ', '_')}", value=r, label=r, payload={})
         for r in ROLES
     ]
     role_res = await cl.AskActionMessage(

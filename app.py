@@ -172,8 +172,8 @@ async def on_chat_start():
             "Are you here for the **pilot study** or a regular study session?"
         ),
         actions=[
-            cl.Action(name="pilot", value="pilot", label="🔬 Pilot Study (pre/post quiz + survey)"),
-            cl.Action(name="regular", value="regular", label="📚 Regular Study Session"),
+            cl.Action(name="pilot", value="pilot", label="🔬 Pilot Study (pre/post quiz + survey)", payload={}),
+            cl.Action(name="regular", value="regular", label="📚 Regular Study Session", payload={}),
         ],
         author="UnMask",
         timeout=120,
