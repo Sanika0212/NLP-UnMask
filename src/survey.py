@@ -118,9 +118,10 @@ def _score(answers: list[str], quiz: list[dict]) -> int:
 
 def save_results(data: dict) -> str:
     """Append one row to today's CSV. Thread-safe."""
-    Path("survey_results").mkdir(exist_ok=True)
+    results_dir = os.getenv("SURVEY_RESULTS_DIR", "survey_results")
+    Path(results_dir).mkdir(parents=True, exist_ok=True)
     date_str = datetime.now().strftime("%Y%m%d")
-    filepath = f"survey_results/survey_{date_str}.csv"
+    filepath = os.path.join(results_dir, f"survey_{date_str}.csv")
     with _SAVE_LOCK:
         is_new = not os.path.exists(filepath)
         with open(filepath, "a", newline="", encoding="utf-8") as f:

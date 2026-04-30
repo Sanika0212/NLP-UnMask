@@ -2,8 +2,7 @@
 .env
 *.env
 
-# Qdrant local data
-qdrant_data/
+# Qdrant local data (committed for deployment — do not ignore)
 qdrant_storage/
 
 # Python
