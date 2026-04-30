@@ -171,6 +171,20 @@ CRITICAL: Write ONE sentence only for encouragement. No joining two phrases with
 NEVER say "great job" / "well done" / "you're doing great" when consecutive_incorrect > 0.
 {revisit_block}"""
 
+_REVEAL_SYSTEM = """\
+You are UnMask, a study partner for OT anatomy (NBCOT prep).
+The student has been stuck on this concept or asked you directly — now be a real partner and just tell them.
+
+CONTEXT (textbook source of truth):
+{context}
+
+WHAT TO DO (in visible_response):
+- encouragement: Acknowledge their effort honestly in ONE natural sentence. If they asked directly, say something like "No problem — let me just walk you through it." NOT fake praise.
+- socratic_question: Give the correct answer clearly in 1-2 sentences (you can name it — they need to know it now). Then briefly explain WHY (mechanism/clinical link). End with ONE simple check question like "Does that click now?" or "Want to try a quick follow-up?"
+
+In internal_analysis, still compute the correct answer and misconception as usual.
+STUDY FOCUS: {study_focus} | CONSECUTIVE INCORRECT: {consecutive_incorrect}"""
+
 _ASSESSMENT_SYSTEM = """\
 You are UnMask in assessment mode.
 Present ONE clinical scenario grounded in the textbook chunks.
@@ -569,6 +583,16 @@ def socratic_generator(state: TutoringState) -> dict:
         }
 
     # ── Tutoring / Assessment: structured output via OpenAI ────────────────
+    _GIVE_ANSWER_TRIGGERS = (
+        "tell me the answer", "just tell me", "what is the answer", "what's the answer",
+        "give me the answer", "i give up", "i have no idea", "no idea whatsoever",
+        "i don't know at all", "i dont know at all", "i'm clueless", "im clueless",
+        "i don't have time", "dont have time",
+    )
+    _student_msg_lower = (state.get("student_message") or "").lower()
+    wants_answer = any(t in _student_msg_lower for t in _GIVE_ANSWER_TRIGGERS)
+    break_socratic = wants_answer or consecutive_incorrect >= 4
+
     if phase == "tutoring":
         # Build revisit block when orchestrator has scheduled a proactive revisit
         revisit_block = ""
@@ -594,18 +618,25 @@ def socratic_generator(state: TutoringState) -> dict:
 
         consecutive_incorrect = state.get("consecutive_incorrect", 0)
 
-        system = _TUTORING_SYSTEM.format(
-            context=context_text,
-            mastery=mastery.get(topic, _cfg["mastery"]["default_prior"]),
-            mode=mode,
-            answer_visibility="NOT " if mode != "full_reveal" else "",
-            history=recent_history,
-            turn=turn,
-            consecutive_incorrect=consecutive_incorrect,
-            revisit_block=revisit_block,
-            study_focus=state.get("study_focus") or "general",
-            learning_mode=state.get("learning_mode") or "text",
-        )
+        if break_socratic:
+            system = _REVEAL_SYSTEM.format(
+                context=context_text,
+                study_focus=state.get("study_focus") or "general",
+                consecutive_incorrect=consecutive_incorrect,
+            )
+        else:
+            system = _TUTORING_SYSTEM.format(
+                context=context_text,
+                mastery=mastery.get(topic, _cfg["mastery"]["default_prior"]),
+                mode=mode,
+                answer_visibility="NOT " if mode != "full_reveal" else "",
+                history=recent_history,
+                turn=turn,
+                consecutive_incorrect=consecutive_incorrect,
+                revisit_block=revisit_block,
+                study_focus=state.get("study_focus") or "general",
+                learning_mode=state.get("learning_mode") or "text",
+            )
 
         # Build visual hint separately — shown as a UI card by app.py, NOT in the LLM response
         visual_hint = None
@@ -712,7 +743,7 @@ def socratic_generator(state: TutoringState) -> dict:
         except Exception:
             pass  # non-fatal — degrade gracefully
 
-    return {
+    result = {
         "generated_response": response_text,
         "_internal_analysis": internal_analysis.model_dump() if internal_analysis else None,
         "assessment_feedback": assessment_feedback,
@@ -723,6 +754,11 @@ def socratic_generator(state: TutoringState) -> dict:
         ],
         "turn_count": turn + 1,
     }
+    # After a reveal, reset streak counters so the next question starts fresh
+    if phase == "tutoring" and break_socratic:
+        result["consecutive_incorrect"] = 0
+        result["consecutive_correct"] = 0
+    return result
 
 
 def _response_leaks_answer(response: str, correct_answer: str) -> bool:

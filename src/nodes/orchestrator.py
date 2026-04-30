@@ -18,6 +18,16 @@ _S = _cfg["session"]
 _M = _cfg["mastery"]
 
 
+_QUIT_PHRASES = (
+    "i'm done", "im done", "done for today", "i am done",
+    "that's all for today", "thats all for today",
+    "i want to stop", "want to stop", "end session",
+    "stop for now", "i'm finished", "im finished",
+    "enough for today", "i'll stop here", "ill stop here",
+    "goodbye", "bye for now", "see you later",
+)
+
+
 def orchestrator(state: TutoringState) -> dict:
     """
     Route the session to the next phase.
@@ -38,6 +48,11 @@ def orchestrator(state: TutoringState) -> dict:
         return result
 
     turn = state.get("turn_count", 0)
+
+    # ── Quit intent: student wants to end the session ────────────────────────
+    msg_lower = (state.get("student_message") or "").lower()
+    if phase not in ("wrapup",) and any(q in msg_lower for q in _QUIT_PHRASES):
+        return _transition("wrapup")
 
     # ── Time-based ceiling overrides (highest priority) ──────────────────────
     # Guard: never fire time transitions on the very first turns — prevents
