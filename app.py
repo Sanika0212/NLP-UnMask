@@ -35,6 +35,7 @@ from src.nodes.pedagogy_agent import generate_diagnostic_question, get_diagnosti
 from src.anatomy_images import get_image_for_topic
 from src.nodes.socratic_generator import analyze_uploaded_image
 from src.nodes.retrieval_planner import _load_bm25_corpus
+from src.survey import run_onboarding, run_pre_quiz, run_post_survey
 
 with open("config.yaml") as f:
     cfg = yaml.safe_load(f)
@@ -161,14 +162,35 @@ async def on_chat_start():
     cl.user_session.set("session_start", time.time())
     cl.user_session.set("warmup_done", False)    # Track casual warm-up exchange
     cl.user_session.set("diag_q_index", 0)      # Next diagnostic question to inject
+    cl.user_session.set("survey_mode", False)
+
+    # ── Offer pilot study mode ────────────────────────────────────────────────
+    mode_res = await cl.AskActionMessage(
+        content=(
+            "# 👋 Welcome to UnMask\n\n"
+            "I'm your AI anatomy study partner for NBCOT prep.\n\n"
+            "Are you here for the **pilot study** or a regular study session?"
+        ),
+        actions=[
+            cl.Action(name="pilot", value="pilot", label="🔬 Pilot Study (pre/post quiz + survey)"),
+            cl.Action(name="regular", value="regular", label="📚 Regular Study Session"),
+        ],
+        author="UnMask",
+        timeout=120,
+    ).send()
+
+    if mode_res and mode_res.get("value") == "pilot":
+        cl.user_session.set("survey_mode", True)
+        await run_onboarding()
+        await run_pre_quiz()
 
     topic_list = "\n".join(
         f"{i+1}. {name}" for i, (name, _, _) in enumerate(_TOPIC_MENU)
     )
     welcome = (
-        "# 👋 Welcome to UnMask\n\n"
-        "I'm your NBCOT anatomy study companion. I use the **Socratic method** — "
-        "I'll ask questions to build real understanding, not just hand you the answers.\n\n"
+        "# 📚 Let's Study\n\n"
+        "I use the **Socratic method** — I'll ask questions to build real understanding, "
+        "not just hand you the answers.\n\n"
         "**Which topic do you want to study today?**\n\n"
         f"{topic_list}\n\n"
         "Also — do you prefer **diagrams** or **written explanations**?\n\n"
@@ -448,6 +470,14 @@ async def on_message(message: cl.Message):
 
     if phase == "wrapup":
         await _send_followup_resources(result)
+
+        # ── Post-session survey (pilot mode only) ────────────────────────────
+        if cl.user_session.get("survey_mode", False):
+            duration_min = (time.time() - cl.user_session.get("session_start", time.time())) / 60
+            mastery_scores = result.get("mastery_scores", {})
+            topics = ", ".join(mastery_scores.keys()) if mastery_scores else "general"
+            session_id_val = result.get("session_id", state.get("session_id", ""))
+            await run_post_survey(session_id_val, duration_min, topics)
 
     # ── Assessment feedback (separate styled message) ────────────────────────
     assessment_feedback = result.get("assessment_feedback")
