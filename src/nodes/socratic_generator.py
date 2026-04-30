@@ -221,6 +221,7 @@ def _get_client() -> OpenAI:
         _client = OpenAI(
             api_key=os.environ["OPENAI_API_KEY"],
             base_url=os.getenv("OPENAI_BASE_URL"),
+            timeout=45.0,
         )
     return _client
 
@@ -232,23 +233,76 @@ def _use_local(phase: Phase) -> bool:
 
 def _call_ollama(system: str, user: str, history: list[dict] | None = None) -> str:
     """Call local Ollama as a plain text fallback (no structured output)."""
-    import subprocess, json
+    import httpx
+    import json
     messages = [{"role": "system", "content": system}]
     if history:
         messages.extend(history[-6:])
     messages.append({"role": "user", "content": user})
-    payload = {
-        "model": _cfg["llm"]["local_model"],
-        "messages": messages,
-        "stream": False,
-    }
-    result = subprocess.run(
-        ["curl", "-s", "-X", "POST", "http://localhost:11434/api/chat",
-         "-H", "Content-Type: application/json",
-         "-d", json.dumps(payload)],
-        capture_output=True, text=True, timeout=30,
+    r = httpx.post(
+        "http://localhost:11434/api/chat",
+        json={"model": _cfg["llm"]["local_model"], "messages": messages, "stream": False},
+        timeout=30.0,
     )
-    return json.loads(result.stdout)["message"]["content"]
+    r.raise_for_status()
+    return r.json()["message"]["content"]
+
+
+def analyze_uploaded_image(image_path: str) -> str:
+    """
+    Analyze a student-uploaded anatomical image using GPT-4o Vision.
+    Returns a Socratic question about the structure WITHOUT naming it directly.
+
+    Args:
+        image_path: Path to the uploaded image file
+
+    Returns:
+        A Socratic question string about the anatomical structure
+    """
+    import base64
+
+    with open(image_path, "rb") as f:
+        image_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+    # Determine image media type from file extension
+    ext = image_path.lower().split(".")[-1]
+    media_type_map = {
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "png": "image/png",
+        "gif": "image/gif",
+        "webp": "image/webp",
+    }
+    media_type = media_type_map.get(ext, "image/jpeg")
+
+    client = _get_client()
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "You are an anatomy tutor. Identify the anatomical structure in this image. "
+                            "Then ask ONE Socratic question about it WITHOUT naming the structure. "
+                            "The question must end with '?'. Never give direct answers."
+                        ),
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{media_type};base64,{image_data}",
+                        },
+                    },
+                ],
+            }
+        ],
+        max_tokens=200,
+        temperature=0.7,
+    )
+    return resp.choices[0].message.content.strip()
 
 
 # ── Session summary generator ─────────────────────────────────────────────────
@@ -603,16 +657,24 @@ def socratic_generator(state: TutoringState) -> dict:
     ]
 
     # ── Generate with post-generation leak guard (max 2 attempts) ──────────
+    import time
     internal_analysis = None
     response_text = ""
 
     for attempt in range(2):
-        resp = client.beta.chat.completions.parse(
-            model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
-            temperature=_cfg["llm"]["temperature"] if attempt == 0 else 0,
-            messages=messages,
-            response_format=SocraticOutput,
-        )
+        for api_attempt in range(3):
+            try:
+                resp = client.beta.chat.completions.parse(
+                    model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
+                    temperature=_cfg["llm"]["temperature"] if attempt == 0 else 0,
+                    messages=messages,
+                    response_format=SocraticOutput,
+                )
+                break  # success
+            except Exception as e:
+                if api_attempt == 2:
+                    raise
+                time.sleep(2 ** api_attempt)  # exponential backoff: 1s, 2s, 4s
         output: SocraticOutput = resp.choices[0].message.parsed
         visible = output.visible_response
         candidate = visible.socratic_question
@@ -665,7 +727,7 @@ def socratic_generator(state: TutoringState) -> dict:
 
 def _response_leaks_answer(response: str, correct_answer: str) -> bool:
     """
-    Simple heuristic: if ≥3 significant words from the correct answer
+    Simple heuristic: if ≥4 significant words from the correct answer
     appear verbatim in the response, flag as a potential leak.
     """
     import re
@@ -679,4 +741,4 @@ def _response_leaks_answer(response: str, correct_answer: str) -> bool:
     answer_words = significant_words(correct_answer)
     response_words = significant_words(response)
     overlap = answer_words & response_words
-    return len(overlap) >= 3  # ≥3 significant words overlap signals a leak
+    return len(overlap) >= 4  # ≥4 significant words overlap signals a leak

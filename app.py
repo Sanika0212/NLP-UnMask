@@ -12,20 +12,40 @@ The backend panel (visible in Chainlit's "debug" sidebar) shows:
 from __future__ import annotations
 
 import os
+import sys
 import time
 import uuid
 
 import chainlit as cl
 import yaml
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Validate required environment variables
+_REQUIRED_ENV = ["OPENAI_API_KEY"]
+_missing = [k for k in _REQUIRED_ENV if not os.environ.get(k)]
+if _missing:
+    print(f"ERROR: Missing required env vars: {_missing}", file=sys.stderr)
+    sys.exit(1)
 
 from src.graph import graph, make_initial_state
 from src.nodes.pedagogy_agent import generate_diagnostic_question, get_diagnostic_order, get_diagnostic_answer_keywords
 from src.anatomy_images import get_image_for_topic
+from src.nodes.socratic_generator import analyze_uploaded_image
+from src.nodes.retrieval_planner import _load_bm25_corpus
 
 with open("config.yaml") as f:
     cfg = yaml.safe_load(f)
 
 _DIAGNOSTIC_QUESTIONS = cfg["session"]["diagnostic_questions"]
+
+# Pre-initialize BM25 corpus on startup to avoid stalls on first retrieval
+try:
+    _load_bm25_corpus()
+except Exception:
+    pass  # Will retry on first retrieval if startup init fails
 
 
 def _fmt_diag_q(idx: int, question: str, total: int, first: bool = False) -> str:
@@ -184,13 +204,52 @@ async def on_message(message: cl.Message):
         state["study_focus"] = study_focus
         state["learning_mode"] = learning_mode
 
+    # ── Check for student-uploaded images (VLM Task 4) ────────────────────────────
+    vlm_image_analyzed = False
+    if message.elements and any(e.type == "image" for e in message.elements):
+        # Student uploaded an anatomical image — use GPT-4o Vision for Socratic analysis
+        for elem in message.elements:
+            if elem.type == "image" and elem.path:
+                try:
+                    socratic_q = analyze_uploaded_image(elem.path)
+                    state["student_message"] = socratic_q
+                    vlm_image_analyzed = True
+                    # Replace main message with VLM analysis so graph processes the question
+                    break
+                except Exception as e:
+                    # Log error but continue with original message
+                    import traceback
+                    traceback.print_exc()
+
+    state["vlm_image_analyzed"] = vlm_image_analyzed
+
     # ── Show loading indicator immediately ──────────────────────────────────
     thinking_msg = cl.Message(content="⏳ *Thinking...*", author="UnMask")
     await thinking_msg.send()
 
-    # Run LangGraph
+    # Run LangGraph with error handling
+    import asyncio
     config = {"configurable": {"thread_id": state["session_id"]}}
-    result = graph.invoke(state, config=config)
+    loop = asyncio.get_running_loop()
+    try:
+        result = await asyncio.wait_for(
+            loop.run_in_executor(None, lambda: graph.invoke(state, config=config)),
+            timeout=90.0,
+        )
+    except asyncio.TimeoutError:
+        await thinking_msg.remove()
+        await cl.Message(
+            content="The response timed out — please try again.",
+            author="UnMask"
+        ).send()
+        return
+    except Exception as e:
+        await thinking_msg.remove()
+        await cl.Message(
+            content=f"I had a technical hiccup — please try again. ({type(e).__name__})",
+            author="UnMask"
+        ).send()
+        return
 
     # ── If diagnostic just completed, immediately re-invoke to get first tutoring Q ─
     # (Orchestrator transitions rapport→tutoring only on the *next* invocation,
@@ -221,7 +280,16 @@ async def on_message(message: cl.Message):
         result["elapsed_seconds"] = time.time() - start_time
         result["consecutive_incorrect"] = 0
         result["consecutive_correct"] = 0
-        result = graph.invoke(result, config=config)
+        result["vlm_image_analyzed"] = False
+        try:
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, lambda: graph.invoke(result, config=config)),
+                timeout=90.0,
+            )
+        except Exception as e:
+            # If second invoke fails, log but continue with first result
+            import traceback
+            traceback.print_exc()
         # Reset again after invoke — pedagogy_agent evaluates the synthetic trigger
         # message as "wrong", which would poison the counter for the first real Q
         result["consecutive_incorrect"] = 0

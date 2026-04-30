@@ -50,8 +50,8 @@ We also added \textbf{Corrective RAG (CRAG)} (to our knowledge the first use in
 educational tutoring), dual-layer structured output masking, and
 \textbf{session mistake memory}, a log of wrong answers that triggers a
 proactive revisit at 8 minutes using the student's stored misconception.
-We evaluated on 30 QA triples with a four-variant ablation: Hit Rate 1.000,
-Leak Rate 0.000, Socratic Purity 4.93/5, 100\% adversarial hold rate.
+We evaluated on 30 QA triples with a four-variant ablation: Hit Rate 0.900,
+Leak Rate 0.000, Socratic Purity 4.77/5, 100\% adversarial hold rate.
 All variants show 0.000 leak under benign conditions, but only PCR
 provides safety by design at a measured 0.23-point purity cost (4.70 vs.\ 4.93).
 RAGAS Faithfulness (0.779) shows a metric mismatch: RAGAS penalizes
@@ -86,6 +86,7 @@ Dinucu-Jianu et al.\ \cite{tutorrl2025} showed that larger LLMs have
 \emph{higher} leak rates because parametric knowledge overrides system prompts, which is what motivated our retrieval-layer approach.
 Corrective RAG \cite{crag2024} adds a self-assessment step after retrieval
 (+19\% PopQA, +36.6\% PubHealth); no prior work applies CRAG in educational tutoring.
+Closest to our retrieval approach is TutorLLM \cite{tutorllm2024}, which combines knowledge tracing with RAG for personalized learning, but does not specify a mastery-gated metadata filtering mechanism. Dinucu-Jianu et al.\ \cite{tutorrl2025} show that RL reward shaping for pedagogical alignment outperforms prompt-based suppression on GPT-4o, consistent with our finding that prompt-level safety fails under adversarial attack.
 
 \begin{table}[h]
 \centering
@@ -98,7 +99,8 @@ Corrective RAG \cite{crag2024} adds a self-assessment step after retrieval
 Khanmigo         & \checkmark & $\times$ & prompt \\
 SocraticLM \cite{socraticlm2024} & $\times$ & $\times$ & fine-tune \\
 KELE \cite{kele2025}      & \checkmark & $\times$ & prompt \\
-TutorLLM \cite{tutorllm2024}  & \checkmark & prompt ctx & prompt \\
+TutorLLM \cite{tutorllm2024}  & \checkmark & KT-guided & retrieval \\
+PedagogRL \cite{tutorrl2025}   & $\times$ & RL reward & training  \\
 \textbf{UnMask (ours)} & \checkmark & \checkmark & \textbf{retrieval} \\
 \bottomrule
 \end{tabular}
@@ -419,6 +421,30 @@ the Socratic Generator injects the stored misconception into the system prompt
 to guide a fresh-angle question.
 The Pedagogy Agent clears \texttt{revisit\_scheduled} after one turn.
 
+\subsection{Multimodal Diagram Tutoring (Task 4)}
+\label{sec:vlm}
+
+When a student uploads an anatomical image via Chainlit's file upload, UnMask
+invokes GPT-4o Vision to identify the depicted structure and generate a Socratic
+question \emph{without naming it}:
+
+\begin{lstlisting}[language=Python]
+# app.py — image upload handler
+if message.elements:
+    img_el = next((e for e in message.elements
+                   if hasattr(e,'path')), None)
+    if img_el:
+        response = analyze_uploaded_image(img_el.path)
+        # response ends with "?" — structure unnamed
+\end{lstlisting}
+
+The \texttt{analyze\_uploaded\_image} helper base64-encodes the image and calls
+GPT-4o Vision with a constrained prompt: identify the structure internally,
+then ask one Socratic question that does not name it.
+This completes the multimodal loop: static Gray's Anatomy plates
+(Task 1 visual mode) for system-triggered diagrams, plus VLM interpretation
+(Task 4) for student-submitted images.
+
 %% ─────────────────────────────────────────────────────────────
 \section{Dataset and Knowledge Base}
 
@@ -515,12 +541,12 @@ identical generation (GPT-4o, structured output):
 \toprule
 \textbf{Metric} & \textbf{Score} & \textbf{Target} & \textbf{Pass} \\
 \midrule
-Hit Rate @5     & \textbf{1.000} & $\geq$0.75 & \checkmark \\
-MRR             & \textbf{0.917} & ---        & --- \\
+Hit Rate @5     & \textbf{0.900} & $\geq$0.75 & \checkmark \\
+MRR             & \textbf{0.604} & ---        & --- \\
 Leak Rate       & \textbf{0.000} & 0\%        & \checkmark \\
 Soft Flags      & \textbf{0.000} & ---        & \checkmark \\
 Ends with ``?'' & \textbf{1.000} & $\geq$95\% & \checkmark \\
-Avg Purity      & \textbf{4.93/5}& $\geq$4.0  & \checkmark \\
+Avg Purity      & \textbf{4.77/5}& $\geq$4.0  & \checkmark \\
 Purity Pass Rate& \textbf{0.967} & ---        & --- \\
 Adversarial Hold& \textbf{1.000} & $\geq$90\% & \checkmark \\
 \midrule
@@ -536,7 +562,7 @@ The single purity outlier is q29 (\texttt{peripheral\_nerves.axillary},
 score 3.0/5): the LLM judge noted the response referenced both movement
 and sensation roles of the nerve, providing enough scaffolding that the
 answer was partially inferrable.
-All other 29 questions scored $\geq$4.0.
+One additional outlier (score 3.5/5) appeared in the updated evaluation run; all others scored $\geq$4.0.
 
 \paragraph{Adversarial robustness.}
 All 20 prompts were deflected across four attack types: direct requests

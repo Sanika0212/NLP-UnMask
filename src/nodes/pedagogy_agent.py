@@ -59,6 +59,7 @@ def _get_client() -> OpenAI:
         _client = OpenAI(
             api_key=os.environ["OPENAI_API_KEY"],
             base_url=os.getenv("OPENAI_BASE_URL"),
+            timeout=30.0,
         )
     return _client
 
@@ -82,6 +83,7 @@ def _evaluate_response(
     if not correct_answer:
         return True, "no gold answer"
 
+    import time
     client = _get_client()
     prompt = (
         f"Gold answer: {correct_answer}\n"
@@ -89,12 +91,19 @@ def _evaluate_response(
         "Is the student's response substantially correct? "
         "Reply with 'correct' or 'incorrect' followed by one sentence of reason."
     )
-    resp = client.chat.completions.create(
-        model=_cfg["llm"].get("utility_model", _cfg["llm"]["model"]),
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=60,
-        temperature=0,
-    )
+    for _attempt in range(3):
+        try:
+            resp = client.chat.completions.create(
+                model=_cfg["llm"].get("utility_model", _cfg["llm"]["model"]),
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=60,
+                temperature=0,
+            )
+            break
+        except Exception as e:
+            if _attempt == 2:
+                raise
+            time.sleep(2 ** _attempt)
     text = (resp.choices[0].message.content or "incorrect").strip().lower()
     is_correct = text.startswith("correct")
     return is_correct, text
@@ -372,6 +381,11 @@ def pedagogy_agent(state: TutoringState) -> dict:
         }
 
     # ── Tutoring / Assessment: evaluate and update ─────────────────────────
+    # Skip evaluation for synthetic trigger messages (empty or tutoring start prompts)
+    if not student_msg or student_msg.startswith("Let's work on"):
+        return {"mastery_scores": mastery, "consecutive_correct": consecutive_correct,
+                "consecutive_incorrect": consecutive_incorrect}
+
     if not topic:
         # Try to extract topic from conversation context
         topic = _extract_topic_from_message(student_msg)

@@ -12,6 +12,7 @@ PCR modes:
 from __future__ import annotations
 
 import os
+import threading
 from typing import Optional
 
 import yaml
@@ -49,6 +50,7 @@ def _get_openai() -> OpenAI:
         _openai = OpenAI(
             api_key=os.environ["OPENAI_API_KEY"],
             base_url=os.getenv("OPENAI_BASE_URL"),  # None → default OpenAI
+            timeout=30.0,
         )
     return _openai
 
@@ -113,24 +115,29 @@ def _build_pcr_filter(mode: RetrievalMode, concept: Optional[str]) -> Optional[F
 
 _bm25_corpus: Optional[list[dict]] = None
 _bm25_index: Optional[BM25Okapi] = None
+_bm25_lock = threading.Lock()
 
 
 def _load_bm25_corpus():
-    """Load all chunks from Qdrant into memory for BM25 indexing."""
+    """Load all chunks from Qdrant into memory for BM25 indexing (thread-safe)."""
     global _bm25_corpus, _bm25_index
     if _bm25_corpus is not None:
         return
-    client = _get_qdrant()
-    collection = os.getenv("QDRANT_COLLECTION", _cfg["qdrant"]["collection"])
-    all_points, _ = client.scroll(
-        collection_name=collection,
-        limit=10000,
-        with_payload=True,
-        with_vectors=False,
-    )
-    _bm25_corpus = [p.payload for p in all_points]
-    tokenized = [p["text"].lower().split() for p in _bm25_corpus]
-    _bm25_index = BM25Okapi(tokenized)
+    with _bm25_lock:
+        # Double-check inside lock
+        if _bm25_corpus is not None:
+            return
+        client = _get_qdrant()
+        collection = os.getenv("QDRANT_COLLECTION", _cfg["qdrant"]["collection"])
+        all_points, _ = client.scroll(
+            collection_name=collection,
+            limit=10000,
+            with_payload=True,
+            with_vectors=False,
+        )
+        _bm25_corpus = [p.payload for p in all_points]
+        tokenized = [p["text"].lower().split() for p in _bm25_corpus]
+        _bm25_index = BM25Okapi(tokenized)
 
 
 def _bm25_retrieve(query: str, top_k: int) -> list[dict]:

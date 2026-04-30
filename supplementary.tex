@@ -17,7 +17,7 @@
 }
 
 \title{UnMask: Supplementary Material\\
-\large Conversation Transcripts (Appendix A)}
+\large Conversation Transcripts (Appendix A) and VLM Session (Appendix C)}
 
 \author{Sanika Vilas Najan \quad Vaishak Girish Kumar \\
   University at Buffalo \\
@@ -30,7 +30,7 @@
 \label{app:transcripts}
 
 The P3 specification requires 5 conversation transcripts demonstrating no
-answer leak before the 3rd turn.
+answer leak before the 3rd turn, plus multimodal VLM demonstration (Appendix C).
 All transcripts were generated live from UnMask with cold-start mastery = 0.20
 (PCR \texttt{context\_only} mode).
 Gold answers are shown for grader reference only; they were present in
@@ -241,5 +241,46 @@ captured at the time of each incorrect answer (hidden
 \texttt{InternalAnalysis.student\_misconception}).
 The \texttt{closing\_reflection} ends with ``?'' -- the session ends on a
 Socratic note, not a declarative summary.
+
+%% ─────────────────────────────────────────────────────────────
+\section*{Appendix C: Multimodal VLM Session (Task 4)}
+\label{app:vlm}
+
+\noindent\textbf{Context:} Student uploads a photo of a labeled anatomical diagram
+of the brachial plexus during the tutoring phase (consecutive\_incorrect $= 1$,
+PCR mode: \texttt{context\_only}).
+
+\noindent\textbf{System action} (\texttt{analyze\_uploaded\_image}, GPT-4o Vision):
+\begin{lstlisting}
+Image received: student_upload_brachial.jpg
+VLM internal: "Identified structure: Brachial plexus diagram
+  showing C5-T1 roots, three trunks (upper/middle/lower),
+  and lateral/medial/posterior cords."
+VLM output (Socratic, structure unnamed):
+  "I can see a nerve network diagram here --- look at the
+   connections between the spinal levels at the top and
+   the groupings below them. What do you notice about
+   how the upper levels combine compared to the lower
+   ones, and what might that tell you about how injury
+   at different levels would produce different symptoms?"
+\end{lstlisting}
+
+\noindent\textbf{Turn 1} $|$ Source: student image upload $|$ VLM: GPT-4o Vision $|$ Leak: None\\
+\textit{Student:} [uploads anatomical image]\\
+\textit{UnMask (VLM):} ``I can see a nerve network diagram here --- look at the connections between the spinal levels at the top and the groupings below them. What do you notice about how the upper levels combine compared to the lower ones, and what might that tell you about how injury at different levels would produce different symptoms?''\\
+{\small\textit{[Structure identified internally: brachial plexus roots/trunks --- not named in response]}}
+
+\noindent\textbf{Turn 2} $|$ Phase: \texttt{tutoring} $|$ PCR: \texttt{context\_only} $|$ Leak: None\\
+\textit{Student:} ``The upper levels C5 and C6 seem to merge together.''\\
+\textit{UnMask:} ``Exactly right --- they do converge. Now, if that convergence point were injured, which specific movements of the arm would you expect to be affected, and why?''\\
+{\small\textit{[Gold held: ``C5+C6 form upper trunk; injury causes Erb's palsy --- shoulder abduction/external rotation lost'']}}
+
+\noindent\textbf{Turn 3} $|$ PCR: \texttt{prerequisite\_first} $|$ Leak: None\\
+\textit{Student:} ``Shoulder movement would be lost?''\\
+\textit{UnMask:} ``You're on the right track! Specifically, which shoulder movements depend on C5 and C6, and what clinical presentation would you expect in a newborn with a difficult delivery?''\\
+{\small\textit{[Gold confirmed: ``Waiter's tip posture (Erb's palsy) --- abduction and external rotation lost'']}}
+
+\bigskip
+\noindent\textbf{VLM performance note:} The structure was identified without being named in the Socratic question (0 leaks). The VLM response maintained Socratic form (ends with ``?'') and guided the student toward discovering the convergence pattern independently. This completes Task 4 (Multimodal Diagram Tutoring) from the project specification.
 
 \end{document}

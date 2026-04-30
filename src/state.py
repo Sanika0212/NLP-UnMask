@@ -77,3 +77,6 @@ class TutoringState(TypedDict):
     # Current diagnostic question (during rapport phase) — passed to socratic_generator
     current_diagnostic_question: Optional[str]
     current_diagnostic_answer_hint: Optional[str]  # correct-answer keywords — used by rapport LLM to judge correctness
+
+    # VLM image analysis tracking
+    vlm_image_analyzed: bool  # whether a student image was analyzed this turn
