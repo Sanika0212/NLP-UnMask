@@ -1,3 +1,13 @@
+---
+title: UnMask Anatomy Tutor
+emoji: 🧠
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_file: app.py
+pinned: false
+---
+
 # UnMask — Socratic OT Anatomy Tutor
 
 **CSE 635: NLP and Text Mining · University at Buffalo · Spring 2026**
