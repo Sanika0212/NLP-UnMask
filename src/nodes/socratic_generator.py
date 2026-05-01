@@ -152,8 +152,9 @@ HARD RULES:
 4. No bullet points, no headers, no "Rule 1:" style text in your response.
 5. Stay strictly on the student's selected study topic ({study_focus}). Do not introduce new anatomy regions not related to this topic.
 6. BAD question example: "Which nerve is associated with wrist drop due to its role in extending the wrist?" — this reveals the answer. GOOD: "A patient wakes up unable to lift their wrist after sleeping with their arm over a chair — what do you think happened?"
+7. CITATION RULE: Your socratic_question MUST be grounded ONLY in the CONTEXT CHUNKS below. Do not use anatomy knowledge from outside those chunks. If a fact is not in the context, do not state it.
 
-CONTEXT (textbook source of truth):
+CONTEXT (textbook source of truth — use ONLY this):
 {context}
 
 STUDENT MASTERY: {mastery:.0%} on current topic | RETRIEVAL MODE: {mode} (answer chunks {answer_visibility}present)
@@ -509,13 +510,15 @@ def socratic_generator(state: TutoringState) -> dict:
     mastery = state.get("mastery_scores", {})
     topic = state.get("current_topic", "")
 
+    _max_turns = _cfg["llm"].get("max_history_turns", 8)
+
     context_text = "\n\n".join(
         f"[{c.get('chunk_type','context').upper()}] {c['text']}"
         for c in chunks
     ) or "(No context retrieved)"
 
     recent_history = "\n".join(
-        f"{m['role'].capitalize()}: {m['content']}" for m in history[-6:]
+        f"{m['role'].capitalize()}: {m['content']}" for m in history[-_max_turns:]
     ) or "(Session start)"
 
     # ── Rapport: plain LLM (local or API) ──────────────────────────────────
@@ -589,6 +592,7 @@ def socratic_generator(state: TutoringState) -> dict:
         "i don't know at all", "i dont know at all", "i'm clueless", "im clueless",
         "i don't have time", "dont have time",
     )
+    consecutive_incorrect = state.get("consecutive_incorrect", 0)
     _student_msg_lower = (state.get("student_message") or "").lower()
     wants_answer = any(t in _student_msg_lower for t in _GIVE_ANSWER_TRIGGERS)
     break_socratic = wants_answer or consecutive_incorrect >= 4
@@ -615,8 +619,6 @@ def socratic_generator(state: TutoringState) -> dict:
                 f" Naturally transition the conversation back to this topic with a"
                 f" Socratic question that probes the same concept from a fresh angle."
             )
-
-        consecutive_incorrect = state.get("consecutive_incorrect", 0)
 
         if break_socratic:
             system = _REVEAL_SYSTEM.format(
@@ -683,7 +685,7 @@ def socratic_generator(state: TutoringState) -> dict:
     client = _get_client()
     messages = [
         {"role": "system", "content": system},
-        *history[-10:],
+        *history[-_max_turns:],
         {"role": "user", "content": user_msg},
     ]
 

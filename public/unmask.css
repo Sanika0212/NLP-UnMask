@@ -1,0 +1,132 @@
+/* UnMask — Medical/Clinical UI theme */
+
+:root {
+  --unmask-green:  #10b981;
+  --unmask-blue:   #3b82f6;
+  --unmask-amber:  #f59e0b;
+  --unmask-purple: #8b5cf6;
+  --unmask-red:    #ef4444;
+  --unmask-bg:     #0f172a;
+  --unmask-surface:#1e293b;
+  --unmask-border: #334155;
+  --unmask-text:   #e2e8f0;
+  --unmask-muted:  #94a3b8;
+}
+
+/* ── Global background ─────────────────────────────────── */
+body, #root {
+  background-color: var(--unmask-bg) !important;
+  color: var(--unmask-text) !important;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
+}
+
+/* ── Chat container ────────────────────────────────────── */
+.cl-chat-container {
+  max-width: 860px !important;
+  margin: 0 auto !important;
+}
+
+/* ── Message bubbles ───────────────────────────────────── */
+.cl-message {
+  border-radius: 12px !important;
+  border: 1px solid var(--unmask-border) !important;
+  background: var(--unmask-surface) !important;
+}
+
+/* Author accent lines by phase */
+.cl-message[data-author="📖 Tutor"] {
+  border-left: 3px solid var(--unmask-green) !important;
+}
+.cl-message[data-author="🩺 UnMask"],
+.cl-message[data-author="UnMask"] {
+  border-left: 3px solid var(--unmask-blue) !important;
+}
+.cl-message[data-author="🧪 Assessment"] {
+  border-left: 3px solid var(--unmask-amber) !important;
+}
+.cl-message[data-author="📋 Session Report"] {
+  border-left: 3px solid var(--unmask-purple) !important;
+}
+.cl-message[data-author="🖼️ Visual Aid"] {
+  border-left: 3px solid var(--unmask-blue) !important;
+  background: #1a2744 !important;
+}
+.cl-message[data-author="🔄 Phase Transition"] {
+  border-left: 3px solid var(--unmask-amber) !important;
+  background: #1f1a00 !important;
+}
+
+/* ── Step cards (Supervisor + Debug) ───────────────────── */
+.cl-step {
+  border: 1px solid var(--unmask-border) !important;
+  border-radius: 8px !important;
+  background: #0d1b2a !important;
+  font-size: 0.85rem !important;
+  color: var(--unmask-muted) !important;
+}
+
+/* ── Input bar ─────────────────────────────────────────── */
+.cl-input-container {
+  background: var(--unmask-surface) !important;
+  border: 1px solid var(--unmask-border) !important;
+  border-radius: 12px !important;
+}
+
+/* ── Send button ───────────────────────────────────────── */
+.cl-send-button {
+  background: var(--unmask-green) !important;
+  border-radius: 8px !important;
+}
+
+/* ── Action buttons (MCQ options) ──────────────────────── */
+.cl-action-button {
+  border: 1px solid var(--unmask-green) !important;
+  color: var(--unmask-green) !important;
+  border-radius: 8px !important;
+  transition: background 0.15s ease !important;
+}
+.cl-action-button:hover {
+  background: var(--unmask-green) !important;
+  color: #fff !important;
+}
+
+/* ── Sidebar ───────────────────────────────────────────── */
+.cl-sidebar {
+  background: var(--unmask-surface) !important;
+  border-right: 1px solid var(--unmask-border) !important;
+}
+
+/* ── Header / nav ──────────────────────────────────────── */
+.cl-header {
+  background: var(--unmask-surface) !important;
+  border-bottom: 1px solid var(--unmask-border) !important;
+}
+
+/* ── Code blocks ───────────────────────────────────────── */
+pre, code {
+  background: #0a1628 !important;
+  border: 1px solid var(--unmask-border) !important;
+  border-radius: 6px !important;
+  color: #93c5fd !important;
+}
+
+/* ── Blockquotes (used for study notes) ────────────────── */
+blockquote {
+  border-left: 3px solid var(--unmask-green) !important;
+  background: #0d1f17 !important;
+  border-radius: 0 6px 6px 0 !important;
+  padding: 0.5rem 1rem !important;
+  color: #a7f3d0 !important;
+}
+
+/* ── Image display ─────────────────────────────────────── */
+.cl-image {
+  border-radius: 10px !important;
+  border: 1px solid var(--unmask-border) !important;
+  max-width: 100% !important;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--unmask-bg); }
+::-webkit-scrollbar-thumb { background: var(--unmask-border); border-radius: 3px; }

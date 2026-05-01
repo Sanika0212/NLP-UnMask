@@ -80,3 +80,7 @@ class TutoringState(TypedDict):
 
     # VLM image analysis tracking
     vlm_image_analyzed: bool  # whether a student image was analyzed this turn
+
+    # Supervisor agent routing metadata — exposed in UI via cl.Step
+    _last_agent: Optional[str]          # which specialist was invoked this turn
+    _supervisor_reasoning: Optional[str]  # why the supervisor chose that agent
