@@ -150,6 +150,11 @@ def _phase_progress(phase: str) -> str:
 
 @cl.on_chat_start
 async def on_chat_start():
+    # Guard against re-run on WebSocket reconnect — prevents double welcome message
+    if cl.user_session.get("_initialized"):
+        return
+    cl.user_session.set("_initialized", True)
+
     session_id = str(uuid.uuid4())
     state = make_initial_state(session_id)
     cl.user_session.set("state", state)
@@ -260,17 +265,6 @@ async def on_message(message: cl.Message):
     turn  = result.get("turn_count", 0)
     diagnostic_complete = result.get("diagnostic_complete", False)
 
-    # ── Show supervisor routing decision in a Step ────────────────────────────
-    agent_name = result.get("_last_agent") or "—"
-    supervisor_reasoning = result.get("_supervisor_reasoning") or ""
-    agent_icon = {"diagnostic": "🩺", "tutor": "📖", "assessment": "🧪", "wrapup": "📋"}.get(agent_name, "🤖")
-    async with cl.Step(name="🤖 Supervisor", type="tool", show_input=False) as step:
-        step.output = (
-            f"**Routed to:** {agent_icon} `{agent_name}`\n\n"
-            f"**Reason:** {supervisor_reasoning}\n\n"
-            f"*{_phase_progress(phase)}*"
-        )
-
     # ── Phase transition banner ────────────────────────────────────────────────
     if prev_phase != phase:
         banner = _PHASE_TRANSITION_MSGS.get((prev_phase, phase))
@@ -328,6 +322,17 @@ async def on_message(message: cl.Message):
             await cl.Message(content=response, author=author).send()
     elif thinking_msg is not None:
         await thinking_msg.remove()
+
+    # ── Show supervisor routing decision in a Step (after response so it renders below) ──
+    agent_name = result.get("_last_agent") or "—"
+    supervisor_reasoning = result.get("_supervisor_reasoning") or ""
+    agent_icon = {"diagnostic": "🩺", "tutor": "📖", "assessment": "🧪", "wrapup": "📋"}.get(agent_name, "🤖")
+    async with cl.Step(name="🤖 Supervisor", type="tool", show_input=False) as step:
+        step.output = (
+            f"**Routed to:** {agent_icon} `{agent_name}`\n\n"
+            f"**Reason:** {supervisor_reasoning}\n\n"
+            f"*{_phase_progress(phase)}*"
+        )
 
     # ── Force visual hint on explicit diagram request ─────────────────────────
     _msg_lower = (message.content or "").lower()

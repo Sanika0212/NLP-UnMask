@@ -159,7 +159,6 @@ CONTEXT (textbook source of truth — use ONLY this):
 
 STUDENT MASTERY: {mastery:.0%} on current topic | RETRIEVAL MODE: {mode} (answer chunks {answer_visibility}present)
 LEARNING MODE: {learning_mode} — if "visual", reference spatial/structural relationships and diagram features in your question
-CONVERSATION: {history}
 TURN: {turn} | CONSECUTIVE INCORRECT: {consecutive_incorrect}
 STUDY FOCUS: {study_focus} — ALL questions MUST stay within this topic area. Do not stray to unrelated anatomy concepts. If study_focus starts with "topic:", focus exclusively on that topic's clinical syndromes, mechanisms, and signs. | LEARNING MODE: {learning_mode} — if "visual", use spatial anatomical descriptions and reference diagram layouts; if "text", use clear prose explanations.
 
@@ -632,7 +631,6 @@ def socratic_generator(state: TutoringState) -> dict:
                 mastery=mastery.get(topic, _cfg["mastery"]["default_prior"]),
                 mode=mode,
                 answer_visibility="NOT " if mode != "full_reveal" else "",
-                history=recent_history,
                 turn=turn,
                 consecutive_incorrect=consecutive_incorrect,
                 revisit_block=revisit_block,
@@ -733,17 +731,20 @@ def socratic_generator(state: TutoringState) -> dict:
     response_text = _deduplicate_sentences(response_text)  # remove adjacent duplicates
 
     # ── Assessment: generate explicit feedback on student's clinical answer ──
+    # Only generate feedback when the student is responding to an already-presented scenario.
+    # Guard: last assistant message must look like a scenario (contains "?"), and the
+    # student's message must be substantive (> 30 chars) — filters out "ok" / mode-change msgs.
     assessment_feedback = None
-    if phase == "assessment" and turn > 0:
-        # Find the scenario from history (the last assistant message before this user turn)
-        scenario = next(
+    if phase == "assessment" and turn > 0 and len(user_msg.strip()) > 30:
+        last_assistant = next(
             (m["content"] for m in reversed(history) if m["role"] == "assistant"),
-            "(clinical scenario)",
+            "",
         )
-        try:
-            assessment_feedback = _generate_assessment_feedback(state, scenario, user_msg)
-        except Exception:
-            pass  # non-fatal — degrade gracefully
+        if last_assistant.strip().endswith("?"):
+            try:
+                assessment_feedback = _generate_assessment_feedback(state, last_assistant, user_msg)
+            except Exception:
+                pass  # non-fatal — degrade gracefully
 
     result = {
         "generated_response": response_text,
