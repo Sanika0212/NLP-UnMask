@@ -346,6 +346,7 @@ Be honest — do not soften poor performance. Students need accurate feedback to
 
 SESSION DATA:
 Mastery scores (0=none, 1=full): {mastery_json}
+Weak topics (mastery < 0.5, sorted worst-first): {weak_topics}
 Mistake log (each wrong answer): {mistakes_json}
 Topics covered: {topics_covered}
 Session duration: {duration_min:.1f} minutes
@@ -368,18 +369,18 @@ resources: 3-4 specific study resources, mixing:
   - NBCOT-specific practice
     Example: 'NBCOT Prep: clinical scenarios — peripheral nerve injury splinting'
 
-youtube_resources: 2-4 curated YouTube videos based on the weakest topics from this session.
-  For each weak topic, suggest a real video from reputable anatomy channels (Osmosis, Khan Academy,
-  Netter Anatomy, AnatomyZone, Armando Hasudungan, etc.).
+youtube_resources: 2-4 curated YouTube videos, one per WEAKEST topic (mastery < 0.5 from mastery_json above).
+  Prioritize the lowest-mastery concepts — only recommend videos for topics the student actually struggled with.
+  Use real videos from reputable anatomy channels: Osmosis, Khan Academy, AnatomyZone, Armando Hasudungan,
+  Netter Anatomy, Acland's Video Atlas, Ninja Nerd Science.
   Each resource must include:
-    - concept: the weak topic ID (e.g., 'peripheral_nerves.radial')
-    - title: exact video title
+    - concept: the weak topic concept ID from mastery_json (e.g., 'peripheral_nerves.radial')
+    - title: exact video title as it appears on YouTube
     - creator: channel/creator name
-    - search_query: suggested YouTube search to find it (e.g., 'Osmosis median nerve anatomy')
-    - description: why this video helps (1 sentence explaining what concept it covers)
-  Examples:
-    - concept: 'brachial_plexus', title: 'Brachial Plexus – Complete Anatomy', creator: 'Osmosis',
-      search_query: 'Osmosis brachial plexus anatomy', description: 'Covers the full structure from roots to terminal branches with clear diagrams'
+    - search_query: specific YouTube search to find this exact video (e.g., 'Osmosis radial nerve anatomy palsy')
+    - description: one sentence on what this video covers and why it addresses this student's specific gap
+  Tailor to the student's actual mistakes — if mistake_log shows confusion about a specific concept, pick a
+  video that directly addresses that misconception.
 
 diagram_suggestions: 2-3 anatomical diagrams to study, each with what to look for:
   - Netter/Gray's plate reference with plate number AND what structures to trace
@@ -407,15 +408,21 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
 
     # Only report on concepts that were actually visited
     topics_visited = set(mastery.keys()) | {m["topic"] for m in mistake_log}
+    visited_mastery = {k: round(v, 2) for k, v in mastery.items() if k in topics_visited}
+
+    # Weak topics sorted by mastery ascending — drive YouTube/resource recommendations
+    weak_topics = sorted(
+        [(k, v) for k, v in visited_mastery.items() if v < 0.5],
+        key=lambda x: x[1]
+    )
+    weak_topics_str = ", ".join(f"{k} ({v:.0%})" for k, v in weak_topics) or "none"
 
     client = _get_client()
     prompt = _SUMMARY_PROMPT.format(
-        mastery_json=json.dumps(
-            {k: round(v, 2) for k, v in mastery.items() if k in topics_visited},
-            indent=2,
-        ),
+        mastery_json=json.dumps(visited_mastery, indent=2),
         mistakes_json=json.dumps(mistake_log, indent=2) if mistake_log else "[]",
         topics_covered=", ".join(topics_visited) or "none",
+        weak_topics=weak_topics_str,
         duration_min=elapsed / 60,
         total_turns=turn,
     )
@@ -462,6 +469,18 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
         lines.append("### 📖 Study Resources\n")
         for r in summary.resources:
             lines.append(f"- {r}")
+        lines.append("")
+
+    # YouTube recommendations
+    if summary.youtube_resources:
+        lines.append("### 🎬 Recommended Videos\n")
+        for yt in summary.youtube_resources:
+            search_url = "https://www.youtube.com/results?search_query=" + yt.search_query.replace(" ", "+")
+            lines.append(
+                f"- **{yt.title}** — *{yt.creator}*\n"
+                f"  {yt.description}\n"
+                f"  [Search on YouTube]({search_url})"
+            )
         lines.append("")
 
     # Flashcards and diagrams are sent as separate SSE events by api.py
