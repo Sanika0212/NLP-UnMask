@@ -8,6 +8,7 @@ export default function ProgressView() {
   const misconceptions = useSessionStore((s) => s.misconceptions);
   const phase      = useSessionStore((s) => s.phase);
   const diagComplete = useSessionStore((s) => s.diagnosticComplete);
+  const youtubeResources = useSessionStore((s) => s.youtubeResources);
 
   const masteryTopics = TOPICS.map((t) => ({
     ...t,
@@ -80,6 +81,53 @@ export default function ProgressView() {
           )}
         </div>
       </div>
+
+      {/* YouTube recommendations — shown after wrapup when resources are ready */}
+      {youtubeResources.length > 0 && (
+        <div className="panel">
+          <div className="panel-head">
+            <h4>Recommended Videos</h4>
+            <span className="pmeta">for weak topics</span>
+          </div>
+          <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {youtubeResources.map((yt, i) => {
+              const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(yt.search_query)}`;
+              return (
+                <a
+                  key={i}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex', gap: '12px', alignItems: 'flex-start',
+                    padding: '10px 12px', borderRadius: 'var(--r)',
+                    background: 'var(--paper-3)', border: '1px solid var(--rule)',
+                    textDecoration: 'none', color: 'inherit',
+                    transition: 'border-color 120ms',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--rule)')}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" style={{ flexShrink: 0, marginTop: '3px', color: '#FF0000' }} fill="currentColor">
+                    <path d="M21.8 8s-.2-1.4-.8-2c-.8-.8-1.6-.8-2-.9C16.8 5 12 5 12 5s-4.8 0-7 .1c-.4.1-1.2.1-2 .9-.6.6-.8 2-.8 2S2 9.6 2 11.2v1.5c0 1.6.2 3.2.2 3.2s.2 1.4.8 2c.8.8 1.8.8 2.3.8C6.8 19 12 19 12 19s4.8 0 7-.1c.4-.1 1.2-.1 2-.9.6-.6.8-2 .8-2s.2-1.6.2-3.2v-1.5C22 9.6 21.8 8 21.8 8zM9.7 14.5V9.5l5.3 2.5-5.3 2.5z" />
+                  </svg>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, fontSize: '13px', color: 'var(--ink)', marginBottom: '2px' }}>
+                      {yt.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--ink-3)', marginBottom: '4px' }}>
+                      {yt.creator}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--ink-2)', lineHeight: 1.4 }}>
+                      {yt.description}
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Misconceptions log */}
       {misconceptions.length > 0 && (

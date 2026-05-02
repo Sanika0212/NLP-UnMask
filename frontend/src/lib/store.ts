@@ -1,6 +1,6 @@
 'use client';
 import { create } from 'zustand';
-import { SessionStore, Message, AvatarState, Phase, LearningMode } from './types';
+import { SessionStore, Message, AvatarState, Phase, LearningMode, YouTubeResource } from './types';
 import { saveMastery, loadUser } from './userStore';
 
 const AGENT_AVATAR: Record<string, AvatarState> = {
@@ -32,6 +32,7 @@ const initialState = {
   participantRole: '',
   preQuizAnswers: [] as number[],
   preQuizScore: 0,
+  youtubeResources: [] as YouTubeResource[],
 };
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
@@ -166,11 +167,15 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           } else if (type === 'state_update') {
             const su = evt as Record<string, unknown>;
             const newMisconceptions = Array.isArray(su.mistake_log)
-              ? (su.mistake_log as Array<{topic:string;misconception:string;turn:number}>).map(m => ({
-                  topic: m.topic,
-                  note: m.misconception,
-                  turn: m.turn,
-                }))
+              ? (() => {
+                  const seen = new Set<string>();
+                  const result: {topic:string;note:string;turn:number}[] = [];
+                  for (const m of su.mistake_log as Array<{topic:string;misconception:string;turn:number}>) {
+                    const key = `${m.topic}::${m.misconception}`;
+                    if (!seen.has(key)) { seen.add(key); result.push({ topic: m.topic, note: m.misconception, turn: m.turn }); }
+                  }
+                  return result;
+                })()
               : get().misconceptions;
             const newMastery = (su.mastery as Record<string, number>) ?? get().mastery;
             saveMastery(get().studentName, newMastery);
@@ -245,6 +250,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
                 hintText: (evt.study_notes || evt.hint_text) as string | undefined,
               },
             });
+
+          } else if (type === 'youtube_resources') {
+            set({ youtubeResources: (evt.resources as YouTubeResource[]) ?? [] });
 
           } else if (type === 'done') {
             set({ isThinking: false, avatarState: 'idle' });

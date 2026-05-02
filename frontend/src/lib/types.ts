@@ -3,6 +3,14 @@ export type Phase = 'rapport' | 'tutoring' | 'assessment' | 'wrapup';
 export type LearningMode = 'visual' | 'text';
 export type PCRMode = 'context_only' | 'prerequisite_first' | 'full_reveal';
 
+export interface YouTubeResource {
+  concept: string;
+  title: string;
+  creator: string;
+  search_query: string;
+  description: string;
+}
+
 export interface VisualHint {
   concept: string;
   imageUrl?: string;   // full URL: /static/anatomy/x.html or https://... (web fallback)
@@ -58,6 +66,7 @@ export interface SessionState {
   participantRole: string;
   preQuizAnswers: number[];
   preQuizScore: number;
+  youtubeResources: YouTubeResource[];
 }
 
 export interface SessionStore extends SessionState {

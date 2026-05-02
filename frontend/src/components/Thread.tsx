@@ -72,6 +72,7 @@ export default function Thread({ activeTab }: { activeTab?: string }) {
             </div>
           </div>
         )}
+
       </div>
     </div>
   );
