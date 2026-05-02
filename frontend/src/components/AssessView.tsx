@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSessionStore } from '@/lib/store';
+import { loadUser, saveQuizScore } from '@/lib/userStore';
 
 interface MCQ {
   q: string;
@@ -116,36 +117,46 @@ const DEFAULT_KEY = 'brachial_plexus';
 
 export default function AssessView() {
   const currentTopic = useSessionStore((s) => s.currentTopic) || DEFAULT_KEY;
+  const studentName = useSessionStore((s) => s.studentName);
   const questions = QUESTIONS[currentTopic as keyof typeof QUESTIONS] || QUESTIONS[DEFAULT_KEY];
 
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [history, setHistory] = useState<number[]>([]);
+
+  useEffect(() => {
+    const userData = loadUser(studentName);
+    setHistory(userData.quizScores[currentTopic] ?? []);
+  }, [studentName, currentTopic]);
 
   const allAnswered = questions.length > 0 && Object.keys(answers).length === questions.length;
   const canSubmit = allAnswered && !submitted;
 
   const handleSelectOption = (qIdx: number, optIdx: number) => {
-    if (!submitted) {
-      setAnswers((p) => ({ ...p, [qIdx]: optIdx }));
-    }
+    if (!submitted) setAnswers((p) => ({ ...p, [qIdx]: optIdx }));
   };
 
   const handleSubmit = () => {
-    if (canSubmit) {
-      setSubmitted(true);
-    }
+    if (!canSubmit) return;
+    setSubmitted(true);
+    const s = questions.filter((q, idx) => answers[idx] === q.correct).length;
+    saveQuizScore(studentName, currentTopic, s, questions.length);
+    setHistory((h) => [...h, Math.round((s / questions.length) * 100)]);
   };
 
   const score = submitted
     ? questions.filter((q, idx) => answers[idx] === q.correct).length
     : 0;
+  const bestPct = history.length > 0 ? Math.max(...history) : null;
 
   return (
     <div style={{ padding: '18px', overflow: 'auto', height: '100%' }}>
       <div className="panel">
         <div className="panel-head">
           <h4>Self-Assessment Quiz</h4>
-          <span className="pmeta">NBCOT-style</span>
+          <span className="pmeta">
+            {bestPct !== null ? `Best: ${bestPct}% · ${history.length} attempt${history.length !== 1 ? 's' : ''}` : 'NBCOT-style'}
+          </span>
         </div>
       </div>
 
@@ -284,6 +295,8 @@ export default function AssessView() {
           onClick={() => {
             setAnswers({});
             setSubmitted(false);
+            const userData = loadUser(studentName);
+            setHistory(userData.quizScores[currentTopic] ?? []);
           }}
           style={{
             marginTop: '12px',

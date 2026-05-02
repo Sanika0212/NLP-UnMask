@@ -1,6 +1,7 @@
 'use client';
 import { create } from 'zustand';
 import { SessionStore, Message, AvatarState, Phase, LearningMode } from './types';
+import { saveMastery, loadUser } from './userStore';
 
 const AGENT_AVATAR: Record<string, AvatarState> = {
   diagnostic: 'asking',
@@ -40,7 +41,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   setAvatarState: (s) => set({ avatarState: s }),
 
-  setStudentName: (name) => set({ studentName: name }),
+  setStudentName: (name) => {
+    const userData = loadUser(name);
+    set({ studentName: name, mastery: Object.keys(userData.mastery).length > 0 ? userData.mastery : get().mastery });
+  },
 
   setParticipantInfo: (id, role) => set({ participantId: id, participantRole: role }),
 
@@ -153,6 +157,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
                   turn: m.turn,
                 }))
               : get().misconceptions;
+            const newMastery = (su.mastery as Record<string, number>) ?? get().mastery;
+            saveMastery(get().studentName, newMastery);
             const newPhase = (su.phase as Phase) ?? get().phase;
             const pcrMap: Record<string, string> = {
               rapport: 'diagnostic',
@@ -163,7 +169,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             set({
               phase: newPhase,
               pcrMode: (pcrMap[newPhase] ?? get().pcrMode) as typeof initialState.pcrMode,
-              mastery: (su.mastery as Record<string, number>) ?? get().mastery,
+              mastery: newMastery,
               diagnosticComplete: (su.diagnostic_complete as boolean) ?? false,
               consecutiveIncorrect: (su.consecutive_incorrect as number) ?? 0,
               currentTopic: (su.current_topic as string | null) ?? null,

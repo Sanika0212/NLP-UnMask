@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSessionStore } from '@/lib/store';
 import { TOPICS } from '@/lib/topics';
+import { loadUser, saveCardRating } from '@/lib/userStore';
 
 const FLASHCARDS: Record<string, { front: string; back: string }[]> = {
   brachial_plexus: [
@@ -78,29 +79,33 @@ const FLASHCARDS: Record<string, { front: string; back: string }[]> = {
 
 export default function PracticeView() {
   const currentTopic = useSessionStore((s) => s.currentTopic);
+  const studentName = useSessionStore((s) => s.studentName);
   const topicKey = (currentTopic && FLASHCARDS[currentTopic]) ? currentTopic : TOPICS[0].key;
-  const cards = FLASHCARDS[topicKey] ?? [];
 
   const [cardIdx, setCardIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<string>(topicKey);
+  const [ratings, setRatings] = useState<Record<number, 'known' | 'review'>>({});
 
-  const activeCards = FLASHCARDS[selectedTopic] ?? cards;
+  // Load per-user ratings for the selected topic
+  useEffect(() => {
+    const userData = loadUser(studentName);
+    setRatings(userData.cardRatings[selectedTopic] ?? {});
+  }, [studentName, selectedTopic]);
+
+  const activeCards = FLASHCARDS[selectedTopic] ?? [];
   const card = activeCards[cardIdx] ?? activeCards[0];
   const total = activeCards.length;
+  const knownCount = Object.values(ratings).filter((r) => r === 'known').length;
 
-  const handleNext = () => {
-    setFlipped(false);
-    setCardIdx((i) => (i + 1) % total);
-  };
-  const handlePrev = () => {
-    setFlipped(false);
-    setCardIdx((i) => (i - 1 + total) % total);
-  };
-  const handleTopicChange = (key: string) => {
-    setSelectedTopic(key);
-    setCardIdx(0);
-    setFlipped(false);
+  const handleNext = () => { setFlipped(false); setCardIdx((i) => (i + 1) % total); };
+  const handlePrev = () => { setFlipped(false); setCardIdx((i) => (i - 1 + total) % total); };
+  const handleTopicChange = (key: string) => { setSelectedTopic(key); setCardIdx(0); setFlipped(false); };
+
+  const handleRate = (rating: 'known' | 'review') => {
+    saveCardRating(studentName, selectedTopic, cardIdx, rating);
+    setRatings((r) => ({ ...r, [cardIdx]: rating }));
+    handleNext();
   };
 
   return (
@@ -110,7 +115,7 @@ export default function PracticeView() {
       <div className="panel">
         <div className="panel-head">
           <h4>Flashcard Practice</h4>
-          <span className="pmeta">{total} cards</span>
+          <span className="pmeta">{knownCount}/{total} known</span>
         </div>
         <div className="panel-body">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -128,6 +133,11 @@ export default function PracticeView() {
         </div>
       </div>
 
+      {/* Progress bar */}
+      <div style={{ height: '3px', background: 'var(--rule)', borderRadius: '2px', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${(knownCount / total) * 100}%`, background: 'var(--good)', transition: 'width 400ms ease' }} />
+      </div>
+
       {/* Flashcard */}
       {card && (
         <div
@@ -135,8 +145,8 @@ export default function PracticeView() {
           style={{
             cursor: 'pointer',
             minHeight: '180px',
-            background: flipped ? 'var(--accent-soft)' : 'var(--paper-2)',
-            border: `1px solid ${flipped ? 'var(--accent)' : 'var(--rule)'}`,
+            background: flipped ? 'var(--accent-soft)' : ratings[cardIdx] === 'known' ? 'oklch(0.97 0.02 160)' : ratings[cardIdx] === 'review' ? 'oklch(0.97 0.02 50)' : 'var(--paper-2)',
+            border: `1px solid ${flipped ? 'var(--accent)' : ratings[cardIdx] === 'known' ? 'var(--good)' : ratings[cardIdx] === 'review' ? 'var(--warn)' : 'var(--rule)'}`,
             borderRadius: 'var(--r)',
             padding: '28px 24px',
             display: 'flex',
@@ -150,6 +160,11 @@ export default function PracticeView() {
         >
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
             {flipped ? 'Answer' : 'Question'} — {cardIdx + 1} / {total}
+            {ratings[cardIdx] && (
+              <span style={{ marginLeft: '8px', color: ratings[cardIdx] === 'known' ? 'var(--good)' : 'var(--warn)' }}>
+                {ratings[cardIdx] === 'known' ? '✓ known' : '↺ review'}
+              </span>
+            )}
           </div>
           <div style={{ fontSize: '15px', color: 'var(--ink)', lineHeight: 1.6, fontWeight: flipped ? 400 : 600 }}>
             {flipped ? card.back : card.front}
@@ -160,25 +175,24 @@ export default function PracticeView() {
         </div>
       )}
 
-      {/* Navigation */}
+      {/* Navigation + rating buttons */}
       <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
-        <button
-          onClick={handlePrev}
-          style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--rule)', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--ink-2)', cursor: 'pointer' }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--ink)'; e.currentTarget.style.color = 'var(--ink)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--rule)'; e.currentTarget.style.color = 'var(--ink-2)'; }}
-        >
-          ← Prev
-        </button>
-        <span style={{ fontSize: '12px', color: 'var(--ink-3)', minWidth: '60px', textAlign: 'center' }}>{cardIdx + 1} / {total}</span>
-        <button
-          onClick={handleNext}
-          style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--rule)', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--ink-2)', cursor: 'pointer' }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--ink)'; e.currentTarget.style.color = 'var(--ink)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--rule)'; e.currentTarget.style.color = 'var(--ink-2)'; }}
-        >
-          Next →
-        </button>
+        <button onClick={handlePrev} style={{ padding: '8px 14px', background: 'transparent', border: '1px solid var(--rule)', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--ink-2)', cursor: 'pointer' }}>← Prev</button>
+        {flipped ? (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleRate('review'); }}
+              style={{ padding: '8px 14px', background: 'var(--warn-soft)', border: '1px solid var(--warn)', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--warn)', cursor: 'pointer', fontWeight: 600 }}
+            >↺ Review</button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleRate('known'); }}
+              style={{ padding: '8px 14px', background: 'var(--good-soft)', border: '1px solid var(--good)', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--good)', cursor: 'pointer', fontWeight: 600 }}
+            >✓ Know it</button>
+          </>
+        ) : (
+          <span style={{ fontSize: '12px', color: 'var(--ink-3)', minWidth: '60px', textAlign: 'center' }}>{cardIdx + 1} / {total}</span>
+        )}
+        <button onClick={handleNext} style={{ padding: '8px 14px', background: 'transparent', border: '1px solid var(--rule)', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--ink-2)', cursor: 'pointer' }}>Next →</button>
       </div>
     </div>
   );
