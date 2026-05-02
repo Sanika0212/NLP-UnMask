@@ -104,10 +104,12 @@ async def search_anatomy_image(concept: str) -> dict:
                             {"type": "text", "text": f"Medical anatomy diagram of '{concept}'? YES or NO."},
                         ]}],
                     )
-                    if not vresp.choices[0].message.content.strip().upper().startswith("YES"):
-                        continue
+                    verdict = vresp.choices[0].message.content.strip().upper()
+                    if verdict.startswith("NO"):
+                        continue  # explicitly rejected — try next result
+                    # YES or any other response = trust it
                 except Exception:
-                    pass  # skip verification on error, trust Wikimedia
+                    pass  # on error, trust Wikimedia result
                 caption = title.replace("File:", "").rsplit(".", 1)[0]
                 return {"image_url": img_url, "caption": caption}
     except Exception:
@@ -427,8 +429,9 @@ async def stream_message(session_id: str, content: str):
             hint_concept = visual_hint[len("__concept__:") : nl].strip()
             hint_text = visual_hint[nl + 1 :].strip()
 
-        # If student explicitly asked for a "new" diagram, skip local cache for this concept
-        want_new = "new" in content.lower() and explicit_image_req
+        # If student explicitly asked for a different diagram, skip local cache for this concept
+        _new_kw = ("new", "other", "another", "different", "else", "more")
+        want_new = explicit_image_req and any(w in content.lower() for w in _new_kw)
         last_shown = getattr(sess, "last_diagram_concept", None)
         skip_local = want_new and last_shown == hint_concept
 
