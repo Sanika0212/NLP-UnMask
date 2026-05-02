@@ -72,41 +72,42 @@ def _evaluate_response(
 ) -> tuple[bool, str]:
     """
     Returns (is_correct, feedback_reason).
-    Uses internal_analysis.correct_answer as the gold standard.
-    Falls back to heuristic if internal_analysis is not available.
+    Uses keyword overlap between student answer and correct_answer/hint_sequence.
+    No LLM call — eliminates ~5-10s per turn.
     """
     if internal is None:
-        # Rapport phase — no correctness judgment
         return True, "rapport"
 
     correct_answer = internal.get("correct_answer", "")
     if not correct_answer:
         return True, "no gold answer"
 
-    import time
-    client = _get_client()
-    prompt = (
-        f"Gold answer: {correct_answer}\n"
-        f"Student's response: {student_answer}\n\n"
-        "Is the student's response substantially correct? "
-        "Reply with 'correct' or 'incorrect' followed by one sentence of reason."
-    )
-    for _attempt in range(3):
-        try:
-            resp = client.chat.completions.create(
-                model=_cfg["llm"].get("utility_model", _cfg["llm"]["model"]),
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=60,
-                temperature=0,
-            )
-            break
-        except Exception as e:
-            if _attempt == 2:
-                raise
-            time.sleep(2 ** _attempt)
-    text = (resp.choices[0].message.content or "incorrect").strip().lower()
-    is_correct = text.startswith("correct")
-    return is_correct, text
+    # Tokenise both sides, ignore stopwords
+    _STOP = {"a", "an", "the", "is", "it", "in", "of", "to", "and", "or", "that",
+             "this", "for", "with", "be", "are", "was", "not", "but", "i", "my",
+             "their", "by", "at", "as", "on", "from", "they", "have", "would",
+             "which", "what", "how", "does", "do", "its", "also", "s", "t"}
+
+    def _tokens(text: str) -> set[str]:
+        import re
+        words = re.findall(r"[a-z0-9]+", text.lower())
+        return {w for w in words if w not in _STOP and len(w) > 2}
+
+    gold_tokens = _tokens(correct_answer)
+    # Also pull key terms from planned hints
+    for hint in internal.get("planned_hint_sequence", []):
+        gold_tokens |= _tokens(hint)
+
+    student_tokens = _tokens(student_answer)
+
+    if not gold_tokens:
+        return True, "no gold tokens"
+
+    overlap = student_tokens & gold_tokens
+    ratio = len(overlap) / len(gold_tokens)
+    is_correct = ratio >= 0.25  # ≥25% key term coverage = substantially correct
+    reason = f"keyword overlap {ratio:.0%} ({len(overlap)}/{len(gold_tokens)} terms)"
+    return is_correct, reason
 
 
 # ── Mastery update ────────────────────────────────────────────────────────────
