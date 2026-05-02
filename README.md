@@ -50,7 +50,7 @@ nginx (port 7860)  →  Next.js (port 3000)  →  FastAPI (port 8000)
   LangGraph State Machine (5 nodes)
   ├── Pedagogy Agent      (BKT mastery update + concept DAG + phase transitions)
   ├── Retrieval Planner   (PCR filter + hybrid RAG + CRAG)
-  ├── Socratic Generator  (structured output masking)
+  ├── Socratic Generator  (structured output masking + YouTube recommendations)
   ├── Assessment Agent    (clinical scenario + reasoning eval vs. textbook)
   └── Memory Manager      (concept graph update from student responses)
         │
@@ -67,7 +67,7 @@ nginx (port 7860)  →  Next.js (port 3000)  →  FastAPI (port 8000)
 | Tutoring | 2–12 min | `diagnostic_complete=true` | Socratic loop — PCR-gated retrieval, CRAG grounding |
 | Revisit | ~8 min | weak topic + `elapsed ≥ 480s` | Orchestrator steers back to lowest-mastery topic |
 | Assessment | 12–14 min | `coverage ≥ 80%` or `t ≥ 720s` | Clinical scenario — student explains free-text reasoning |
-| Wrap-up | 14–15 min | `t ≥ 840s` | Structured `SessionSummary`: per-topic report card, misconceptions, study tips |
+| Wrap-up | 14–15 min | `t ≥ 840s` | Structured `SessionSummary`: per-topic report card, misconceptions, study tips, YouTube recommendations |
 
 ### Personalized Onboarding
 
@@ -76,6 +76,14 @@ A single conversational opening question captures `study_focus` (e.g., brachial 
 ### Honest Encouragement
 
 The `encouragement` field in every tutoring response is calibrated to student performance. When `consecutive_incorrect > 0` the model is explicitly forbidden from saying "great job" or "well done" — it must acknowledge the difficulty directly. Controlled by `ENCOURAGEMENT RULES` in the tutoring system prompt and a `VisibleResponse.encouragement` field docstring constraint.
+
+### YouTube Recommendations
+
+After the Wrap-up phase generates a SessionSummary, it includes 2–4 `YouTubeResource` objects for the weakest topics. The frontend renders these as video cards with clickable YouTube search links in the Progress tab.
+
+### Session End Button
+
+The Composer.tsx has an "End Session" button next to Send. Clicking it sends `"end session"` to trigger the wrapup phase early, allowing students to exit and view their session summary at any time.
 
 ### RAG Pipeline (Layer 3: Corrective RAG)
 
@@ -222,7 +230,8 @@ python eval/ablation.py              # 4-variant ablation study
 | Full System | ✓ | ✓ | ✓ |
 
 ### Pilot Study
-10 UB students (5 OT/health sciences, 5 CS) — 15-min sessions. Pre/post 5-question quiz for learning gain. IRB exempt under 45 CFR 46.104(d)(1).
+
+10 UB students (5 OT/health sciences, 5 CS) — 15-min sessions. Pre/post 5-question quiz for learning gain. IRB exempt under 45 CFR 46.104(d)(1). **Status: in progress**.
 
 ---
 
@@ -250,7 +259,7 @@ src/
   nodes/
     orchestrator.py         # Phase transition logic (pure Python, zero LLM calls)
     retrieval_planner.py    # PCR filter + hybrid RAG + CRAG loop
-    socratic_generator.py   # Structured output masking
+    socratic_generator.py   # Structured output masking + YouTube recommendations
     pedagogy_agent.py       # BKT + concept DAG + mastery update + mistake log
   knowledge_base/
     chunks.json             # Anatomy chunks with PCR metadata

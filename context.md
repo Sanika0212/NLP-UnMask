@@ -75,6 +75,8 @@ The loopback (diagnostic → supervisor) runs entirely within a single `graph.in
 |-------|------|---------|
 | `/` | `src/app/page.tsx` | Welcome — topic selection, PCR mode, student name |
 | `/chat` | `src/app/chat/page.tsx` | 3-pane chat interface |
+| `/pilot` | `src/app/pilot/page.tsx` | Pilot study page |
+| `/survey` | `src/app/survey/page.tsx` | Post-session survey (Likert + open feedback) |
 
 ### Components
 
@@ -85,8 +87,9 @@ The loopback (diagnostic → supervisor) runs entirely within a single `graph.in
 | `Thread.tsx` | Message list — turns, supervisor step badges, thinking indicator |
 | `Turn.tsx` | Individual message bubble with avatar, quick replies |
 | `Aside.tsx` | Right panel — concept DAG, misconceptions, topic mastery bars, agent trace |
-| `Composer.tsx` | Text input + send button |
+| `Composer.tsx` | Text input + End Session button + send button |
 | `DiagramCard.tsx` | Visual hint display — animated HTML iframe or image |
+| `ProgressView.tsx` | Session summary, per-topic report, YouTube recommendations |
 | `Avatar.tsx` | UnMask animated SVG avatar (9 states: idle/listening/thinking/speaking/asking/reveal/assess/celebrate/error) |
 
 ### SSE Event Types (FastAPI → Next.js)
@@ -99,6 +102,7 @@ The loopback (diagnostic → supervisor) runs entirely within a single `graph.in
 | `phase_change` | `{phase}` | Updates `phase` in store |
 | `message` | `{role, content, quickReplies?}` | Appends message to thread |
 | `visual_hint` | `{concept, image_url, caption, hint_text}` | Shows DiagramCard in thread |
+| `youtube_resources` | `{resources: YouTubeResource[]}` | Shows YouTube Recommended Videos in ProgressView |
 | `done` | — | Clears thinking indicator |
 | `error` | `{message}` | Shows error state |
 
@@ -145,6 +149,8 @@ External URLs render as `<img>` with badge "Web". Local PNGs render as `<img>` w
 | Assessment | 720–840s | time/mastery trigger | t ≥ 840s |
 | Wrapup | 840–900s | time trigger or quit intent | session end |
 
+**Wrapup Output**: Generates `SessionSummary` with per-topic report card (mastered/progressing/needs_review), misconception highlights, study recommendations, and 2–4 YouTube recommendations for the weakest topics.
+
 ---
 
 ## Key Mechanism: Progressive Context Revelation (PCR)
@@ -172,6 +178,11 @@ class InternalAnalysis(BaseModel):
 class VisibleResponse(BaseModel):
     socratic_question: str       # must end with "?"
     encouragement: str           # calibrated — no hollow praise when student is wrong
+
+class YouTubeResource(BaseModel):
+    title: str
+    channel: str
+    query: str                   # for frontend YouTube search link
 ```
 
 Post-generation: if `socratic_question` contains ≥4 significant words from `correct_answer`, response is rejected and regenerated at temperature=0.
@@ -268,7 +279,7 @@ Kill the app before running evals (shared Qdrant file lock).
 
 ## Deploying to HuggingFace Spaces
 
-HF Spaces runs Chainlit (`app.py`) — the Next.js frontend is local-only for now.
+HF Spaces runs both FastAPI backend and the Next.js frontend (via nginx proxy at port 7860).
 
 ```bash
 python3 - <<'EOF'
@@ -303,7 +314,7 @@ src/
     supervisor.py               LLM router + rule-based fallback
   nodes/
     retrieval_planner.py        PCR filter + hybrid RAG + CRAG
-    socratic_generator.py       Structured output generation + leak guard
+    socratic_generator.py       Structured output generation + leak guard + YouTube recommendations
     pedagogy_agent.py           Mastery update + concept DAG + mistake log
   knowledge_base/
     concept_graph.json          16-concept NetworkX DAG
@@ -313,6 +324,8 @@ frontend/
   src/app/
     page.tsx                    Welcome/setup page
     chat/page.tsx               3-pane chat UI
+    pilot/page.tsx              Pilot study page
+    survey/page.tsx             Post-session survey
     globals.css                 All styles — design tokens, layout, components
     layout.jsx                  Root layout + font imports
   src/components/
@@ -321,11 +334,12 @@ frontend/
     Thread.tsx                  Message list
     Turn.tsx                    Individual message turn
     Aside.tsx                   Right inspector panel
-    Composer.tsx                Text input
+    Composer.tsx                Text input + End Session button
+    ProgressView.tsx            Session summary + YouTube recommendations
     DiagramCard.tsx             Visual hint display
     Avatar.tsx                  Animated SVG avatar
   src/lib/
-    store.ts                    Zustand session store
+    store.ts                    Zustand session store (dedupes misconceptions by topic+note)
     types.ts                    TypeScript interfaces
     topics.ts                   Topic list (key, label)
 eval/
