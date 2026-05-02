@@ -749,40 +749,49 @@ def socratic_generator(state: TutoringState) -> dict:
     internal_analysis = None
     response_text = ""
 
-    for attempt in range(2):
+    def _parse_attempt(msgs: list, temp: float) -> SocraticOutput:
+        """Try beta.parse first; fall back to plain create + text extraction."""
+        import re as _re
         for api_attempt in range(3):
             try:
                 resp = client.beta.chat.completions.parse(
                     model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
-                    temperature=_cfg["llm"]["temperature"] if attempt == 0 else 0,
-                    messages=messages,
+                    temperature=temp,
+                    messages=msgs,
                     response_format=SocraticOutput,
                 )
-                break  # success
-            except Exception as e:
+                parsed = resp.choices[0].message.parsed
+                if parsed is not None:
+                    return parsed
+                # parsed is None — model returned plain text; fall through to text extraction
+                raw_text = (resp.choices[0].message.content or "").strip()
+                break
+            except Exception as exc:
                 if api_attempt == 2:
-                    raise
-                time.sleep(2 ** api_attempt)  # exponential backoff: 1s, 2s, 4s
+                    # All structured attempts failed — do one plain create
+                    plain = client.chat.completions.create(
+                        model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
+                        temperature=temp,
+                        messages=msgs,
+                        max_tokens=300,
+                    )
+                    raw_text = (plain.choices[0].message.content or "").strip()
+                    break
+                time.sleep(2 ** api_attempt)
+        else:
+            raw_text = ""
 
-        # beta.parse may return None for .parsed when OpenRouter/Claude returns plain text
-        raw_parsed = resp.choices[0].message.parsed
-        if raw_parsed is None:
-            # Fallback: wrap the plain-text content into a minimal SocraticOutput
-            raw_content = (resp.choices[0].message.content or "").strip()
-            # Extract a question from the text, or use it as-is
-            import re as _re
-            sentences = _re.split(r'(?<=[.!?])\s+', raw_content)
-            question = next((s for s in sentences if s.endswith("?")), raw_content)
-            raw_parsed = SocraticOutput(
-                internal_analysis=InternalAnalysis(
-                    correct_answer="", student_understood=False,
-                    misconception=None, key_concepts=[],
-                ),
-                visible_response=VisibleResponse(
-                    encouragement="", socratic_question=question,
-                ),
-            )
-        output: SocraticOutput = raw_parsed
+        sentences = _re.split(r'(?<=[.!?])\s+', raw_text)
+        question = next((s for s in sentences if "?" in s), raw_text or "What do you think about this concept?")
+        return SocraticOutput(
+            internal_analysis=InternalAnalysis(
+                correct_answer="", student_understood=False, misconception=None, key_concepts=[],
+            ),
+            visible_response=VisibleResponse(encouragement="", socratic_question=question),
+        )
+
+    for attempt in range(2):
+        output: SocraticOutput = _parse_attempt(messages, _cfg["llm"]["temperature"] if attempt == 0 else 0)
         visible = output.visible_response
         candidate = visible.socratic_question
         if visible.encouragement:
