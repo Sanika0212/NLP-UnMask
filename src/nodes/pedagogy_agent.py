@@ -69,12 +69,20 @@ def _get_client() -> OpenAI:
 def _evaluate_response(
     student_answer: str,
     internal: Optional[dict],
+    diagnostic_keywords: Optional[list[str]] = None,
 ) -> tuple[bool, str]:
     """
     Returns (is_correct, feedback_reason).
-    Uses keyword overlap between student answer and correct_answer/hint_sequence.
-    No LLM call — eliminates ~5-10s per turn.
+    Uses keyword overlap — no LLM call.
+
+    Two-pass strategy:
+      1. Check against focused diagnostic keywords (if provided) — ≥40% match = correct
+      2. Check against full gold answer tokens — ≥25% match = correct
+
+    Also expands nerve/spinal range notation: "C5-T1" → {c5, c6, c7, c8, t1}.
     """
+    import re
+
     if internal is None:
         return True, "rapport"
 
@@ -82,30 +90,58 @@ def _evaluate_response(
     if not correct_answer:
         return True, "no gold answer"
 
-    # Tokenise both sides, ignore stopwords
     _STOP = {"a", "an", "the", "is", "it", "in", "of", "to", "and", "or", "that",
              "this", "for", "with", "be", "are", "was", "not", "but", "i", "my",
              "their", "by", "at", "as", "on", "from", "they", "have", "would",
-             "which", "what", "how", "does", "do", "its", "also", "s", "t"}
+             "which", "what", "how", "does", "do", "its", "also", "s"}
+
+    _NERVE_ORDER = ["c1","c2","c3","c4","c5","c6","c7","c8","t1","t2","t3","t4",
+                    "t5","t6","t7","t8","t9","t10","t11","t12","l1","l2","l3","l4",
+                    "l5","s1","s2","s3","s4","s5"]
+
+    def _expand_ranges(text: str) -> str:
+        """Expand C5-T1 → C5 C6 C7 C8 T1 so range answers score correctly."""
+        def expand(m):
+            lo, hi = m.group(1).lower(), m.group(2).lower()
+            if lo in _NERVE_ORDER and hi in _NERVE_ORDER:
+                i, j = _NERVE_ORDER.index(lo), _NERVE_ORDER.index(hi)
+                if i <= j:
+                    return " ".join(_NERVE_ORDER[i:j+1])
+            return m.group(0)
+        return re.sub(r'\b([A-Za-z]\d+)\s*[-–]\s*([A-Za-z]\d+)\b', expand, text)
 
     def _tokens(text: str) -> set[str]:
-        import re
-        words = re.findall(r"[a-z0-9]+", text.lower())
-        return {w for w in words if w not in _STOP and len(w) > 2}
-
-    gold_tokens = _tokens(correct_answer)
-    # Also pull key terms from planned hints
-    for hint in internal.get("planned_hint_sequence", []):
-        gold_tokens |= _tokens(hint)
+        expanded = _expand_ranges(text)
+        words = re.findall(r"[a-z0-9]+", expanded.lower())
+        return {w for w in words if w not in _STOP and len(w) > 1}
 
     student_tokens = _tokens(student_answer)
+
+    # Pass 1: diagnostic keyword check (tight, focused set)
+    if diagnostic_keywords:
+        kw_tokens = {k.lower().strip() for k in diagnostic_keywords if k.strip()}
+        # also expand ranges in keywords
+        kw_tokens = _tokens(" ".join(kw_tokens))
+        if kw_tokens:
+            kw_overlap = student_tokens & kw_tokens
+            kw_ratio = len(kw_overlap) / len(kw_tokens)
+            if kw_ratio >= 0.40:
+                return True, f"keyword match {kw_ratio:.0%} ({len(kw_overlap)}/{len(kw_tokens)} diagnostic terms)"
+            if kw_ratio < 0.10 and len(kw_tokens) >= 3:
+                # Clearly wrong — skip pass 2
+                return False, f"keyword match {kw_ratio:.0%} (below 10% on diagnostic terms)"
+
+    # Pass 2: full gold answer overlap
+    gold_tokens = _tokens(correct_answer)
+    for hint in internal.get("planned_hint_sequence", []):
+        gold_tokens |= _tokens(hint)
 
     if not gold_tokens:
         return True, "no gold tokens"
 
     overlap = student_tokens & gold_tokens
     ratio = len(overlap) / len(gold_tokens)
-    is_correct = ratio >= 0.25  # ≥25% key term coverage = substantially correct
+    is_correct = ratio >= 0.20  # lowered from 0.25 — verbose gold answers penalise brief correct replies
     reason = f"keyword overlap {ratio:.0%} ({len(overlap)}/{len(gold_tokens)} terms)"
     return is_correct, reason
 
@@ -448,7 +484,8 @@ def pedagogy_agent(state: TutoringState) -> dict:
         # Try to extract topic from conversation context
         topic = _extract_topic_from_message(student_msg)
 
-    is_correct, _ = _evaluate_response(student_msg, internal)
+    diag_keywords = state.get("current_diagnostic_answer_hint") or []
+    is_correct, _ = _evaluate_response(student_msg, internal, diagnostic_keywords=diag_keywords)
 
     if topic:
         current_mastery = mastery.get(topic, _M["default_prior"])
