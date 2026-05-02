@@ -292,7 +292,7 @@ def analyze_uploaded_image(image_path: str) -> str:
 
     client = _get_client()
     resp = client.chat.completions.create(
-        model="gpt-4o",
+        model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
         messages=[
             {
                 "role": "user",

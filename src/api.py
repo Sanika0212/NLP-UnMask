@@ -55,26 +55,30 @@ async def search_anatomy_image(concept: str) -> dict:
         if not candidates:
             return {}
 
-        # LLM vision check — ask Claude to verify the image is relevant
-        from anthropic import Anthropic
-        client = Anthropic()
+        # LLM vision check via OpenRouter — ask Claude Haiku to verify image relevance
+        from openai import OpenAI
+        vision_client = OpenAI(
+            api_key=os.environ["OPENAI_API_KEY"],
+            base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
+        )
+        vision_model = os.getenv("VISION_MODEL", "anthropic/claude-haiku-4-5")
         for r in candidates:
             img_url = r.get("image", "")
             if not img_url:
                 continue
             try:
-                resp = client.messages.create(
-                    model="claude-haiku-4-5-20251001",
-                    max_tokens=64,
+                resp = vision_client.chat.completions.create(
+                    model=vision_model,
+                    max_tokens=16,
                     messages=[{
                         "role": "user",
                         "content": [
-                            {"type": "image", "source": {"type": "url", "url": img_url}},
+                            {"type": "image_url", "image_url": {"url": img_url}},
                             {"type": "text", "text": f"Is this image a medical/anatomy diagram of '{concept}'? Reply YES or NO only."}
                         ]
                     }]
                 )
-                verdict = resp.content[0].text.strip().upper()
+                verdict = resp.choices[0].message.content.strip().upper()
                 if verdict.startswith("YES"):
                     return {"image_url": img_url, "caption": r.get("title", concept)}
             except Exception:

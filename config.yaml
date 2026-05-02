@@ -1,9 +1,9 @@
 llm:
-  model: gpt-4o             # main Socratic generation
-  utility_model: gpt-4o-mini  # fast cheap model for CRAG grading, mastery eval, query reformulation
+  model: openai/gpt-4o             # main Socratic generation (via OpenRouter)
+  utility_model: openai/gpt-4o-mini  # fast model for CRAG grading, mastery eval, query reformulation
+  vision_model: anthropic/claude-haiku-4-5  # image verification (via OpenRouter)
   temperature: 0.3
-  local_model: llama3.1   # Ollama — used for rapport/wrapup phases
-  use_local_for: []   # Ollama not running — route all phases through API
+  use_local_for: []
   max_history_turns: 8    # cap conversation context to prevent unbounded growth
 
 embedding:

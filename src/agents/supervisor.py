@@ -154,7 +154,7 @@ Respond ONLY with a SupervisorDecision JSON object."""
 
     try:
         resp = client.beta.chat.completions.parse(
-            model="gpt-4o-mini",
+            model=os.getenv("UTILITY_MODEL", _cfg["llm"]["utility_model"]),
             messages=[{"role": "user", "content": prompt}],
             response_format=SupervisorDecision,
             temperature=0,
