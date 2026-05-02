@@ -61,7 +61,7 @@ async def search_anatomy_image(concept: str) -> dict:
             api_key=os.environ["OPENAI_API_KEY"],
             base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
         )
-        vision_model = os.getenv("VISION_MODEL", "anthropic/claude-haiku-4-5")
+        vision_model = os.getenv("VISION_MODEL", "anthropic/claude-opus-4")
         for r in candidates:
             img_url = r.get("image", "")
             if not img_url:

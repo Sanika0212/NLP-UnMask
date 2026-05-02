@@ -18,22 +18,36 @@ export default function Composer() {
     if (!SR) { alert('Speech recognition is not supported in this browser. Try Chrome or Edge.'); return; }
 
     if (listening && recognitionRef.current) {
-      recognitionRef.current.stop();
+      const rec = recognitionRef.current;
+      recognitionRef.current = null;  // clear first so onend doesn't restart
+      rec.stop();
       setListening(false);
       return;
     }
 
     const rec = new SR();
     rec.lang = 'en-US';
-    rec.continuous = false;
+    rec.continuous = true;
     rec.interimResults = false;
 
     rec.onresult = (e: any) => {
-      const transcript = Array.from(e.results).map((r: any) => r[0].transcript).join(' ');
-      setText(prev => prev ? prev + ' ' + transcript : transcript);
+      const results = Array.from(e.results) as any[];
+      const transcript = results
+        .filter((r: any) => r.isFinal)
+        .map((r: any) => r[0].transcript)
+        .join(' ')
+        .trim();
+      if (transcript) setText(prev => prev ? prev + ' ' + transcript : transcript);
     };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
+    // Some browsers stop on silence even with continuous=true — restart automatically
+    rec.onend = () => {
+      if (recognitionRef.current === rec) {
+        try { rec.start(); } catch { setListening(false); recognitionRef.current = null; }
+      }
+    };
+    rec.onerror = (e: any) => {
+      if (e.error !== 'no-speech') { setListening(false); recognitionRef.current = null; }
+    };
 
     recognitionRef.current = rec;
     rec.start();
