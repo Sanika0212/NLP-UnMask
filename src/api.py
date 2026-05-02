@@ -89,6 +89,25 @@ async def search_anatomy_image(concept: str) -> dict:
             img_url = info.get("url", "")
             mime = info.get("mime", "")
             if img_url and mime.startswith("image/"):
+                # Quick Gemini vision check — verify image is actually relevant anatomy
+                try:
+                    from openai import OpenAI as _OAI
+                    vc = _OAI(
+                        api_key=os.environ["OPENAI_API_KEY"],
+                        base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
+                    )
+                    vresp = vc.chat.completions.create(
+                        model=os.getenv("VISION_MODEL", _cfg["llm"].get("vision_model", "google/gemini-2.0-flash-lite")),
+                        max_tokens=4,
+                        messages=[{"role": "user", "content": [
+                            {"type": "image_url", "image_url": {"url": img_url}},
+                            {"type": "text", "text": f"Medical anatomy diagram of '{concept}'? YES or NO."},
+                        ]}],
+                    )
+                    if not vresp.choices[0].message.content.strip().upper().startswith("YES"):
+                        continue
+                except Exception:
+                    pass  # skip verification on error, trust Wikimedia
                 caption = title.replace("File:", "").rsplit(".", 1)[0]
                 return {"image_url": img_url, "caption": caption}
     except Exception:
@@ -566,7 +585,7 @@ async def upload_image(session_id: str, file: UploadFile = File(...)):
             api_key=os.environ["OPENAI_API_KEY"],
             base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
         )
-        vision_model = os.getenv("VISION_MODEL", "anthropic/claude-opus-4")
+        vision_model = os.getenv("VISION_MODEL", _cfg["llm"].get("vision_model", "google/gemini-2.0-flash-lite"))
 
         identification_resp = vision_client.chat.completions.create(
             model=vision_model,
