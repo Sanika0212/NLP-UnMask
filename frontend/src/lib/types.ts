@@ -60,7 +60,7 @@ export interface SessionState {
 
 export interface SessionStore extends SessionState {
   createSession: () => Promise<void>;
-  setupSession: (topic: string, mode: LearningMode) => Promise<{ firstQuestion: string; diagTotal: number }>;
+  setupSession: (topic: string, mode: LearningMode) => Promise<{ firstQuestion: string; welcomeMessage: string; diagTotal: number }>;
   sendMessage: (content: string) => Promise<void>;
   setAvatarState: (s: AvatarState) => void;
   addMessage: (msg: Omit<Message, 'id' | 'timestamp'>) => void;

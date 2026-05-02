@@ -18,10 +18,7 @@ export default function Aside({ onCollapse }: { onCollapse?: () => void }) {
 
   // Aggregate dotted concept keys (e.g. brachial_plexus.origin) by topic prefix
   const topicLabel = (key: string) => TOPICS.find((t) => t.key === key)?.label ?? key;
-  const shortLabel = (key: string) => {
-    const l = topicLabel(key);
-    return l.length > 12 ? l.split(' ').map((w) => w.slice(0, 4)).join('.') : l;
-  };
+  const dagLabel = (key: string) => TOPICS.find((t) => t.key === key)?.dagLabel ?? topicLabel(key);
 
   const topicMastery = (topicKey: string): number => {
     const entries = Object.entries(mastery).filter(([k]) => k.startsWith(topicKey + '.'));
@@ -131,7 +128,7 @@ export default function Aside({ onCollapse }: { onCollapse?: () => void }) {
                       <g key={key}>
                         <title>{topicLabel(key)} — {Math.round(topicMastery(key) * 100)}%</title>
                         <circle cx={cx} cy={cy} r={r} fill={nodeColor(key)} stroke={nodeBorder(key)} strokeWidth="1.5" />
-                        <text x={cx} y={ty} textAnchor="middle">{shortLabel(key)}</text>
+                        <text x={cx} y={ty} textAnchor="middle">{dagLabel(key)}</text>
                       </g>
                     ))}
                   </g>

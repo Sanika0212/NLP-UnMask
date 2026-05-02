@@ -93,7 +93,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       diagTotal: data.diag_total ?? 2,
       setupDone: true,
     });
-    return { firstQuestion: data.first_question ?? '', diagTotal: data.diag_total ?? 2 };
+    return {
+      firstQuestion: data.first_question ?? '',
+      welcomeMessage: data.welcome_message ?? '',
+      diagTotal: data.diag_total ?? 2,
+    };
   },
 
   sendMessage: async (content) => {

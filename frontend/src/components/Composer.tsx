@@ -17,11 +17,12 @@ export default function Composer() {
 
   const handleSend = async () => {
     if (!text.trim() || isThinking) return;
-    await sendMessage(text);
+    const msg = text;
     setText('');
     if (textareaRef.current) {
       textareaRef.current.style.height = '44px';
     }
+    await sendMessage(msg);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

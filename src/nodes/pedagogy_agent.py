@@ -158,6 +158,12 @@ _DIAGNOSTIC_BANK: list[dict] = [
     {"question": "What are the five terminal branches of the brachial plexus?",
      "concept": "brachial_plexus.terminal_branches", "topic": "brachial_plexus",
      "keywords": ["musculocutaneous", "axillary", "radial", "median", "ulnar"]},
+    {"question": "What are the three trunks of the brachial plexus and which roots form each?",
+     "concept": "brachial_plexus.trunks", "topic": "brachial_plexus",
+     "keywords": ["superior", "middle", "inferior", "c5 c6", "c7", "c8 t1"]},
+    {"question": "Which division of the brachial plexus gives rise to the medial cord, and what nerve does it primarily form?",
+     "concept": "brachial_plexus.cords", "topic": "brachial_plexus",
+     "keywords": ["anterior", "medial cord", "ulnar", "inferior trunk"]},
     # rotator_cuff
     {"question": "Name the four rotator cuff muscles.",
      "concept": "rotator_cuff.muscles", "topic": "rotator_cuff",

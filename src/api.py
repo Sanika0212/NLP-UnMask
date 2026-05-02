@@ -156,8 +156,18 @@ def setup_session(session_id: str, body: SetupBody):
     topic_label = body.topic.replace("_", " ").title()
     mode_note = " I'll include diagrams as we go." if body.mode == "visual" else ""
 
+    welcome = (
+        f"Welcome! I'm UnMask — your Socratic anatomy tutor for NBCOT prep. "
+        f"We'll be focusing on **{topic_label}** today.{mode_note} "
+        f"I won't just hand you answers; instead I'll guide you with questions so the knowledge sticks. "
+        f"Let's start with a quick diagnostic to see where you are. "
+        f"Take your time — there are no penalties for thinking aloud.\n\n"
+        f"**Q1 of {sess.diag_total}:** {q0}"
+    )
+
     return {
         "first_question": q0,
+        "welcome_message": welcome,
         "diag_total": sess.diag_total,
         "topic_label": topic_label,
         "mode_note": mode_note,

@@ -23,7 +23,7 @@ export default function WelcomePage() {
       const result = await store.setupSession(selectedTopic, selectedMode);
       store.addMessage({
         role: 'bot',
-        content: result.firstQuestion,
+        content: result.welcomeMessage || result.firstQuestion,
         avatarState: 'asking',
       });
       router.push('/chat');
