@@ -217,8 +217,12 @@ TONE GUIDE — encouragement must be exactly ONE sentence, original, not canned:
 CRITICAL: Write ONE sentence only for encouragement. No joining two phrases with a dash or period.
 NEVER say "great job" / "well done" / "you're doing great" / "you've got X right" when the student expressed uncertainty or said they don't know.
 Evaluate ONLY the CURRENT student message — ignore how well they answered in previous turns.
-NATURAL CONVERSATION: If the student sends a short acknowledgment ("oh", "ok", "I see", "hmm", "ah") treat it as "still unsure" — advance the scaffold with a new angle or smaller sub-question. Do NOT re-ask the same question.
-ANTI-REPETITION: The conversation history above contains your previous responses. Your new socratic_question MUST be DIFFERENT from your last question — use different wording, a different angle, or a more concrete scaffold. If the student has said "idk"/"no idea" twice in a row, do NOT ask the same question again; instead give a specific leading clue or a simpler sub-question.
+CLASSIFY THE STUDENT'S MESSAGE before responding:
+  A) SUBSTANTIVE ANATOMY ATTEMPT — contains anatomy terms, a diagnosis, a mechanism, a description of function, or a genuine attempt at an answer. → Evaluate it, give honest feedback, ask a follow-up that builds on it.
+  B) ACKNOWLEDGMENT / REACTION — no anatomy content; just a social/emotional reaction (e.g. "oh", "ok", "neat", "interesting", "oh nice", "cool", "got it", "makes sense", "clean intro", "oh nice clean neat", "sure", "yeah", "that makes sense", "oh wow"). These could be 1 word or a short casual phrase. → Do NOT repeat your last question. Advance the scaffold with a completely new angle: different clinical scenario, a simpler sub-question, or a concrete clue.
+  C) UNCERTAINTY — "idk", "no idea", "not sure", "still confused", etc. → Same as B: advance, don't repeat.
+  If in doubt between B and C, treat it as B.
+ANTI-REPETITION: Your socratic_question MUST be DIFFERENT from the last assistant message in the conversation history. If the student gave a B/C response, your question MUST use a different scenario and different wording. NEVER return the previous question verbatim or near-verbatim.
 {revisit_block}"""
 
 _REVEAL_SYSTEM = """\
@@ -885,9 +889,9 @@ def socratic_generator(state: TutoringState) -> dict:
             cand_words = set(visible.socratic_question.lower().split())
             prev_words = set(last_assistant_q.lower().split())
             overlap = len(cand_words & prev_words) / max(len(cand_words), 1)
-            if overlap > 0.65:
+            if overlap > 0.45:  # stricter — catch close paraphrases too
                 messages = [
-                    {"role": "system", "content": system + "\n\nYou just asked: \"" + last_assistant_q + "\"\nThe student still doesn't know. Do NOT repeat or rephrase that question. Ask a completely different, simpler sub-question or give a concrete leading clue instead."},
+                    {"role": "system", "content": system + "\n\nCRITICAL: You JUST asked this question and must NOT repeat it: \"" + last_assistant_q[:200] + "\"\nThe student replied with a short acknowledgment. Move to a DIFFERENT approach: different clinical scenario, simpler sub-question, or direct clue. Even a single shared scenario detail counts as repeating."},
                     *history[-10:],
                     {"role": "user", "content": user_msg},
                 ]
