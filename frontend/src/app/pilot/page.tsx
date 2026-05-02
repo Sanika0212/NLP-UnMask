@@ -69,8 +69,9 @@ export default function PilotPage() {
       const result = await store.setupSession(selectedTopic!, selectedMode!);
       store.addMessage({
         role: 'bot',
-        content: result.firstQuestion,
-        avatarState: 'asking',
+        content: result.welcomeMessage,
+        avatarState: 'speaking',
+        quickReplies: ["Let's start →"],
       });
       router.push('/chat');
     } catch (e) {

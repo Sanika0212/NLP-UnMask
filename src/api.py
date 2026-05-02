@@ -145,14 +145,10 @@ def setup_session(session_id: str, body: SetupBody):
     order = get_diagnostic_order(study_focus, n=_DIAGNOSTIC_QUESTIONS)
     sess.diag_order = order
     sess.diag_total = len(order)
-    sess.diag_q_index = 1
+    sess.diag_q_index = 0  # Q1 not sent yet — waits for user to click Start
     sess.warmup_done = True
     sess.study_focus = study_focus
     sess.learning_mode = body.mode
-
-    q0 = generate_diagnostic_question(order[0])
-    state["current_diagnostic_question"] = q0
-    state["current_diagnostic_answer_hint"] = get_diagnostic_answer_keywords(order[0])
 
     topic_label = body.topic.replace("_", " ").title()
     mode_note = " I'll include diagrams as we go." if body.mode == "visual" else ""
@@ -160,19 +156,16 @@ def setup_session(session_id: str, body: SetupBody):
     welcome = (
         f"Welcome! I'm UnMask — your Socratic anatomy tutor for NBCOT prep. "
         f"We'll be focusing on **{topic_label}** today.{mode_note} "
-        f"I won't just hand you answers; instead I'll guide you with questions so the knowledge sticks. "
-        f"Let's start with a quick diagnostic to see where you are. "
-        f"Take your time — there are no penalties for thinking aloud.\n\n"
-        f"**Q1 of {sess.diag_total}:** {q0}"
+        f"I won't just hand you answers; I'll guide you with questions so the knowledge actually sticks. "
+        f"We'll start with a quick {sess.diag_total}-question diagnostic to calibrate where you are — "
+        f"no penalties for thinking aloud, no wrong answers."
     )
 
     save_session(session_id)
     return {
-        "first_question": q0,
         "welcome_message": welcome,
         "diag_total": sess.diag_total,
         "topic_label": topic_label,
-        "mode_note": mode_note,
     }
 
 
@@ -182,6 +175,53 @@ async def stream_message(session_id: str, content: str):
     if not sess:
         yield f"data: {json.dumps({'type': 'error', 'message': 'Session not found'})}\n\n"
         return
+
+    # ── "Ready" trigger: user clicked Start — send Q1 with no LLM call ────────
+    _READY_TRIGGERS = {"let's start!", "let's start", "ready", "start", "begin", "go", "i'm ready", "im ready"}
+    if content.strip().lower().rstrip("→ ").strip() in _READY_TRIGGERS and sess.diag_q_index == 0:
+        order = sess.diag_order
+        q0 = generate_diagnostic_question(order[0])
+        sess.state["current_diagnostic_question"] = q0
+        sess.state["current_diagnostic_answer_hint"] = get_diagnostic_answer_keywords(order[0])
+        sess.diag_q_index = 1
+        save_session(session_id)
+        msg = f"Great — let's dive in.\n\n**Q1 of {sess.diag_total}:** {q0}"
+        yield f"data: {json.dumps({'type': 'message', 'content': msg, 'author': 'UnMask'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+
+    # ── "idk" shortcut during diagnostic — skip LLM, use template ─────────────
+    _IDK_PHRASES = {"idk", "i don't know", "i dont know", "no idea", "not sure", "don't know", "dont know", "no clue", "pass", "skip"}
+    if (sess.state.get("phase", "rapport") == "rapport"
+            and content.strip().lower() in _IDK_PHRASES
+            and not sess.state.get("diagnostic_complete", False)):
+        order = sess.diag_order
+        diag_idx = sess.diag_q_index
+        _IDK_RESPONSES = [
+            "That one's tricky — we'll build it up.",
+            "No worries — we'll come back to it.",
+            "Fair enough — we'll cover this as we go.",
+            "Got it — we'll work through it together.",
+        ]
+        ack = _IDK_RESPONSES[(diag_idx - 1) % len(_IDK_RESPONSES)]
+        if diag_idx < len(order):
+            next_q = generate_diagnostic_question(order[diag_idx])
+            sess.state["current_diagnostic_question"] = next_q
+            sess.state["current_diagnostic_answer_hint"] = get_diagnostic_answer_keywords(order[diag_idx])
+            sess.diag_q_index = diag_idx + 1
+            # Update mastery scores (no LLM — just keep default prior)
+            sess.state["turn_count"] = sess.state.get("turn_count", 0) + 1
+            save_session(session_id)
+            msg = f"{ack}\n\n**Q{diag_idx + 1} of {sess.diag_total}:** {next_q}"
+            yield f"data: {json.dumps({'type': 'message', 'content': msg, 'author': 'UnMask'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+        else:
+            # Last question answered with idk — complete diagnostic
+            sess.state["turn_count"] = sess.state.get("turn_count", 0) + 1
+            sess.state["diagnostic_complete"] = True
+            save_session(session_id)
+            # Fall through to the normal flow which handles the tutoring transition
 
     state = sess.state
     state["elapsed_seconds"] = time.time() - sess.session_start

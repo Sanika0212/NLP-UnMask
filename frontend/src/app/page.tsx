@@ -23,8 +23,9 @@ export default function WelcomePage() {
       const result = await store.setupSession(selectedTopic, selectedMode);
       store.addMessage({
         role: 'bot',
-        content: result.welcomeMessage || result.firstQuestion,
-        avatarState: 'asking',
+        content: result.welcomeMessage,
+        avatarState: 'speaking',
+        quickReplies: ["Let's start →"],
       });
       router.push('/chat');
     } catch (error) {
