@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import time
+from datetime import datetime
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -27,6 +28,7 @@ from src.nodes.pedagogy_agent import (
 )
 from src.anatomy_images import get_image_for_topic
 from src.session_manager import create_session, get_session, delete_session
+from src.survey import POST_QUIZ, save_results
 
 with open("config.yaml") as f:
     cfg = yaml.safe_load(f)
@@ -101,6 +103,18 @@ class SetupBody(BaseModel):
 
 class MessageBody(BaseModel):
     content: str
+
+
+class SurveyBody(BaseModel):
+    participant_id: str
+    role: str  # "OT Student" | "CS Student" | "Other"
+    pre_score: int
+    pre_answers: list[str]   # e.g. ["A","C","B","B","D"]
+    post_answers: list[str]
+    exp_ratings: list[int]   # 5 Likert scores 1-5
+    open_feedback: str = ""
+    topics_covered: str = ""
+    session_duration_min: float = 0.0
 
 
 @app.post("/api/sessions")
@@ -286,3 +300,43 @@ def delete_session_endpoint(session_id: str):
     """Delete a session."""
     delete_session(session_id)
     return {"ok": True}
+
+
+@app.post("/api/sessions/{session_id}/survey")
+def submit_survey(session_id: str, body: SurveyBody):
+    """Submit survey responses and save results."""
+    # Compute post_score by checking post_answers against POST_QUIZ correct answers
+    post_score = sum(
+        1 for ans, q in zip(body.post_answers, POST_QUIZ)
+        if ans.strip().upper().startswith(q["ans"].upper())
+    )
+
+    # Compute learning_gain
+    learning_gain = post_score - body.pre_score
+
+    # Build data dict with all fields
+    data = {
+        "timestamp": datetime.now().isoformat(),
+        "participant_id": body.participant_id,
+        "role": body.role,
+        "session_id": session_id,
+        "session_duration_min": round(body.session_duration_min, 1),
+        "topics_covered": body.topics_covered,
+        "pre_score": body.pre_score,
+        "post_score": post_score,
+        "learning_gain": learning_gain,
+        "pre_answers": ",".join(body.pre_answers),
+        "post_answers": ",".join(body.post_answers),
+        **{f"exp_q{i}": r for i, r in enumerate(body.exp_ratings, 1)},
+        "exp_mean": round(sum(body.exp_ratings) / len(body.exp_ratings), 2) if body.exp_ratings else "",
+        "open_feedback": body.open_feedback,
+    }
+
+    # Save results
+    save_results(data)
+
+    return {
+        "ok": True,
+        "post_score": post_score,
+        "learning_gain": learning_gain,
+    }

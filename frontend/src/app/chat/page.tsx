@@ -11,6 +11,7 @@ import Composer from '@/components/Composer';
 export default function ChatPage() {
   const router = useRouter();
   const store = useSessionStore();
+  const phase = useSessionStore((s) => s.phase);
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [asideCollapsed, setAsideCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -87,6 +88,31 @@ export default function ChatPage() {
 
         {/* Thread */}
         <Thread activeTab={activeTab} />
+
+        {/* Wrapup Banner */}
+        {phase === 'wrapup' && (
+          <div style={{
+            padding: '12px 20px',
+            background: 'var(--accent-soft)',
+            borderTop: '1px solid var(--accent)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexShrink: 0,
+          }}>
+            <span style={{ fontSize: '13px', color: 'var(--ink-2)' }}>
+              Session complete — please take the post-session survey to finish the pilot study.
+            </span>
+            <button
+              onClick={() => router.push('/survey')}
+              className="start-btn primary"
+              style={{ minWidth: '160px', flexShrink: 0 }}
+            >
+              <span className="t">Take Survey →</span>
+            </button>
+          </div>
+        )}
 
         {/* Composer */}
         <Composer />

@@ -52,6 +52,10 @@ export interface SessionState {
   setupDone: boolean;
   pcrMode: PCRMode;
   studentName: string;
+  participantId: string;
+  participantRole: string;
+  preQuizAnswers: number[];
+  preQuizScore: number;
 }
 
 export interface SessionStore extends SessionState {
@@ -62,5 +66,7 @@ export interface SessionStore extends SessionState {
   addMessage: (msg: Omit<Message, 'id' | 'timestamp'>) => void;
   updateLastBotMessage: (patch: Partial<Message>) => void;
   setStudentName: (name: string) => void;
+  setParticipantInfo: (id: string, role: string) => void;
+  setPreQuizResults: (answers: number[], score: number) => void;
   reset: () => void;
 }

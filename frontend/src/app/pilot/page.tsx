@@ -47,11 +47,12 @@ export default function PilotPage() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<LearningMode | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const allAnswered = QUESTIONS.every((q) => q.id in answers);
-  const canStart = allAnswered && selectedTopic && selectedMode && name.trim();
+  const canStart = allAnswered && selectedTopic && selectedMode && selectedRole && name.trim();
 
   const handleStartStudy = async () => {
     if (!canStart) return;
@@ -59,6 +60,11 @@ export default function PilotPage() {
     setError(null);
     try {
       store.setStudentName(name.trim());
+      store.setParticipantInfo(name.trim(), selectedRole!);
+      store.setPreQuizResults(
+        Object.values(answers),
+        QUESTIONS.filter((q) => answers[q.id] === q.correct).length
+      );
       await store.createSession();
       const result = await store.setupSession(selectedTopic!, selectedMode!);
       store.addMessage({
@@ -176,6 +182,17 @@ export default function PilotPage() {
                 <button className={`mode-btn ${selectedMode === 'text' ? 'selected' : ''}`} onClick={() => setSelectedMode('text')}>📝 Text</button>
               </div>
             </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                Your role
+              </label>
+              <div className="mode-row">
+                <button className={`mode-btn ${selectedRole === 'OT Student' ? 'selected' : ''}`} onClick={() => setSelectedRole('OT Student')}>Occupational Therapist Student</button>
+                <button className={`mode-btn ${selectedRole === 'CS Student' ? 'selected' : ''}`} onClick={() => setSelectedRole('CS Student')}>Computer Science Student</button>
+                <button className={`mode-btn ${selectedRole === 'Other' ? 'selected' : ''}`} onClick={() => setSelectedRole('Other')}>Other</button>
+              </div>
+            </div>
           </>
         )}
 
@@ -190,7 +207,7 @@ export default function PilotPage() {
           >
             <span className="t">{loading ? 'Starting…' : 'Continue to Study →'}</span>
             <span className="d">
-              {!name.trim() ? 'Enter your name above' : !allAnswered ? 'Answer all questions first' : !selectedTopic ? 'Select a topic above' : !selectedMode ? 'Select a learning mode above' : ''}
+              {!name.trim() ? 'Enter your name above' : !allAnswered ? 'Answer all questions first' : !selectedTopic ? 'Select a topic above' : !selectedMode ? 'Select a learning mode above' : !selectedRole ? 'Select your role above' : ''}
             </span>
           </button>
         </div>

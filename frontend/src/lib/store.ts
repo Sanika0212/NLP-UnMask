@@ -27,6 +27,10 @@ const initialState = {
   setupDone: false,
   pcrMode: 'prerequisite_first' as const,
   studentName: 'Student',
+  participantId: '',
+  participantRole: '',
+  preQuizAnswers: [] as number[],
+  preQuizScore: 0,
 };
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
@@ -37,6 +41,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setAvatarState: (s) => set({ avatarState: s }),
 
   setStudentName: (name) => set({ studentName: name }),
+
+  setParticipantInfo: (id, role) => set({ participantId: id, participantRole: role }),
+
+  setPreQuizResults: (answers, score) => set({ preQuizAnswers: answers, preQuizScore: score }),
 
   addMessage: (msg) => {
     const full: Message = {
