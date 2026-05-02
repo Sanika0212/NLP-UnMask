@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/lib/store';
 import Rail from '@/components/Rail';
@@ -16,6 +16,7 @@ export default function ChatPage() {
   const [asideCollapsed, setAsideCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeTab, setActiveTab] = useState('tutor');
+  const [paused, setPaused] = useState(false);
 
   // Redirect if session not set up
   useEffect(() => {
@@ -71,12 +72,14 @@ export default function ChatPage() {
       {!isMobile && (
         <Rail
           onCollapse={() => setRailCollapsed(!railCollapsed)}
+          paused={paused}
         />
       )}
 
       {/* MAIN COLUMN */}
       <div
         className="main"
+        style={{ position: 'relative' }}
       >
         {/* TopBar */}
         <TopBar
@@ -84,7 +87,27 @@ export default function ChatPage() {
           onToggleAside={() => setAsideCollapsed(!asideCollapsed)}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          paused={paused}
+          onPause={() => setPaused((p) => !p)}
         />
+
+        {/* Pause overlay */}
+        {paused && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 50,
+            background: 'rgba(var(--paper-rgb, 250,249,247), 0.92)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: '12px',
+          }}>
+            <div style={{ fontSize: '32px' }}>⏸</div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--ink)' }}>Session Paused</div>
+            <div style={{ fontSize: '13px', color: 'var(--ink-3)' }}>Timer is paused. Click Resume to continue.</div>
+            <button className="start-btn primary" onClick={() => setPaused(false)} style={{ marginTop: '8px' }}>
+              <span className="t">Resume →</span>
+            </button>
+          </div>
+        )}
 
         {/* Thread */}
         <Thread activeTab={activeTab} />
@@ -114,8 +137,8 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Composer */}
-        <Composer />
+        {/* Composer — only on tutor tab and not paused */}
+        {activeTab === 'tutor' && !paused && <Composer />}
       </div>
 
       {/* RIGHT ASIDE */}

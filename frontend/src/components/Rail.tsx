@@ -14,7 +14,7 @@ const PHASES = [
 
 const PHASE_ORDER = PHASES.map((p) => p.key);
 
-export default function Rail({ onCollapse }: { onCollapse?: () => void }) {
+export default function Rail({ onCollapse, paused }: { onCollapse?: () => void; paused?: boolean }) {
   const currentPhase = useSessionStore((s) => s.phase);
   const mastery      = useSessionStore((s) => s.mastery);
   const avatarState  = useSessionStore((s) => s.avatarState);
@@ -22,9 +22,10 @@ export default function Rail({ onCollapse }: { onCollapse?: () => void }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
+    if (paused) return;
     const id = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [paused]);
 
   const m = Math.floor(elapsedSeconds / 60);
   const s = String(elapsedSeconds % 60).padStart(2, '0');

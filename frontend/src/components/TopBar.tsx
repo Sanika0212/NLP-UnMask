@@ -8,11 +8,15 @@ export default function TopBar({
   onToggleAside,
   activeTab,
   onTabChange,
+  paused,
+  onPause,
 }: {
   onToggleRail?: () => void;
   onToggleAside?: () => void;
   activeTab: string;
   onTabChange: (tab: string) => void;
+  paused?: boolean;
+  onPause?: () => void;
 }) {
   const currentTopic = useSessionStore((s) => s.currentTopic);
   const pcrMode      = useSessionStore((s) => s.pcrMode);
@@ -83,13 +87,13 @@ export default function TopBar({
 
         <span className="nav-divider" />
 
-        <button className="icon-btn" title="Notes">
+        <button className="icon-btn" title="Notes" onClick={() => onTabChange('assess')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d="M5 4h14v16H5z" />
             <path d="M9 9h6M9 13h6M9 17h4" />
           </svg>
         </button>
-        <button className="icon-btn" title="Library">
+        <button className="icon-btn" title="Library" onClick={() => onTabChange('practice')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d="M4 4h6v16H4zM14 4h6v16h-6z" />
           </svg>
@@ -105,6 +109,20 @@ export default function TopBar({
         </button>
 
         <span className="nav-divider" />
+
+        {/* Pause / Resume */}
+        <button className="icon-btn" onClick={onPause} title={paused ? 'Resume session' : 'Pause session'}>
+          {paused ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <polygon points="5,3 19,12 5,21" fill="currentColor" stroke="none" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" stroke="none" />
+              <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" stroke="none" />
+            </svg>
+          )}
+        </button>
 
         {/* User chip */}
         <button className="user-chip">
