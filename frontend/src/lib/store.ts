@@ -192,6 +192,18 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             });
             set({ isThinking: false, avatarState: av });
 
+          } else if (type === 'phase_change') {
+            const newPhase = evt.to as string;
+            const pcrMap: Record<string, string> = {
+              rapport: 'diagnostic', tutoring: 'prerequisite_first',
+              assessment: 'assessment', wrapup: 'complete',
+            };
+            set({ phase: newPhase as Phase, pcrMode: (pcrMap[newPhase] ?? get().pcrMode) as typeof initialState.pcrMode });
+            if (evt.banner) {
+              get().addMessage({ role: 'bot', content: evt.banner as string, avatarState: 'speaking' });
+            }
+            set({ isThinking: true, avatarState: 'thinking' });
+
           } else if (type === 'visual_hint') {
             get().updateLastBotMessage({
               visualHint: {

@@ -119,9 +119,13 @@ def _llm_decision(state: TutoringState) -> Optional[SupervisorDecision]:
     phase = state["phase"]
     turn = state.get("turn_count", 0)
 
-    # Rapport transitions are fully deterministic — skip expensive LLM call to avoid
-    # the ~15 s latency spike that causes the "stuck thinking" hang on Q4 completion.
+    # Deterministic phases — skip LLM call entirely.
+    # rapport: rule-based diagnostic routing
+    # synthetic trigger ("Let's work on …"): first tutoring question after diagnostic
     if phase == "rapport":
+        return None
+    msg = (state.get("student_message") or "").strip()
+    if msg.startswith("Let's work on"):
         return None
 
     client = OpenAI(

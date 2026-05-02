@@ -208,6 +208,7 @@ async def stream_message(session_id: str, content: str):
 
     phase = result.get("phase", "rapport")
     diagnostic_complete = result.get("diagnostic_complete", False)
+    print(f"[DEBUG] invoke1 done: phase={phase} diag_complete={diagnostic_complete} turn={result.get('turn_count')} prev_phase={prev_phase}", flush=True)
 
     yield f"data: {json.dumps({'type': 'supervisor', 'agent': result.get('_last_agent', ''), 'reasoning': result.get('_supervisor_reasoning', ''), 'phase': phase})}\n\n"
 
@@ -255,19 +256,25 @@ async def stream_message(session_id: str, content: str):
     if diagnostic_complete and phase == "rapport":
         start_concept = _pick_start_concept(result)
         trigger = f"Let's work on {start_concept.replace('_', ' ').replace('.', ' ')}"
-        tutoring_state = dict(result)
-        tutoring_state.update({
+        print(f"[DEBUG] transitioning to tutoring, concept={start_concept}", flush=True)
+        tutoring_state = {
             "phase": "tutoring",
+            "last_phase": "rapport",
             "student_message": trigger,
             "current_topic": start_concept,
             "consecutive_incorrect": 0,
             "consecutive_correct": 0,
-        })
+            "diagnostic_complete": True,
+            "elapsed_seconds": result.get("elapsed_seconds", 0.0),
+            "mastery_scores": result.get("mastery_scores", {}),
+        }
         banner = _PHASE_TRANSITION_MSGS[("rapport", "tutoring")]
         yield f"data: {json.dumps({'type': 'phase_change', 'from': 'rapport', 'to': 'tutoring', 'banner': banner})}\n\n"
         yield f"data: {json.dumps({'type': 'thinking'})}\n\n"
         try:
+            print(f"[DEBUG] firing second invoke for tutoring start", flush=True)
             result2 = await loop.run_in_executor(None, lambda: graph.invoke(tutoring_state, config=config))
+            print(f"[DEBUG] invoke2 done: phase={result2.get('phase')} response={str(result2.get('generated_response',''))[:60]}", flush=True)
             sess.state = result2
             save_session(session_id)
             tut_response = result2.get("generated_response", "")
@@ -275,7 +282,9 @@ async def stream_message(session_id: str, content: str):
                 yield f"data: {json.dumps({'type': 'message', 'content': tut_response, 'author': '📖 Tutor'})}\n\n"
             yield f"data: {json.dumps({'type': 'state_update', 'phase': 'tutoring', 'mastery': result2.get('mastery_scores', {}), 'consecutive_incorrect': 0, 'consecutive_correct': 0, 'diagnostic_complete': True, 'weak_topics': result2.get('weak_topics', []), 'mistake_log': result2.get('mistake_log', []), 'turn_count': result2.get('turn_count', 0)})}\n\n"
         except Exception as e:
+            print(f"[DEBUG] invoke2 EXCEPTION: {e}", flush=True)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
 
     if prev_phase != phase:
