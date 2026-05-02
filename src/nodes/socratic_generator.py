@@ -756,8 +756,8 @@ def socratic_generator(state: TutoringState) -> dict:
         # Inject JSON schema instruction into the last system message
         json_instruction = (
             "\n\nRespond ONLY with a JSON object matching this schema (no markdown, no prose):\n"
-            '{"internal_analysis": {"correct_answer": "...", "student_understood": false, '
-            '"misconception": null, "key_concepts": []}, '
+            '{"internal_analysis": {"correct_answer": "...", "student_misconception": "...", '
+            '"planned_hint_sequence": [], "relevant_textbook_section": "..."}, '
             '"visible_response": {"encouragement": "...", "socratic_question": "...?"}}'
         )
         augmented = list(msgs)
@@ -786,7 +786,8 @@ def socratic_generator(state: TutoringState) -> dict:
         question = next((s for s in sentences if "?" in s), raw or "What do you think about this anatomy concept?")
         return SocraticOutput(
             internal_analysis=InternalAnalysis(
-                correct_answer="", student_understood=False, misconception=None, key_concepts=[],
+                correct_answer="", student_misconception="",
+                planned_hint_sequence=[], relevant_textbook_section="",
             ),
             visible_response=VisibleResponse(encouragement="", socratic_question=question),
         )
