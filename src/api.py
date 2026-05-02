@@ -28,6 +28,7 @@ from src.nodes.pedagogy_agent import (
 )
 from src.agents.supervisor import _pick_start_concept
 from src.anatomy_images import get_image_for_topic
+from src.nodes.socratic_generator import register_token_queue, unregister_token_queue
 from src.session_manager import create_session, get_session, delete_session, save_session
 from src.survey import POST_QUIZ, save_results
 
@@ -236,15 +237,40 @@ async def stream_message(session_id: str, content: str):
     config = {"configurable": {"thread_id": sess.session_id}}
     loop = asyncio.get_event_loop()
 
+    # Register streaming queue so socratic_generator can push tokens while running
+    token_q = register_token_queue(session_id)
+
     try:
-        result = await loop.run_in_executor(
+        # Run graph in background thread while draining the token stream
+        invoke_future = loop.run_in_executor(
             None, lambda: graph.invoke(state, config=config)
         )
+
+        # Drain token queue — yield SSE token events as they arrive
+        streaming_started = False
+        while True:
+            try:
+                token = token_q.get(timeout=0.05)
+                if token is None:
+                    break  # end sentinel
+                if not streaming_started:
+                    streaming_started = True
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+            except Exception:
+                # No token yet — check if invoke finished (shouldn't happen before sentinel)
+                if invoke_future.done():
+                    break
+                await asyncio.sleep(0)  # yield control back to event loop
+
+        result = await invoke_future
         sess.state = result
         save_session(session_id)
     except Exception as e:
+        unregister_token_queue(session_id)
         yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
         return
+    finally:
+        unregister_token_queue(session_id)
 
     phase = result.get("phase", "rapport")
     diagnostic_complete = result.get("diagnostic_complete", False)
@@ -311,9 +337,21 @@ async def stream_message(session_id: str, content: str):
         banner = _PHASE_TRANSITION_MSGS[("rapport", "tutoring")]
         yield f"data: {json.dumps({'type': 'phase_change', 'from': 'rapport', 'to': 'tutoring', 'banner': banner})}\n\n"
         yield f"data: {json.dumps({'type': 'thinking'})}\n\n"
+        token_q2 = register_token_queue(session_id)
         try:
             print(f"[DEBUG] firing second invoke for tutoring start", flush=True)
-            result2 = await loop.run_in_executor(None, lambda: graph.invoke(tutoring_state, config=config))
+            invoke2_future = loop.run_in_executor(None, lambda: graph.invoke(tutoring_state, config=config))
+            while True:
+                try:
+                    token = token_q2.get(timeout=0.05)
+                    if token is None:
+                        break
+                    yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+                except Exception:
+                    if invoke2_future.done():
+                        break
+                    await asyncio.sleep(0)
+            result2 = await invoke2_future
             print(f"[DEBUG] invoke2 done: phase={result2.get('phase')} response={str(result2.get('generated_response',''))[:60]}", flush=True)
             sess.state = result2
             save_session(session_id)
@@ -324,6 +362,8 @@ async def stream_message(session_id: str, content: str):
         except Exception as e:
             print(f"[DEBUG] invoke2 EXCEPTION: {e}", flush=True)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        finally:
+            unregister_token_queue(session_id)
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
 

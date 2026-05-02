@@ -26,6 +26,8 @@ export interface Message {
   supervisorStep?: SupervisorStep;
   isThinking?: boolean;
   timestamp: Date;
+  _streaming?: boolean;
+  quickReplies?: string[];
 }
 
 export interface Misconception {

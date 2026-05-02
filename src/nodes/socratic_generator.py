@@ -8,6 +8,8 @@ Only visible_response.socratic_question + encouragement reach the student.
 from __future__ import annotations
 
 import os
+import queue
+import threading
 from typing import Literal, Optional
 
 import yaml
@@ -15,6 +17,31 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 from src.state import TutoringState, Phase
+
+# ── Per-session streaming token queues ───────────────────────────────────────
+# api.py registers a queue before calling graph.invoke; socratic_generator
+# puts tokens in it; api.py drains the queue and yields SSE events.
+# Sentinel None marks end-of-stream.
+
+_token_queues: dict[str, queue.Queue] = {}
+_token_queues_lock = threading.Lock()
+
+
+def register_token_queue(session_id: str) -> queue.Queue:
+    q: queue.Queue = queue.Queue()
+    with _token_queues_lock:
+        _token_queues[session_id] = q
+    return q
+
+
+def unregister_token_queue(session_id: str) -> None:
+    with _token_queues_lock:
+        _token_queues.pop(session_id, None)
+
+
+def _get_token_queue(session_id: str) -> Optional[queue.Queue]:
+    with _token_queues_lock:
+        return _token_queues.get(session_id)
 
 with open("config.yaml") as f:
     _cfg = yaml.safe_load(f)
@@ -573,6 +600,7 @@ def socratic_generator(state: TutoringState) -> dict:
     history = state.get("conversation_history", [])
     mastery = state.get("mastery_scores", {})
     topic = state.get("current_topic", "")
+    _session_id = state.get("session_id", "")
 
     _max_turns = _cfg["llm"].get("max_history_turns", 8)
 
@@ -750,10 +778,9 @@ def socratic_generator(state: TutoringState) -> dict:
     response_text = ""
 
     def _parse_attempt(msgs: list, temp: float) -> SocraticOutput:
-        """Single API call with JSON prompt; parse manually. No retries on parse failure."""
+        """Single API call with JSON prompt; streams tokens to queue if registered."""
         import re as _re, json as _json
 
-        # Inject JSON schema instruction into the last system message
         json_instruction = (
             "\n\nRespond ONLY with a JSON object matching this schema (no markdown, no prose):\n"
             '{"internal_analysis": {"correct_answer": "...", "student_misconception": "...", '
@@ -764,17 +791,67 @@ def socratic_generator(state: TutoringState) -> dict:
         if augmented and augmented[0]["role"] == "system":
             augmented[0] = {**augmented[0], "content": augmented[0]["content"] + json_instruction}
 
-        resp = client.chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
-            temperature=temp,
-            messages=augmented,
-            max_tokens=400,
-        )
-        raw = (resp.choices[0].message.content or "").strip()
+        token_q = _get_token_queue(_session_id)
+
+        if token_q is not None:
+            # Streaming path: collect all tokens; extract visible_response value and push to queue
+            stream = client.chat.completions.create(
+                model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
+                temperature=temp,
+                messages=augmented,
+                max_tokens=400,
+                stream=True,
+            )
+            raw_parts: list[str] = []
+            # State machine to extract the string value of "socratic_question" field
+            # States: 0=scanning, 1=inside socratic_question value
+            _sq_state = 0
+            _sq_buf = ""
+            _emitted_chars = 0
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content if chunk.choices else None
+                if not delta:
+                    continue
+                raw_parts.append(delta)
+                so_far = "".join(raw_parts)
+                # Detect start of socratic_question value
+                if _sq_state == 0 and '"socratic_question"' in so_far:
+                    # Find the opening quote of the value
+                    idx = so_far.index('"socratic_question"') + len('"socratic_question"')
+                    rest = so_far[idx:]
+                    colon_q = rest.find('"')
+                    if colon_q != -1:
+                        _sq_state = 1
+                        _sq_buf = rest[colon_q + 1:]
+                        # Emit any already-buffered characters
+                        clean_chunk = _sq_buf.replace("\\n", " ").replace('\\"', '"')
+                        if clean_chunk:
+                            token_q.put(clean_chunk)
+                            _emitted_chars += len(clean_chunk)
+                elif _sq_state == 1:
+                    # Check if this delta closes the string
+                    if '"' in delta and not delta.endswith('\\"'):
+                        # End of value — emit everything up to closing quote
+                        end_part = delta.split('"')[0]
+                        if end_part:
+                            token_q.put(end_part.replace("\\n", " ").replace('\\"', '"'))
+                        _sq_state = 2  # done
+                    else:
+                        clean_delta = delta.replace("\\n", " ").replace('\\"', '"')
+                        token_q.put(clean_delta)
+            token_q.put(None)  # end sentinel
+            raw = "".join(raw_parts).strip()
+        else:
+            resp = client.chat.completions.create(
+                model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
+                temperature=temp,
+                messages=augmented,
+                max_tokens=400,
+            )
+            raw = (resp.choices[0].message.content or "").strip()
 
         # Try JSON parse → Pydantic
         try:
-            # Strip markdown fences if present
             clean = _re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=_re.DOTALL).strip()
             data = _json.loads(clean)
             return SocraticOutput(**data)

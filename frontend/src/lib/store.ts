@@ -140,6 +140,17 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           if (type === 'thinking') {
             set({ avatarState: 'thinking' });
 
+          } else if (type === 'token') {
+            // First token: create a streaming placeholder message
+            const msgs = get().messages;
+            const lastMsg = msgs[msgs.length - 1];
+            if (!lastMsg || lastMsg.role !== 'bot' || lastMsg._streaming !== true) {
+              get().addMessage({ role: 'bot', content: evt.content as string, avatarState: 'speaking', _streaming: true });
+            } else {
+              get().updateLastBotMessage({ content: lastMsg.content + (evt.content as string), _streaming: true });
+            }
+            set({ isThinking: false, avatarState: 'speaking' });
+
           } else if (type === 'supervisor') {
             get().addMessage({
               role: 'bot',
@@ -184,12 +195,24 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           } else if (type === 'message') {
             const agent = evt.agent as string ?? '';
             const av: AvatarState = AGENT_AVATAR[agent] ?? 'speaking';
-            get().addMessage({
-              role: 'bot',
-              content: evt.content as string,
-              author: evt.author as string,
-              avatarState: av,
-            });
+            // If we were streaming tokens, finalize that message instead of adding a duplicate
+            const msgs2 = get().messages;
+            const lastMsg2 = msgs2[msgs2.length - 1];
+            if (lastMsg2?.role === 'bot' && lastMsg2._streaming) {
+              get().updateLastBotMessage({
+                content: evt.content as string,
+                author: evt.author as string,
+                avatarState: av,
+                _streaming: false,
+              });
+            } else {
+              get().addMessage({
+                role: 'bot',
+                content: evt.content as string,
+                author: evt.author as string,
+                avatarState: av,
+              });
+            }
             set({ isThinking: false, avatarState: av });
 
           } else if (type === 'phase_change') {
