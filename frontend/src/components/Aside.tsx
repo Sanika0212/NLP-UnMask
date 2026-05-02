@@ -175,7 +175,7 @@ export default function Aside({ onCollapse }: { onCollapse?: () => void }) {
             </div>
             <div className="panel-body">
               {TOPICS.map((topic) => {
-                const m = mastery[topic.key] ?? 0;
+                const m = topicMastery(topic.key);
                 return (
                   <div key={topic.key} style={{ marginBottom:'10px', fontSize:'12px' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'3px' }}>
@@ -187,7 +187,7 @@ export default function Aside({ onCollapse }: { onCollapse?: () => void }) {
                     <div style={{ height:'3px', background:'var(--rule)', borderRadius:'2px', overflow:'hidden' }}>
                       <div style={{
                         height:'100%', width:`${m*100}%`,
-                        background: m > 0.6 ? 'var(--accent)' : m > 0.3 ? 'oklch(0.78 0.06 195)' : 'var(--warn)',
+                        background: m > 0.6 ? 'var(--accent)' : m > 0.3 ? 'oklch(0.78 0.06 195)' : m > 0 ? 'var(--warn)' : 'transparent',
                         transition:'width 600ms ease',
                       }} />
                     </div>
