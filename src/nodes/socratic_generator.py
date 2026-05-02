@@ -750,39 +750,40 @@ def socratic_generator(state: TutoringState) -> dict:
     response_text = ""
 
     def _parse_attempt(msgs: list, temp: float) -> SocraticOutput:
-        """Try beta.parse first; fall back to plain create + text extraction."""
-        import re as _re
-        for api_attempt in range(3):
-            try:
-                resp = client.beta.chat.completions.parse(
-                    model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
-                    temperature=temp,
-                    messages=msgs,
-                    response_format=SocraticOutput,
-                )
-                parsed = resp.choices[0].message.parsed
-                if parsed is not None:
-                    return parsed
-                # parsed is None — model returned plain text; fall through to text extraction
-                raw_text = (resp.choices[0].message.content or "").strip()
-                break
-            except Exception as exc:
-                if api_attempt == 2:
-                    # All structured attempts failed — do one plain create
-                    plain = client.chat.completions.create(
-                        model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
-                        temperature=temp,
-                        messages=msgs,
-                        max_tokens=300,
-                    )
-                    raw_text = (plain.choices[0].message.content or "").strip()
-                    break
-                time.sleep(2 ** api_attempt)
-        else:
-            raw_text = ""
+        """Single API call with JSON prompt; parse manually. No retries on parse failure."""
+        import re as _re, json as _json
 
-        sentences = _re.split(r'(?<=[.!?])\s+', raw_text)
-        question = next((s for s in sentences if "?" in s), raw_text or "What do you think about this concept?")
+        # Inject JSON schema instruction into the last system message
+        json_instruction = (
+            "\n\nRespond ONLY with a JSON object matching this schema (no markdown, no prose):\n"
+            '{"internal_analysis": {"correct_answer": "...", "student_understood": false, '
+            '"misconception": null, "key_concepts": []}, '
+            '"visible_response": {"encouragement": "...", "socratic_question": "...?"}}'
+        )
+        augmented = list(msgs)
+        if augmented and augmented[0]["role"] == "system":
+            augmented[0] = {**augmented[0], "content": augmented[0]["content"] + json_instruction}
+
+        resp = client.chat.completions.create(
+            model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
+            temperature=temp,
+            messages=augmented,
+            max_tokens=400,
+        )
+        raw = (resp.choices[0].message.content or "").strip()
+
+        # Try JSON parse → Pydantic
+        try:
+            # Strip markdown fences if present
+            clean = _re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=_re.DOTALL).strip()
+            data = _json.loads(clean)
+            return SocraticOutput(**data)
+        except Exception:
+            pass
+
+        # Fallback: extract question from plain text
+        sentences = _re.split(r"(?<=[.!?])\s+", raw)
+        question = next((s for s in sentences if "?" in s), raw or "What do you think about this anatomy concept?")
         return SocraticOutput(
             internal_analysis=InternalAnalysis(
                 correct_answer="", student_understood=False, misconception=None, key_concepts=[],
