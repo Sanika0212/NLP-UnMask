@@ -1,15 +1,44 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useSessionStore } from '@/lib/store';
 
 export default function Composer() {
   const [text, setText] = useState('');
+  const [listening, setListening] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
   const isThinking = useSessionStore((state) => state.isThinking);
   const sendMessage = useSessionStore((state) => state.sendMessage);
   const sessionId = useSessionStore((state) => state.sessionId);
   const addMessage = useSessionStore((state) => state.addMessage);
+
+  const toggleSTT = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { alert('Speech recognition is not supported in this browser. Try Chrome or Edge.'); return; }
+
+    if (listening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setListening(false);
+      return;
+    }
+
+    const rec = new SR();
+    rec.lang = 'en-US';
+    rec.continuous = false;
+    rec.interimResults = false;
+
+    rec.onresult = (e: any) => {
+      const transcript = Array.from(e.results).map((r: any) => r[0].transcript).join(' ');
+      setText(prev => prev ? prev + ' ' + transcript : transcript);
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+
+    recognitionRef.current = rec;
+    rec.start();
+    setListening(true);
+  }, [listening]);
 
   const handleInput = () => {
     if (textareaRef.current) {
@@ -102,6 +131,27 @@ export default function Composer() {
           />
           <div className="composer-row">
             <div className="composer-tools">
+              <button
+                className="icon-btn"
+                title={listening ? 'Stop listening' : 'Speak your answer'}
+                onClick={toggleSTT}
+                disabled={isThinking}
+                style={listening ? { color: 'var(--accent)', animation: 'pulse 1s infinite' } : {}}
+              >
+                {listening ? (
+                  <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <circle cx="12" cy="12" r="8" opacity="0.2"/>
+                    <circle cx="12" cy="12" r="4"/>
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <rect x="9" y="2" width="6" height="12" rx="3"/>
+                    <path d="M19 10a7 7 0 0 1-14 0"/>
+                    <line x1="12" y1="19" x2="12" y2="22"/>
+                    <line x1="8" y1="22" x2="16" y2="22"/>
+                  </svg>
+                )}
+              </button>
               <button
                 className="icon-btn"
                 title="Attach image"

@@ -1,9 +1,29 @@
 'use client';
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Message } from '@/lib/types';
 import Avatar from './Avatar';
 import DiagramCard from './DiagramCard';
 import { useSessionStore } from '@/lib/store';
+
+function useTTS() {
+  const [speaking, setSpeaking] = useState(false);
+  const speak = useCallback((text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const clean = text.replace(/[#*_`>~]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    const utt = new SpeechSynthesisUtterance(clean);
+    utt.rate = 0.95;
+    utt.onend = () => setSpeaking(false);
+    utt.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    window.speechSynthesis.speak(utt);
+  }, [speaking]);
+  return { speaking, speak };
+}
 
 interface Props {
   message: Message;
@@ -225,6 +245,7 @@ export default function Turn({ message, elapsed = 0 }: Props) {
 
   const authorLabel = message.author || 'UnMask';
   const avatarState = message.avatarState ?? 'speaking';
+  const { speaking, speak } = useTTS();
 
   return (
     <div className="turn">
@@ -252,6 +273,25 @@ export default function Turn({ message, elapsed = 0 }: Props) {
         )}
 
         <div className="tools">
+          <button
+            className="icon-btn"
+            title={speaking ? 'Stop reading' : 'Read aloud'}
+            onClick={() => speak(message.content)}
+            style={speaking ? { color: 'var(--accent)' } : {}}
+          >
+            {speaking ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="6" y="4" width="4" height="16" rx="1"/>
+                <rect x="14" y="4" width="4" height="16" rx="1"/>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+              </svg>
+            )}
+          </button>
           <button
             className="icon-btn"
             title="Copy"
