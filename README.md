@@ -4,7 +4,6 @@ emoji: 🧠
 colorFrom: blue
 colorTo: indigo
 sdk: docker
-app_file: app.py
 pinned: false
 ---
 
@@ -43,9 +42,11 @@ class SocraticOutput(BaseModel):
 ## Architecture (4 Layers)
 
 ```
-Student Input (Chainlit UI)
-        │
+Browser (Next.js 14 — frontend/)
+        │  SSE stream + REST /api/*
         ▼
+nginx (port 7860)  →  Next.js (port 3000)  →  FastAPI (port 8000)
+        │
   LangGraph State Machine (5 nodes)
   ├── Pedagogy Agent      (BKT mastery update + concept DAG + phase transitions)
   ├── Retrieval Planner   (PCR filter + hybrid RAG + CRAG)
@@ -53,9 +54,6 @@ Student Input (Chainlit UI)
   ├── Assessment Agent    (clinical scenario + reasoning eval vs. textbook)
   └── Memory Manager      (concept graph update from student responses)
         │
-  LLM Routing (two-tier):
-    Llama 3.1 8B (local, Ollama) — rapport + wrapup (65–75%)
-    GPT-4o via OpenRouter         — Socratic + VLM + assessment (25–35%)
   Embeddings: Gemini Embedding 2 (3072d, dense) + BM25 (sparse)
   Vector DB:  Qdrant (local file mode, unified text + image collection)
   NLI Gate:   DeBERTa cross-encoder (pre-delivery faithfulness enforcement)
@@ -131,7 +129,7 @@ Used by the Pedagogy Agent (`nx.ancestors()`) to trace prerequisite gaps when a 
 ### Visual Data
 
 - **Source:** Gray's Anatomy public-domain plates via Wikimedia Commons API (8 PNG files, `public/anatomy/`)
-- Displayed inline in Chainlit via `cl.Image(path=...)` when `consecutive_incorrect ≥ threshold`
+- Displayed inline in the frontend via a `visual_hint` SSE event when `consecutive_incorrect ≥ threshold`
 - Threshold adapts to `learning_mode`: visual learners → 1 incorrect, Q&A learners → 2 incorrect
 - VLM interpretation of student-uploaded images (MedGemma / GPT-4o Vision) not yet connected
 
@@ -153,39 +151,42 @@ The concept graph auto-generates from the OpenStax Physics 2e table of contents 
 
 ## Setup
 
-**Requirements:** Python 3.11+, no Docker needed (Qdrant runs in local file mode)
+**Requirements:** Python 3.11+, Node 20+
 
 ```bash
-# 1. Install dependencies
+# 1. Install Python dependencies
 pip install -r requirements.txt
 
-# 2. Install and start Ollama (for local Llama 3.1 8B — used in rapport/wrapup phases)
-# Download Ollama from https://ollama.com, then:
-ollama pull llama3.1
-
-# 3. Configure environment
+# 2. Configure environment
 cp .env.example .env
-# Fill in: OPENAI_API_KEY, OPENAI_BASE_URL, GOOGLE_API_KEY
+# Fill in: OPENAI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY
 ```
 
 **.env values:**
 ```
-OPENAI_API_KEY=<your-openrouter-key>
-OPENAI_BASE_URL=https://openrouter.ai/api/v1
-OPENAI_MODEL=openai/gpt-4o
+OPENAI_API_KEY=<your-openai-key>
+OPENAI_MODEL=gpt-4o
+ANTHROPIC_API_KEY=<your-anthropic-key>
 EMBEDDING_PROVIDER=gemini
 GOOGLE_API_KEY=<your-google-api-key>
 QDRANT_COLLECTION=unmask_anatomy
 ```
 
 ```bash
-# 4. Index the knowledge base
+# 3. Index the knowledge base
 python scripts/index_kb.py           # initial index
 python scripts/index_kb.py --recreate  # drop and rebuild
 
-# 5. Run the tutor (available at http://localhost:8000)
-chainlit run app.py
+# 4. Start the FastAPI backend (port 8000)
+uvicorn src.api:app --reload --port 8000
+
+# 5. In a second terminal — install and start the Next.js frontend (port 3000)
+cd frontend
+npm install
+npm run dev
 ```
+
+Open **http://localhost:3000** in your browser.
 
 ---
 
@@ -236,7 +237,12 @@ python eval/ablation.py              # 4-variant ablation study
 ## Project Structure
 
 ```
-app.py                      # Chainlit entry point
+frontend/                   # Next.js 14 App Router (main UI)
+  src/app/                  # Pages and layout
+  src/components/           # Chat thread, aside panel, practice/assess views
+  src/lib/                  # Zustand store, per-user localStorage (userStore.ts)
+src/                        # FastAPI backend + LangGraph pipeline
+  api.py                    # FastAPI entry point (uvicorn src.api:app)
 config.yaml                 # All tunable parameters (PCR thresholds, session timing)
 src/
   graph.py                  # LangGraph state machine
@@ -269,8 +275,7 @@ eval/
 
 | Component | Per session |
 |-----------|------------|
-| GPT-4o (OpenRouter) | ~$0.05–0.08 |
-| Llama 3.1 8B (local) | $0 |
+| GPT-4o | ~$0.05–0.08 |
 | Qdrant (local) | $0 |
 | DeBERTa (local, HuggingFace) | $0 |
 | **Total** | **~$0.08–0.10** |
