@@ -465,10 +465,7 @@ async def stream_message(session_id: str, content: str):
 
         sess.last_diagram_concept = hint_concept
 
-        # Always use local diagram text as study note if available
-        local_diagram_text = local_img_data.get("diagram", "") if local_img_data else ""
-        display_note = (local_diagram_text or diagram_text or hint_text)[:400]
-        yield f"data: {json.dumps({'type': 'visual_hint', 'concept': hint_concept, 'image_url': image_url, 'caption': caption, 'diagram_text': diagram_text, 'study_notes': display_note})}\n\n"
+        yield f"data: {json.dumps({'type': 'visual_hint', 'concept': hint_concept, 'image_url': image_url, 'caption': caption, 'diagram_text': '', 'study_notes': ''})}\n\n"
 
     yield f"data: {json.dumps({'type': 'state_update', 'phase': phase, 'mastery': result.get('mastery_scores', {}), 'consecutive_incorrect': result.get('consecutive_incorrect', 0), 'consecutive_correct': result.get('consecutive_correct', 0), 'diagnostic_complete': diagnostic_complete, 'weak_topics': result.get('weak_topics', []), 'mistake_log': result.get('mistake_log', []), 'turn_count': result.get('turn_count', 0)})}\n\n"
 
