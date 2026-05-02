@@ -377,7 +377,17 @@ async def stream_message(session_id: str, content: str):
 
     visual_hint = result.get("visual_hint")
     if explicit_image_req and not visual_hint:
-        topic_for_img = result.get("current_topic") or state.get("current_topic") or ""
+        # Use textbook section from internal analysis if available (most specific)
+        internal = result.get("_internal_analysis") or {}
+        section = internal.get("relevant_textbook_section", "")
+        current = result.get("current_topic") or state.get("current_topic") or ""
+        sf = (sess.study_focus or "").replace("topic:", "")
+        # Pick most specific concept that has a diagram, falling back to study_focus
+        from src.anatomy_images import get_image_for_topic as _gif
+        topic_for_img = next(
+            (t for t in [section, current, sf] if t and _gif(t)),
+            sf or current
+        )
         visual_hint = f"__concept__:{topic_for_img}\nHere is a diagram for this topic."
 
     # Clear visual_hint from state after showing so it doesn't repeat on next turn

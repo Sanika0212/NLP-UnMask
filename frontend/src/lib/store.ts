@@ -195,26 +195,29 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           } else if (type === 'message') {
             const agent = evt.agent as string ?? '';
             const av: AvatarState = AGENT_AVATAR[agent] ?? 'speaking';
+            const msgContent = evt.content as string;
             // If a streaming placeholder exists anywhere in the last 3 messages, replace it
             const msgs2 = get().messages;
             const streamIdx = msgs2.slice(-3).reduce((found, m, i) =>
               m._streaming ? msgs2.length - 3 + i : found, -1);
             if (streamIdx >= 0) {
+              // Empty content = diagram-only turn; just clear _streaming, don't blank the text
+              const newContent = msgContent || msgs2[streamIdx].content;
               set((s) => {
                 const updated = [...s.messages];
                 updated[streamIdx] = {
                   ...updated[streamIdx],
-                  content: evt.content as string,
-                  author: evt.author as string,
+                  content: newContent,
+                  author: evt.author as string || updated[streamIdx].author,
                   avatarState: av,
                   _streaming: false,
                 };
                 return { messages: updated };
               });
-            } else {
+            } else if (msgContent) {
               get().addMessage({
                 role: 'bot',
-                content: evt.content as string,
+                content: msgContent,
                 author: evt.author as string,
                 avatarState: av,
               });
