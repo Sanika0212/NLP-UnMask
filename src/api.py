@@ -39,81 +39,78 @@ _DIAGNOSTIC_QUESTIONS = cfg["session"]["diagnostic_questions"]
 
 
 async def search_anatomy_image(concept: str) -> dict:
-    """Search Wikimedia Commons for an anatomy diagram.
+    """Fetch lead image from a Wikipedia anatomy article, verified by Gemini.
     Returns dict with image_url and caption, or empty dict on failure.
     """
     import urllib.request, urllib.parse, json as _json
     try:
-        # Clean concept ID: "peripheral_nerves.axillary" → "axillary nerve anatomy"
-        concept_clean = concept.split(".")[-1].replace("_", " ")
-        query = f"{concept_clean} anatomy"
-        params = urllib.parse.urlencode({
-            "action": "query",
-            "list": "search",
-            "srnamespace": "6",  # File namespace
-            "srsearch": f"{query} filetype:jpg|png",
-            "srlimit": "8",
-            "format": "json",
-        })
-        url = f"https://commons.wikimedia.org/w/api.php?{params}"
+        # Build article title from concept ID
+        # "peripheral_nerves.axillary" → "axillary nerve"
+        # "brachial_plexus.trunks"     → "brachial plexus"
+        parts = concept.replace("_", " ").split(".")
+        parent, child = (parts[0], parts[1]) if len(parts) > 1 else ("", parts[0])
+        parent_hint = {"peripheral nerves": "nerve", "brachial plexus": "plexus",
+                       "rotator cuff": "muscle", "spinal cord": "spinal"}.get(parent, "")
+        article = f"{child} {parent_hint}".strip()
+
         loop = asyncio.get_event_loop()
 
+        # Get page images from Wikipedia (lead image is almost always the anatomy diagram)
+        params = urllib.parse.urlencode({
+            "action": "query",
+            "titles": article,
+            "prop": "pageimages",
+            "piprop": "original",
+            "pilimit": "1",
+            "format": "json",
+            "redirects": "1",
+        })
+        wiki_url = f"https://en.wikipedia.org/w/api.php?{params}"
+
         def _fetch():
-            req = urllib.request.Request(url, headers={"User-Agent": "UnMaskTutor/1.0"})
-            with urllib.request.urlopen(req, timeout=5) as r:
+            req = urllib.request.Request(wiki_url, headers={"User-Agent": "UnMaskTutor/1.0"})
+            with urllib.request.urlopen(req, timeout=6) as r:
                 return _json.loads(r.read())
 
         data = await loop.run_in_executor(None, _fetch)
-        hits = data.get("query", {}).get("search", [])
-        if not hits:
+        pages = data.get("query", {}).get("pages", {})
+        img_url = ""
+        for page in pages.values():
+            original = page.get("original", {})
+            img_url = original.get("source", "")
+            break
+
+        if not img_url:
             return {}
 
-        # Get image URL for first hit
-        title = hits[0]["title"]
-        params2 = urllib.parse.urlencode({
-            "action": "query",
-            "titles": title,
-            "prop": "imageinfo",
-            "iiprop": "url|mime",
-            "format": "json",
-        })
-        url2 = f"https://commons.wikimedia.org/w/api.php?{params2}"
+        # Gemini vision check — confirm it's a relevant anatomy diagram without naming structures
+        # (keeps the image answer-safe for the Socratic context)
+        try:
+            from openai import OpenAI as _OAI
+            vc = _OAI(
+                api_key=os.environ["OPENAI_API_KEY"],
+                base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
+            )
+            vresp = vc.chat.completions.create(
+                model=os.getenv("VISION_MODEL", _cfg["llm"].get("vision_model", "google/gemini-2.0-flash-lite")),
+                max_tokens=4,
+                messages=[{"role": "user", "content": [
+                    {"type": "image_url", "image_url": {"url": img_url}},
+                    {"type": "text", "text": (
+                        f"Is this a clear medical or anatomical diagram showing human anatomy "
+                        f"related to '{article}'? "
+                        f"Answer YES only if it is a diagram/illustration (not a photo of a person, "
+                        f"not a book cover, not text only). Answer NO otherwise."
+                    )},
+                ]}],
+            )
+            verdict = vresp.choices[0].message.content.strip().upper()
+            if verdict.startswith("NO"):
+                return {}
+        except Exception:
+            pass  # on Gemini error, trust Wikipedia lead image
 
-        def _fetch2():
-            req = urllib.request.Request(url2, headers={"User-Agent": "UnMaskTutor/1.0"})
-            with urllib.request.urlopen(req, timeout=5) as r:
-                return _json.loads(r.read())
-
-        data2 = await loop.run_in_executor(None, _fetch2)
-        pages = data2.get("query", {}).get("pages", {})
-        for page in pages.values():
-            info = (page.get("imageinfo") or [{}])[0]
-            img_url = info.get("url", "")
-            mime = info.get("mime", "")
-            if img_url and mime.startswith("image/"):
-                # Quick Gemini vision check — verify image is actually relevant anatomy
-                try:
-                    from openai import OpenAI as _OAI
-                    vc = _OAI(
-                        api_key=os.environ["OPENAI_API_KEY"],
-                        base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
-                    )
-                    vresp = vc.chat.completions.create(
-                        model=os.getenv("VISION_MODEL", _cfg["llm"].get("vision_model", "google/gemini-2.0-flash-lite")),
-                        max_tokens=4,
-                        messages=[{"role": "user", "content": [
-                            {"type": "image_url", "image_url": {"url": img_url}},
-                            {"type": "text", "text": f"Medical anatomy diagram of '{concept}'? YES or NO."},
-                        ]}],
-                    )
-                    verdict = vresp.choices[0].message.content.strip().upper()
-                    if verdict.startswith("NO"):
-                        continue  # explicitly rejected — try next result
-                    # YES or any other response = trust it
-                except Exception:
-                    pass  # on error, trust Wikimedia result
-                caption = title.replace("File:", "").rsplit(".", 1)[0]
-                return {"image_url": img_url, "caption": caption}
+        return {"image_url": img_url, "caption": f"{article.title()} — Wikipedia"}
     except Exception:
         pass
     return {}
@@ -437,11 +434,11 @@ async def stream_message(session_id: str, content: str):
         last_shown = getattr(sess, "last_diagram_concept", None)
         skip_local = want_new and last_shown == hint_concept
 
-        img_data = None
-        if not skip_local:
-            img_data = get_image_for_topic(hint_concept) or get_image_for_topic(
-                result.get("current_topic") or ""
-            )
+        # Always load local diagram text (for study notes), even when fetching web image
+        local_img_data = get_image_for_topic(hint_concept) or get_image_for_topic(
+            result.get("current_topic") or ""
+        )
+        img_data = None if skip_local else local_img_data
         image_url = ""
         caption = ""
         diagram_text = ""
@@ -468,8 +465,9 @@ async def stream_message(session_id: str, content: str):
 
         sess.last_diagram_concept = hint_concept
 
-        # Prefer local diagram text as study note; fall back to hint_text from generator
-        display_note = (diagram_text or hint_text)[:400]
+        # Always use local diagram text as study note if available
+        local_diagram_text = local_img_data.get("diagram", "") if local_img_data else ""
+        display_note = (local_diagram_text or diagram_text or hint_text)[:400]
         yield f"data: {json.dumps({'type': 'visual_hint', 'concept': hint_concept, 'image_url': image_url, 'caption': caption, 'diagram_text': diagram_text, 'study_notes': display_note})}\n\n"
 
     yield f"data: {json.dumps({'type': 'state_update', 'phase': phase, 'mastery': result.get('mastery_scores', {}), 'consecutive_incorrect': result.get('consecutive_incorrect', 0), 'consecutive_correct': result.get('consecutive_correct', 0), 'diagnostic_complete': diagnostic_complete, 'weak_topics': result.get('weak_topics', []), 'mistake_log': result.get('mistake_log', []), 'turn_count': result.get('turn_count', 0)})}\n\n"
