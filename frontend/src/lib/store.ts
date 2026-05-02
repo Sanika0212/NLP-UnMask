@@ -195,15 +195,21 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           } else if (type === 'message') {
             const agent = evt.agent as string ?? '';
             const av: AvatarState = AGENT_AVATAR[agent] ?? 'speaking';
-            // If we were streaming tokens, finalize that message instead of adding a duplicate
+            // If a streaming placeholder exists anywhere in the last 3 messages, replace it
             const msgs2 = get().messages;
-            const lastMsg2 = msgs2[msgs2.length - 1];
-            if (lastMsg2?.role === 'bot' && lastMsg2._streaming) {
-              get().updateLastBotMessage({
-                content: evt.content as string,
-                author: evt.author as string,
-                avatarState: av,
-                _streaming: false,
+            const streamIdx = msgs2.slice(-3).reduce((found, m, i) =>
+              m._streaming ? msgs2.length - 3 + i : found, -1);
+            if (streamIdx >= 0) {
+              set((s) => {
+                const updated = [...s.messages];
+                updated[streamIdx] = {
+                  ...updated[streamIdx],
+                  content: evt.content as string,
+                  author: evt.author as string,
+                  avatarState: av,
+                  _streaming: false,
+                };
+                return { messages: updated };
               });
             } else {
               get().addMessage({

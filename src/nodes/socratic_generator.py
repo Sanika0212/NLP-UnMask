@@ -209,7 +209,7 @@ TURN: {turn} | CONSECUTIVE INCORRECT: {consecutive_incorrect}
 STUDY FOCUS: {study_focus} — ALL questions MUST stay within this topic area. Do not stray to unrelated anatomy concepts. If study_focus starts with "topic:", focus exclusively on that topic's clinical syndromes, mechanisms, and signs. | LEARNING MODE: {learning_mode} — if "visual", use spatial anatomical descriptions and reference diagram layouts; if "text", use clear prose explanations.
 
 TONE GUIDE — encouragement must be exactly ONE sentence, original, not canned:
-- If the student's message is "idk", "don't know", "no idea", "not sure", or any short non-answer (< 10 words with no anatomy content) → neutral pivot ONLY e.g. "No worries, let's build it up together." Do NOT say "you're on the right track", "great job", or any positive feedback regardless of consecutive_incorrect.
+- If the student's message is "idk", "don't know", "no idea", "not sure", "oh", "ok", "hm", or any short non-answer (< 10 words with no anatomy content) → neutral pivot ONLY. VARY the phrasing every turn — do NOT repeat "No worries, let's build it up together." Use alternatives like: "That one catches people — let's approach it differently." / "Fair enough — let's try a clinical angle." / "Totally understandable — here's a starting point." / "Let's back up a bit." Never repeat the same opener twice in a session.
 - consecutive_incorrect = 0 AND student gave a substantive correct answer → specific praise referencing what they got right e.g. "Exactly — C5 to T1 are the five roots."
 - consecutive_incorrect = 1 → warm redirect e.g. "Not quite, but think about the movement involved."
 - consecutive_incorrect = 2 → empathetic e.g. "This one trips a lot of people — let's try a fresh angle."
@@ -217,6 +217,7 @@ TONE GUIDE — encouragement must be exactly ONE sentence, original, not canned:
 CRITICAL: Write ONE sentence only for encouragement. No joining two phrases with a dash or period.
 NEVER say "great job" / "well done" / "you're doing great" / "you've got X right" when the student expressed uncertainty or said they don't know.
 Evaluate ONLY the CURRENT student message — ignore how well they answered in previous turns.
+NATURAL CONVERSATION: If the student sends a short acknowledgment ("oh", "ok", "I see", "hmm", "ah") treat it as "still unsure" — advance the scaffold with a new angle or smaller sub-question. Do NOT re-ask the same question.
 ANTI-REPETITION: The conversation history above contains your previous responses. Your new socratic_question MUST be DIFFERENT from your last question — use different wording, a different angle, or a more concrete scaffold. If the student has said "idk"/"no idea" twice in a row, do NOT ask the same question again; instead give a specific leading clue or a simpler sub-question.
 {revisit_block}"""
 
@@ -247,8 +248,8 @@ CONSECUTIVE INCORRECT / NO-ANSWER: {consecutive_incorrect}
 STUDENT'S CURRENT MESSAGE: "{student_message}"
 
 TONE RULES — apply to encouragement field ONLY (1 sentence max):
-- If the student's current message is "idk", "don't know", "no idea", "not sure", or any short non-answer:
-  → encouragement MUST be a neutral pivot e.g. "No worries — let me give you a hint to work from."
+- If the student's current message is "idk", "don't know", "no idea", "not sure", "oh", "ok", "hm", or any short non-answer:
+  → encouragement MUST be a neutral pivot. VARY phrasing — avoid repeating "No worries" or "let's build it up". Use e.g. "That one catches people.", "Let's try a different angle.", "Fair enough — here's a clue."
   → Do NOT say "you're on the right track", "great job", "you've got it", or any positive feedback.
   → socratic_question MUST provide a concrete leading clue or scaffold, not just repeat the question.
 - consecutive_incorrect = 0 AND substantive correct answer → specific praise referencing what they got right.

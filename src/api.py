@@ -377,6 +377,10 @@ async def stream_message(session_id: str, content: str):
         topic_for_img = result.get("current_topic") or state.get("current_topic") or ""
         visual_hint = f"__concept__:{topic_for_img}\nHere is a diagram for this topic."
 
+    # Clear visual_hint from state after showing so it doesn't repeat on next turn
+    if visual_hint:
+        sess.state["visual_hint"] = None
+
     if visual_hint and phase in ("tutoring", "assessment"):
         hint_text = visual_hint
         hint_concept = result.get("current_topic") or ""
