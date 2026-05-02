@@ -17,6 +17,12 @@ export default function Aside({ onCollapse }: { onCollapse?: () => void }) {
   const supervisorSteps = messages.filter((m) => m.supervisorStep);
 
   // Aggregate dotted concept keys (e.g. brachial_plexus.origin) by topic prefix
+  const topicLabel = (key: string) => TOPICS.find((t) => t.key === key)?.label ?? key;
+  const shortLabel = (key: string) => {
+    const l = topicLabel(key);
+    return l.length > 12 ? l.split(' ').map((w) => w.slice(0, 4)).join('.') : l;
+  };
+
   const topicMastery = (topicKey: string): number => {
     const entries = Object.entries(mastery).filter(([k]) => k.startsWith(topicKey + '.'));
     if (entries.length === 0) return mastery[topicKey] ?? 0;
@@ -110,31 +116,24 @@ export default function Aside({ onCollapse }: { onCollapse?: () => void }) {
                   </g>
                   {/* nodes */}
                   <g fontFamily="Inter, sans-serif" fontSize="9" fill="oklch(0.42 0.015 265)">
-                    {/* L0 */}
-                    <circle cx="140" cy="22" r="12" fill={nodeColor('spinal_cord')} stroke={nodeBorder('spinal_cord')} strokeWidth="1.5" />
-                    <text x="140" y="42" textAnchor="middle">spinal cord</text>
-                    {/* L1 */}
-                    <circle cx="75" cy="72" r="10" fill={nodeColor('brachial_plexus')} stroke={nodeBorder('brachial_plexus')} strokeWidth="1.5" />
-                    <text x="75" y="90" textAnchor="middle">brachial</text>
-                    <circle cx="210" cy="72" r="10" fill={nodeColor('rotator_cuff')} stroke={nodeBorder('rotator_cuff')} strokeWidth="1.5" />
-                    <text x="210" y="90" textAnchor="middle">rotator cuff</text>
-                    {/* L2 */}
-                    <circle cx="38" cy="132" r="8" fill={nodeColor('peripheral_nerves')} stroke={nodeBorder('peripheral_nerves')} strokeWidth="1.5" />
-                    <text x="38" y="148" textAnchor="middle">peripheral</text>
-                    <circle cx="108" cy="132" r="8" fill={nodeColor('dermatomes')} stroke={nodeBorder('dermatomes')} strokeWidth="1.5" />
-                    <text x="108" y="148" textAnchor="middle">dermatomes</text>
-                    <circle cx="178" cy="132" r="8" fill={nodeColor('shoulder_joint')} stroke={nodeBorder('shoulder_joint')} strokeWidth="1.5" />
-                    <text x="178" y="148" textAnchor="middle">shoulder</text>
-                    <circle cx="248" cy="132" r="8" fill={nodeColor('upper_limb_muscles')} stroke={nodeBorder('upper_limb_muscles')} strokeWidth="1.5" />
-                    <text x="248" y="148" textAnchor="middle">muscles</text>
-                    {/* L3 */}
-                    <circle cx="28" cy="188" r="6" fill={nodeColor('nerve_injuries')} stroke={nodeBorder('nerve_injuries')} strokeWidth="1.5" />
-                    <text x="28" y="202" textAnchor="middle">nerve inj.</text>
-                    <circle cx="88" cy="188" r="6" fill={nodeColor('elbow_joint')} stroke={nodeBorder('elbow_joint')} strokeWidth="1.5" />
-                    <text x="88" y="202" textAnchor="middle">elbow</text>
-                    <circle cx="168" cy="188" r="6" fill={nodeColor('wrist_hand')} stroke={nodeBorder('wrist_hand')} strokeWidth="1.5" />
-                    <text x="168" y="202" textAnchor="middle">wrist/hand</text>
-                    <circle cx="238" cy="188" r="6" fill="oklch(0.95 0.005 80)" stroke="oklch(0.86 0.012 80)" strokeWidth="1.5" />
+                    {[
+                      { key:'spinal_cord',       cx:140, cy:22,  r:12, ty:42  },
+                      { key:'brachial_plexus',   cx:75,  cy:72,  r:10, ty:90  },
+                      { key:'rotator_cuff',      cx:210, cy:72,  r:10, ty:90  },
+                      { key:'peripheral_nerves', cx:38,  cy:132, r:8,  ty:148 },
+                      { key:'dermatomes',        cx:108, cy:132, r:8,  ty:148 },
+                      { key:'shoulder_joint',    cx:178, cy:132, r:8,  ty:148 },
+                      { key:'upper_limb_muscles',cx:248, cy:132, r:8,  ty:148 },
+                      { key:'nerve_injuries',    cx:28,  cy:188, r:6,  ty:202 },
+                      { key:'elbow_joint',       cx:88,  cy:188, r:6,  ty:202 },
+                      { key:'wrist_hand',        cx:168, cy:188, r:6,  ty:202 },
+                    ].map(({ key, cx, cy, r, ty }) => (
+                      <g key={key}>
+                        <title>{topicLabel(key)} — {Math.round(topicMastery(key) * 100)}%</title>
+                        <circle cx={cx} cy={cy} r={r} fill={nodeColor(key)} stroke={nodeBorder(key)} strokeWidth="1.5" />
+                        <text x={cx} y={ty} textAnchor="middle">{shortLabel(key)}</text>
+                      </g>
+                    ))}
                   </g>
                 </svg>
               </div>
