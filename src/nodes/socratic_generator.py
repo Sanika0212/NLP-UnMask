@@ -763,7 +763,26 @@ def socratic_generator(state: TutoringState) -> dict:
                 if api_attempt == 2:
                     raise
                 time.sleep(2 ** api_attempt)  # exponential backoff: 1s, 2s, 4s
-        output: SocraticOutput = resp.choices[0].message.parsed
+
+        # beta.parse may return None for .parsed when OpenRouter/Claude returns plain text
+        raw_parsed = resp.choices[0].message.parsed
+        if raw_parsed is None:
+            # Fallback: wrap the plain-text content into a minimal SocraticOutput
+            raw_content = (resp.choices[0].message.content or "").strip()
+            # Extract a question from the text, or use it as-is
+            import re as _re
+            sentences = _re.split(r'(?<=[.!?])\s+', raw_content)
+            question = next((s for s in sentences if s.endswith("?")), raw_content)
+            raw_parsed = SocraticOutput(
+                internal_analysis=InternalAnalysis(
+                    correct_answer="", student_understood=False,
+                    misconception=None, key_concepts=[],
+                ),
+                visible_response=VisibleResponse(
+                    encouragement="", socratic_question=question,
+                ),
+            )
+        output: SocraticOutput = raw_parsed
         visible = output.visible_response
         candidate = visible.socratic_question
         if visible.encouragement:
