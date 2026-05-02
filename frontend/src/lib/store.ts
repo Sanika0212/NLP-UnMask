@@ -63,7 +63,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set((state) => {
       const msgs = [...state.messages];
       for (let i = msgs.length - 1; i >= 0; i--) {
-        if (msgs[i].role === 'bot') {
+        if (msgs[i].role === 'bot' && !msgs[i].supervisorStep) {
           msgs[i] = { ...msgs[i], ...patch };
           break;
         }

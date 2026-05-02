@@ -305,15 +305,18 @@ async def stream_message(session_id: str, content: str):
             sess.diag_q_index = diag_idx + 1
             yield f"data: {json.dumps({'type': 'diagnostic_question', 'question': next_q, 'index': diag_idx, 'total': sess.diag_total})}\n\n"
 
-    # In tutoring, a diagram request replaces the text response; in assessment, show both
-    if response and not (explicit_image_req and phase == "tutoring"):
-        author_map = {
-            "wrapup": "📋 Session Report",
-            "assessment": "🧪 Assessment",
-            "tutoring": "📖 Tutor",
-        }
-        author = author_map.get(phase, "UnMask")
-        yield f"data: {json.dumps({'type': 'message', 'content': response, 'author': author})}\n\n"
+    author_map = {
+        "wrapup": "📋 Session Report",
+        "assessment": "🧪 Assessment",
+        "tutoring": "📖 Tutor",
+    }
+    author = author_map.get(phase, "UnMask")
+    # In tutoring, a diagram request suppresses the text — but still resolve the streaming placeholder
+    if response:
+        if explicit_image_req and phase == "tutoring":
+            yield f"data: {json.dumps({'type': 'message', 'content': '', 'author': author})}\n\n"
+        else:
+            yield f"data: {json.dumps({'type': 'message', 'content': response, 'author': author})}\n\n"
 
     # ── Diagnostic → Tutoring transition ─────────────────────────────────────
     # The graph no longer loops back after diagnostic completes (to avoid stacking 4 LLM calls
