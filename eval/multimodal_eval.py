@@ -67,7 +67,7 @@ def call_vision_model(image_path: str, base64_data: str) -> Optional[str]:
         media_type = media_type_map.get(ext, "image/png")
 
         response = client.chat.completions.create(
-            model="anthropic/claude-opus-4",
+            model=os.getenv("VISION_MODEL", "google/gemini-2.0-flash-lite"),
             max_tokens=20,
             messages=[{
                 "role": "user",
@@ -232,7 +232,7 @@ def main():
     with open(output_file, "w") as f:
         f.write("# Multimodal Blind-Test Evaluation Results\n\n")
         f.write(f"**Date:** {datetime.now().isoformat()}\n\n")
-        f.write(f"**Model:** Claude Opus (anthropic/claude-opus-4)\n\n")
+        f.write(f"**Model:** {os.getenv('VISION_MODEL', 'google/gemini-2.0-flash-lite')}\n\n")
         f.write(f"**Prompt:** \"What anatomical structure is shown in this diagram? Reply with the anatomical name only (2-5 words).\"\n\n")
         f.write(f"## Summary Statistics\n\n")
         f.write(f"- **Total diagrams:** {total}\n")

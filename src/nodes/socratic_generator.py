@@ -799,7 +799,7 @@ def socratic_generator(state: TutoringState) -> dict:
                 model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
                 temperature=temp,
                 messages=augmented,
-                max_tokens=400,
+                max_tokens=800,
                 stream=True,
             )
             raw_parts: list[str] = []
@@ -846,7 +846,7 @@ def socratic_generator(state: TutoringState) -> dict:
                 model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
                 temperature=temp,
                 messages=augmented,
-                max_tokens=400,
+                max_tokens=800,
             )
             raw = (resp.choices[0].message.content or "").strip()
 
