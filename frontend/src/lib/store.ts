@@ -153,8 +153,16 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
                   turn: m.turn,
                 }))
               : get().misconceptions;
+            const newPhase = (su.phase as Phase) ?? get().phase;
+            const pcrMap: Record<string, string> = {
+              rapport: 'diagnostic',
+              tutoring: 'prerequisite_first',
+              assessment: 'assessment',
+              wrapup: 'complete',
+            };
             set({
-              phase: (su.phase as Phase) ?? get().phase,
+              phase: newPhase,
+              pcrMode: (pcrMap[newPhase] ?? get().pcrMode) as typeof initialState.pcrMode,
               mastery: (su.mastery as Record<string, number>) ?? get().mastery,
               diagnosticComplete: (su.diagnostic_complete as boolean) ?? false,
               consecutiveIncorrect: (su.consecutive_incorrect as number) ?? 0,
