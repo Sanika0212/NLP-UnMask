@@ -226,7 +226,7 @@ async def stream_message(session_id: str, content: str):
 
     msg_lower = content.lower()
     diagram_kw = ("diagram", "image", "picture", "figure", "visual", "show me", "illustrate")
-    explicit_image_req = phase == "tutoring" and any(w in msg_lower for w in diagram_kw)
+    explicit_image_req = phase in ("tutoring", "assessment") and any(w in msg_lower for w in diagram_kw)
 
     if phase == "rapport" and not diagnostic_complete:
         diag_idx = sess.diag_q_index
@@ -242,7 +242,8 @@ async def stream_message(session_id: str, content: str):
             sess.diag_q_index = diag_idx + 1
             yield f"data: {json.dumps({'type': 'diagnostic_question', 'question': next_q, 'index': diag_idx, 'total': sess.diag_total})}\n\n"
 
-    if response and not explicit_image_req:
+    # In tutoring, a diagram request replaces the text response; in assessment, show both
+    if response and not (explicit_image_req and phase == "tutoring"):
         author_map = {
             "wrapup": "📋 Session Report",
             "assessment": "🧪 Assessment",
@@ -256,7 +257,7 @@ async def stream_message(session_id: str, content: str):
         topic_for_img = result.get("current_topic") or state.get("current_topic") or ""
         visual_hint = f"__concept__:{topic_for_img}\nHere is a diagram for this topic."
 
-    if visual_hint and phase == "tutoring":
+    if visual_hint and phase in ("tutoring", "assessment"):
         hint_text = visual_hint
         hint_concept = result.get("current_topic") or ""
         if visual_hint.startswith("__concept__:"):
