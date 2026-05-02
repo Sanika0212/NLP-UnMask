@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Intrinsic Muscles of the Hand</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .skin{fill:#f4d4c4;stroke:#1a1a1a;stroke-width:1.4}
+  .musc{stroke:#1a1a1a;stroke-width:1.2}
+  .thenar{fill:#d49a8a}
+  .hypo{fill:#b88578}
+  .lumb{fill:#cf9080}
+  .inter{fill:#a87878}
+  .musc-active{fill:#c43c2c}
+  .pulse{fill:none;stroke:#c43c2c;stroke-width:2.6}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:700;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#555;letter-spacing:.04em}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <text x="550" y="28" class="lbl-title" text-anchor="middle">Intrinsic Muscles of the Hand</text>
+  <text x="550" y="48" class="caption" text-anchor="middle">Thenar · Hypothenar · Lumbricals · Interossei — palmar view</text>
+
+  <!-- Palm -->
+  <g transform="translate(310 90)">
+    <!-- Outline -->
+    <path class="skin" d="M 80 100 Q 80 50 150 40 Q 220 38 270 60 L 280 130 Q 285 200 280 270 L 270 320 L 80 320 Q 70 270 65 200 Q 70 140 80 100 Z"/>
+    <!-- Fingers (just stubs) -->
+    <path class="skin" d="M 90 40 L 90 0 L 130 0 L 130 50 Z"/>
+    <path class="skin" d="M 140 40 L 140 -10 L 180 -10 L 180 50 Z"/>
+    <path class="skin" d="M 190 40 L 190 0 L 225 0 L 225 50 Z"/>
+    <path class="skin" d="M 235 50 L 240 10 L 270 15 L 270 60 Z"/>
+    <!-- Thumb (lateral, here on right) -->
+    <path class="skin" d="M 280 130 Q 320 120 340 150 Q 350 190 330 220 L 285 220 Z"/>
+
+    <!-- Thenar eminence (base of thumb) -->
+    <g id="thenar">
+      <ellipse class="musc thenar" cx="270" cy="180" rx="28" ry="42"/>
+      <text x="252" y="184" class="lbl-tiny">THENAR</text>
+    </g>
+
+    <!-- Hypothenar (medial — pinky side, on left) -->
+    <g id="hypo">
+      <ellipse class="musc hypo" cx="90" cy="200" rx="24" ry="50"/>
+      <text x="76" y="204" class="lbl-tiny">HYPO.</text>
+    </g>
+
+    <!-- Lumbricals — four slender muscles between metacarpals, attach to flexor tendons -->
+    <g id="lumb">
+      <rect class="musc lumb" x="115" y="130" width="14" height="80" rx="4"/>
+      <rect class="musc lumb" x="148" y="130" width="14" height="80" rx="4"/>
+      <rect class="musc lumb" x="181" y="130" width="14" height="80" rx="4"/>
+      <rect class="musc lumb" x="214" y="130" width="14" height="80" rx="4"/>
+      <text x="155" y="100" class="lbl-tiny">LUMBRICALS (×4)</text>
+    </g>
+
+    <!-- Interossei — between metacarpals, deeper -->
+    <g id="inter" opacity=".85">
+      <rect class="musc inter" x="135" y="150" width="10" height="70" rx="3"/>
+      <rect class="musc inter" x="168" y="150" width="10" height="70" rx="3"/>
+      <rect class="musc inter" x="201" y="150" width="10" height="70" rx="3"/>
+      <text x="150" y="240" class="lbl-tiny">INTEROSSEI</text>
+    </g>
+
+    <!-- Pulse cycle -->
+    <use href="#thenar" class="pulse" opacity="0"><animate attributeName="opacity" values="0;1;0;0;0;0" keyTimes="0;0.06;0.22;0.42;0.62;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#hypo"   class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;1;0;0;0" keyTimes="0;0.22;0.28;0.42;0.62;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#lumb"   class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;1;0;0" keyTimes="0;0.42;0.48;0.6;0.7;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#inter"  class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;1;0" keyTimes="0;0.62;0.68;0.78;0.86;1" dur="14s" repeatCount="indefinite"/></use>
+  </g>
+
+  <g transform="translate(700 130)" class="nlbl">
+    <text x="0" y="0">Thenar group</text>
+    <text x="0" y="16" class="nsub">Abductor / Flexor / Opponens pollicis brevis</text>
+    <text x="0" y="30" class="nsub">→ Median nerve (recurrent branch)</text>
+
+    <text x="0" y="70">Hypothenar group</text>
+    <text x="0" y="86" class="nsub">Abductor / Flexor / Opponens digiti minimi</text>
+    <text x="0" y="100" class="nsub">→ Ulnar nerve (deep branch)</text>
+
+    <text x="0" y="140">Lumbricals (×4)</text>
+    <text x="0" y="156" class="nsub">Flex MCP, extend IP joints</text>
+    <text x="0" y="170" class="nsub">Lat 2 → median · Med 2 → ulnar</text>
+
+    <text x="0" y="210">Interossei</text>
+    <text x="0" y="226" class="nsub">PAD: Palmar ADduct · DAB: Dorsal ABduct</text>
+    <text x="0" y="240" class="nsub">All ulnar nerve (deep branch)</text>
+
+    <text x="0" y="280">LOAF mnemonic</text>
+    <text x="0" y="296" class="nsub">Median-supplied intrinsics:</text>
+    <text x="0" y="310" class="nsub">Lumbricals 1&amp;2 · Opponens · APB · FPB</text>
+  </g>
+</svg></div></body></html>

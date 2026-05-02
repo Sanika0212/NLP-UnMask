@@ -362,19 +362,19 @@ def pedagogy_agent(state: TutoringState) -> dict:
 
     # ── Rapport: handle diagnostic probe ──────────────────────────────────
     if phase == "rapport":
-        # turn 1 = topic selection (no anatomy answer); turn 2+ = diagnostic answers
-        # display_idx is 0-based position in the diagnostic sequence (0 = first Q shown)
-        display_idx = turn - 2
+        # Topic selection now happens via AskActionMessage in on_chat_start (not a graph turn).
+        # turn 1 = Q0 answer, turn 2 = Q1 answer, etc.
+        display_idx = turn - 1
         sf = state.get("study_focus") or ""
         n_max = _cfg["session"]["diagnostic_questions"]
         order = get_diagnostic_order(sf, n=n_max)
-        n_diag = len(order)  # actual number of questions for this topic
+        n_diag = len(order)
 
         if 0 <= display_idx < n_diag:
             actual_q_id = order[min(display_idx, len(order) - 1)]
             mastery = _init_mastery_from_diagnostic(student_msg, actual_q_id, mastery)
 
-        complete = (turn - 1) >= n_diag
+        complete = turn >= n_diag
         return {
             "mastery_scores": mastery,
             "diagnostic_complete": complete,

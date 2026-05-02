@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Infraspinatus</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .bone{fill:#f5ecd9;stroke:#1a1a1a;stroke-width:1.6}
+  .musc{fill:#b86060;stroke:#1a1a1a;stroke-width:1.4}
+  .musc-active{fill:#c43c2c}
+  .tendon{fill:#e8d8b0;stroke:#1a1a1a;stroke-width:1.2}
+  .arrow{fill:none;stroke:#c43c2c;stroke-width:2.4;marker-end:url(#ar)}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:600;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#555;letter-spacing:.04em}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#c43c2c"/></marker></defs>
+
+  <text x="550" y="28" class="lbl-title" text-anchor="middle">Infraspinatus</text>
+  <text x="550" y="48" class="caption" text-anchor="middle">Posterior rotator cuff · lateral rotation · suprascapular nerve (C5, C6)</text>
+
+  <g transform="translate(280 110)">
+    <!-- Scapula posterior -->
+    <path class="bone" d="M 0 60 L 250 30 L 270 80 L 260 200 L 200 250 L 60 240 L 0 200 Z"/>
+    <line x1="20" y1="100" x2="240" y2="80" stroke="#1a1a1a" stroke-width="1.4"/>
+    <text x="120" y="74" class="lbl-mono">Spine of scapula</text>
+    <text x="115" y="58" class="lbl-tiny">SUPRASPINOUS FOSSA</text>
+
+    <!-- Supraspinatus (greyed out for context) -->
+    <path fill="#d8b8b8" stroke="#1a1a1a" stroke-width="1.2" opacity=".6" d="M 30 75 Q 130 50 230 70 Q 250 80 240 92 Q 130 86 30 92 Z"/>
+
+    <!-- Infraspinatus -->
+    <path id="ism" class="musc" d="M 25 110 Q 140 95 240 115 Q 260 160 240 220 L 80 220 Q 35 180 25 110 Z"/>
+
+    <!-- Tendon -->
+    <path id="ist" class="tendon" d="M 240 130 Q 290 130 320 140 L 340 155 L 335 175 L 305 168 Q 270 158 240 150 Z"/>
+
+    <!-- Humeral head -->
+    <ellipse class="bone" cx="370" cy="155" rx="50" ry="55"/>
+    <path class="bone" d="M 370 205 Q 365 290 370 360 L 400 360 Q 410 290 400 210 Z"/>
+    <circle cx="335" cy="155" r="5" fill="#1a1a1a"/>
+    <text x="345" y="153" class="lbl-tiny">GREATER TUBERCLE</text>
+    <text x="345" y="166" class="lbl-tiny">(MIDDLE FACET)</text>
+
+    <!-- Lateral rotation arrow -->
+    <path d="M 405 240 A 35 35 0 0 0 380 215" class="arrow" opacity="0">
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.3;0.7;1" dur="3.2s" repeatCount="indefinite"/>
+    </path>
+
+    <use href="#ism" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.3;0.7;1" dur="3.2s" repeatCount="indefinite"/>
+    </use>
+    <use href="#ist" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.35;0.75;1" dur="3.2s" repeatCount="indefinite"/>
+    </use>
+  </g>
+
+  <g transform="translate(800 150)" class="nlbl">
+    <text x="0" y="-30">Origin</text>
+    <text x="0" y="-14" class="nsub">Infraspinous fossa of scapula</text>
+
+    <text x="0" y="40">Insertion</text>
+    <text x="0" y="56" class="nsub">Greater tubercle (middle facet)</text>
+
+    <text x="0" y="120">Action</text>
+    <text x="0" y="136" class="nsub">Laterally rotates the humerus</text>
+    <text x="0" y="150" class="nsub">Stabilizes glenohumeral joint</text>
+
+    <text x="0" y="200">Innervation</text>
+    <text x="0" y="216" class="nsub">Suprascapular nerve · C5, C6</text>
+
+    <text x="0" y="266">Clinical</text>
+    <text x="0" y="282" class="nsub">2nd most commonly torn cuff muscle</text>
+    <text x="0" y="296" class="nsub">External rotation lag sign</text>
+  </g>
+</svg></div></body></html>

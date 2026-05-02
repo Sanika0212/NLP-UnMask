@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Ulnar Nerve · animated</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<style>html,body{margin:0;padding:0;background:#fafaf7;font-family:"Inter Tight",system-ui,sans-serif;overflow:hidden}.frame{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}svg{width:100%;height:100%}.lbl{font-family:"Inter Tight",sans-serif;font-size:11.5px;fill:#222}.lbl-bold{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:700;fill:#1a1a1a}.lbl-tiny{font-family:"JetBrains Mono",monospace;font-size:9.5px;fill:#888;letter-spacing:.06em}.lbl-title{font-family:"Newsreader",Georgia,serif;font-style:italic;font-size:18px;fill:#1a1a1a;font-weight:500}.caption{font-family:"Newsreader",Georgia,serif;font-style:italic;font-size:13px;fill:#555}</style>
+</head><body><div class="frame">
+<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
+  <text x="500" y="34" class="lbl-title" text-anchor="middle">Ulnar Nerve — C8 to T1, medial cord</text>
+  <text x="500" y="54" class="caption" text-anchor="middle">Pinches at cubital tunnel · then claw hand emerges (ring + little)</text>
+
+  <!-- Arm -->
+  <g transform="translate(160 80)">
+    <circle cx="60" cy="40" r="32" fill="#f0eadc" stroke="#1a1a1a" stroke-width="2"/>
+    <path d="M 38 65 L 28 220 L 92 220 L 82 65 Z" fill="#f0eadc" stroke="#1a1a1a" stroke-width="2"/>
+    <!-- medial epicondyle (highlight) -->
+    <circle cx="92" cy="222" r="9" fill="#bfb6a3" stroke="#1a1a1a" stroke-width="1.5"/>
+    <text x="108" y="225" class="lbl-bold" fill="#4a8a5c">Cubital tunnel</text>
+    <text x="108" y="240" class="lbl-tiny">behind medial epicondyle</text>
+    <!-- pinch indicator -->
+    <circle cx="92" cy="222" r="9" fill="none" stroke="#4a8a5c" stroke-width="2" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.45;0.5;0.7;0.75;1" dur="10s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="9;14;9" dur="1s" begin="5s" repeatCount="3"/>
+    </circle>
+    <!-- forearm -->
+    <path d="M 30 235 L 35 410 L 90 410 L 90 235 Z" fill="#f0eadc" stroke="#1a1a1a" stroke-width="2"/>
+    <!-- Guyon's canal (medial wrist) -->
+    <rect x="80" y="408" width="20" height="20" rx="3" fill="#bfb6a3" stroke="#1a1a1a" stroke-width="1.2"/>
+    <text x="108" y="421" class="lbl-tiny" fill="#4a8a5c">Guyon's canal</text>
+    <!-- hand -->
+    <path d="M 30 428 C 20 460, 22 490, 30 500 L 90 500 C 98 490, 100 460, 90 428 Z" fill="#f0eadc" stroke="#1a1a1a" stroke-width="2"/>
+    <!-- hypothenar eminence -->
+    <ellipse cx="80" cy="465" rx="14" ry="20" fill="#c97070" opacity="0.55">
+      <animate attributeName="opacity" values="0.55;0.55;0.55;0.55;0.15;0.15" keyTimes="0;0.5;0.65;0.75;0.85;1" dur="10s" repeatCount="indefinite"/>
+    </ellipse>
+    <text x="62" y="465" class="lbl-tiny" fill="#444" text-anchor="end">hypothenar</text>
+
+    <!-- ulnar nerve path -->
+    <path id="ulnar" d="M 60 60 C 70 80, 75 130, 80 220 C 85 230, 90 230, 92 224 C 92 230, 88 250, 80 270 L 78 410 L 85 425 L 85 480"
+          fill="none" stroke="#4a8a5c" stroke-width="3" stroke-linecap="round" stroke-dasharray="600" stroke-dashoffset="600">
+      <animate attributeName="stroke-dashoffset" values="600;600;0;0" keyTimes="0;0.05;0.45;1" dur="10s" repeatCount="indefinite"/>
+    </path>
+    <circle r="5" fill="#4a8a5c">
+      <animateMotion dur="10s" repeatCount="indefinite" keyTimes="0;0.05;0.45;1" keyPoints="0;0;1;1">
+        <mpath href="#ulnar"/>
+      </animateMotion>
+    </circle>
+  </g>
+
+  <!-- Right panel: Claw hand emerging -->
+  <g transform="translate(540 90)">
+    <text x="0" y="0" class="lbl-bold">Distribution</text>
+    <text x="0" y="22" class="lbl">Motor: hypothenar · all interossei · lumbricals 3+4</text>
+    <text x="0" y="40" class="lbl">      adductor pollicis · FDP (4 + 5)</text>
+    <text x="0" y="58" class="lbl">Sensory: medial 1½ fingers, both surfaces</text>
+
+    <text x="0" y="100" class="lbl-bold">Claw hand (low ulnar)</text>
+    <!-- mini hand with claw posture -->
+    <g transform="translate(20 130)">
+      <!-- palm -->
+      <rect x="-30" y="0" width="100" height="80" rx="14" fill="#f0eadc" stroke="#1a1a1a" stroke-width="1.5"/>
+      <!-- normal index/middle (straight) -->
+      <line x1="-15" y1="0" x2="-15" y2="-50" stroke="#1a1a1a" stroke-width="9" stroke-linecap="round"/>
+      <line x1="5" y1="0" x2="5" y2="-55" stroke="#1a1a1a" stroke-width="9" stroke-linecap="round"/>
+      <!-- ring + little: claw — MCP hyperext, IP flex -->
+      <g transform="translate(28 0)">
+        <line x1="0" y1="0" x2="0" y2="-25" stroke="#c43c2c" stroke-width="9" stroke-linecap="round">
+          <animateTransform attributeName="transform" type="rotate" values="0;0;0;-30;-30;0" keyTimes="0;0.4;0.55;0.7;0.95;1" dur="10s" repeatCount="indefinite"/>
+        </line>
+        <line x1="0" y1="-25" x2="0" y2="-50" stroke="#c43c2c" stroke-width="9" stroke-linecap="round" transform="translate(0 -25)">
+          <animateTransform attributeName="transform" type="rotate" values="0;0;0;60;60;0" keyTimes="0;0.4;0.55;0.7;0.95;1" dur="10s" repeatCount="indefinite" additive="sum"/>
+        </line>
+      </g>
+      <g transform="translate(50 0)">
+        <line x1="0" y1="0" x2="0" y2="-22" stroke="#c43c2c" stroke-width="9" stroke-linecap="round">
+          <animateTransform attributeName="transform" type="rotate" values="0;0;0;-35;-35;0" keyTimes="0;0.4;0.55;0.7;0.95;1" dur="10s" repeatCount="indefinite"/>
+        </line>
+        <line x1="0" y1="-22" x2="0" y2="-44" stroke="#c43c2c" stroke-width="9" stroke-linecap="round" transform="translate(0 -22)">
+          <animateTransform attributeName="transform" type="rotate" values="0;0;0;65;65;0" keyTimes="0;0.4;0.55;0.7;0.95;1" dur="10s" repeatCount="indefinite" additive="sum"/>
+        </line>
+      </g>
+    </g>
+
+    <text x="0" y="270" class="lbl-bold" fill="#c43c2c">Signs</text>
+    <text x="0" y="290" class="lbl">• Claw hand (ring + little: MCP hyperext, IP flex)</text>
+    <text x="0" y="308" class="lbl">• Froment's: thumb IP flexes when pinching paper</text>
+    <text x="0" y="326" class="lbl">• Wartenberg's: little finger abducts at rest</text>
+    <text x="0" y="350" class="lbl-tiny">Splint: anti-claw (block MCP hyperext on 4 + 5)</text>
+  </g>
+  <text x="500" y="585" text-anchor="middle" class="caption">Two compression sites — cubital tunnel (elbow) and Guyon's canal (wrist)</text>
+</svg></div></body></html>

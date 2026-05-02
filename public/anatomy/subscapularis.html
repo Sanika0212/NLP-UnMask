@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Subscapularis</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .bone{fill:#f5ecd9;stroke:#1a1a1a;stroke-width:1.6}
+  .musc{fill:#a85b5b;stroke:#1a1a1a;stroke-width:1.4}
+  .musc-active{fill:#c43c2c}
+  .tendon{fill:#e8d8b0;stroke:#1a1a1a;stroke-width:1.2}
+  .arrow{fill:none;stroke:#c43c2c;stroke-width:2.4;marker-end:url(#ar)}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:600;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#555;letter-spacing:.04em}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#c43c2c"/></marker></defs>
+
+  <text x="550" y="28" class="lbl-title" text-anchor="middle">Subscapularis</text>
+  <text x="550" y="48" class="caption" text-anchor="middle">Anterior rotator cuff · medial rotation · upper + lower subscapular nerves</text>
+
+  <!-- Anterior view of scapula (costal surface) -->
+  <g transform="translate(280 110)">
+    <!-- Subscapular fossa (concave) -->
+    <path class="bone" d="M 0 60 Q 130 30 250 50 L 270 100 Q 260 200 230 240 L 80 230 Q 20 200 0 130 Z"/>
+
+    <!-- Subscapularis muscle filling fossa, multipennate -->
+    <path id="ssc" class="musc" d="M 25 90 Q 130 65 240 85 Q 260 130 240 200 L 90 200 Q 35 170 25 90 Z"/>
+    <!-- Multipennate striations -->
+    <g stroke="#7a3a3a" stroke-width=".8" fill="none" opacity=".7">
+      <path d="M 60 100 Q 140 130 220 105"/>
+      <path d="M 60 130 Q 140 155 220 135"/>
+      <path d="M 60 160 Q 140 180 220 165"/>
+      <path d="M 60 190 Q 140 200 220 190"/>
+    </g>
+
+    <!-- Tendon converging to humerus -->
+    <path id="ssct" class="tendon" d="M 240 100 Q 290 110 320 130 L 340 145 L 335 165 L 310 155 Q 280 140 240 130 Z"/>
+
+    <!-- Humeral head -->
+    <ellipse class="bone" cx="370" cy="145" rx="50" ry="55"/>
+    <path class="bone" d="M 370 195 Q 365 280 370 360 L 400 360 Q 410 280 400 200 Z"/>
+
+    <!-- Lesser tubercle insertion -->
+    <circle cx="335" cy="145" r="5" fill="#1a1a1a"/>
+    <text x="345" y="143" class="lbl-tiny">LESSER TUBERCLE</text>
+
+    <!-- Medial rotation arrow -->
+    <path d="M 380 240 A 35 35 0 0 1 405 215" class="arrow" opacity="0">
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.3;0.7;1" dur="3.2s" repeatCount="indefinite"/>
+    </path>
+
+    <use href="#ssc" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.3;0.7;1" dur="3.2s" repeatCount="indefinite"/>
+    </use>
+    <use href="#ssct" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.35;0.75;1" dur="3.2s" repeatCount="indefinite"/>
+    </use>
+  </g>
+
+  <!-- Labels -->
+  <g transform="translate(800 150)" class="nlbl">
+    <text x="0" y="-30">Origin</text>
+    <text x="0" y="-14" class="nsub">Subscapular fossa (anterior scapula)</text>
+
+    <text x="0" y="40">Insertion</text>
+    <text x="0" y="56" class="nsub">Lesser tubercle of humerus</text>
+
+    <text x="0" y="120">Action</text>
+    <text x="0" y="136" class="nsub">Medially rotates the humerus</text>
+    <text x="0" y="150" class="nsub">Stabilizes shoulder anteriorly</text>
+
+    <text x="0" y="200">Innervation</text>
+    <text x="0" y="216" class="nsub">Upper + lower subscapular nerves</text>
+    <text x="0" y="230" class="nsub">C5, C6, C7</text>
+
+    <text x="0" y="280">Clinical</text>
+    <text x="0" y="296" class="nsub">Lift-off / belly-press tests assess</text>
+    <text x="0" y="310" class="nsub">subscapularis tear (less common)</text>
+  </g>
+</svg></div></body></html>

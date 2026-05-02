@@ -163,12 +163,13 @@ TURN: {turn} | CONSECUTIVE INCORRECT: {consecutive_incorrect}
 STUDY FOCUS: {study_focus} — ALL questions MUST stay within this topic area. Do not stray to unrelated anatomy concepts. If study_focus starts with "topic:", focus exclusively on that topic's clinical syndromes, mechanisms, and signs. | LEARNING MODE: {learning_mode} — if "visual", use spatial anatomical descriptions and reference diagram layouts; if "text", use clear prose explanations.
 
 TONE GUIDE — encouragement must be exactly ONE sentence, original, not canned:
-- consecutive_incorrect = 0 → specific praise e.g. "Nice — you've got the root level right!"
+- consecutive_incorrect = 0 AND student gave a substantive correct answer → specific praise referencing what they got right e.g. "Exactly — C5 to T1 are the five roots."
+- consecutive_incorrect = 0 AND student said "no idea" / "not sure" / gave no real answer → neutral pivot only e.g. "No worries, let's build it up together." Do NOT praise. Do NOT say they got anything right.
 - consecutive_incorrect = 1 → warm redirect e.g. "Not quite, but think about the movement involved."
 - consecutive_incorrect = 2 → empathetic e.g. "This one trips a lot of people — let's try a fresh angle."
 - consecutive_incorrect >= 3 → step further back e.g. "Let's zoom out — what does this muscle attach to?"
 CRITICAL: Write ONE sentence only for encouragement. No joining two phrases with a dash or period.
-NEVER say "great job" / "well done" / "you're doing great" when consecutive_incorrect > 0.
+NEVER say "great job" / "well done" / "you're doing great" / "you've got X right" when the student expressed uncertainty or said they don't know.
 {revisit_block}"""
 
 _REVEAL_SYSTEM = """\
@@ -638,37 +639,27 @@ def socratic_generator(state: TutoringState) -> dict:
                 learning_mode=state.get("learning_mode") or "text",
             )
 
-        # Build visual hint separately — shown as a UI card by app.py, NOT in the LLM response
+        # Build visual hint — shown as a UI card by app.py, NOT in the LLM response
         visual_hint = None
-        # visual mode: hint after 1 wrong (spatial learners need diagram sooner); text mode: 2
+        # visual mode: hint after 1 wrong; text mode: after 2 wrong
         visual_threshold = 1 if state.get("learning_mode") == "visual" else 2
-        if consecutive_incorrect >= visual_threshold:
-            # Prefer figure chunks that match the current topic
+        if consecutive_incorrect >= visual_threshold and topic:
+            # Try to find a descriptive chunk for the hint text
             fig_chunks = [
                 c for c in chunks
                 if c.get("chunk_type") in ("figure", "figure_description")
-                and topic and c.get("concept", "").startswith(topic.split(".")[0])
+                and c.get("concept", "").startswith(topic.split(".")[0])
             ]
-            # Fall back to any figure chunk, then to the most relevant context chunk
             if not fig_chunks:
                 fig_chunks = [c for c in chunks if c.get("chunk_type") in ("figure", "figure_description")]
-            if fig_chunks:
-                fc = fig_chunks[0]
-                # Always use state topic for image lookup — not the retrieved chunk's concept,
-                # which may be from a different topic if retrieval drifted
-                visual_hint = f"__concept__:{topic or fc.get('concept', '')}\n{fc['text']}"
-            else:
-                # Prefer chunks that actually match the current topic
-                ctx_chunks = [
-                    c for c in chunks
-                    if not c.get("is_answer_chunk")
-                    and topic and c.get("concept", "").startswith(topic.split(".")[0])
-                ]
-                if not ctx_chunks:
-                    ctx_chunks = [c for c in chunks if not c.get("is_answer_chunk")]
-                if ctx_chunks:
-                    best = ctx_chunks[0]
-                    visual_hint = f"__concept__:{topic or best.get('concept', '')}\n{best['text'][:400]}"
+            ctx_chunks = (
+                fig_chunks or
+                [c for c in chunks if not c.get("is_answer_chunk") and c.get("concept", "").startswith(topic.split(".")[0])] or
+                [c for c in chunks if not c.get("is_answer_chunk")]
+            )
+            hint_text = ctx_chunks[0]["text"][:400] if ctx_chunks else "Study the diagram carefully, paying attention to the key structures."
+            # Always anchor to current topic so anatomy_images.py can find the right image
+            visual_hint = f"__concept__:{topic}\n{hint_text}"
     elif phase == "assessment":
         import json
         system = _ASSESSMENT_SYSTEM.format(

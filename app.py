@@ -150,13 +150,14 @@ def _phase_progress(phase: str) -> str:
 
 @cl.on_chat_start
 async def on_chat_start():
-    # Guard against re-run on WebSocket reconnect — prevents double welcome message
+    # Guard 1: same WebSocket session reconnect
     if cl.user_session.get("_initialized"):
         return
     cl.user_session.set("_initialized", True)
 
     session_id = str(uuid.uuid4())
     state = make_initial_state(session_id)
+
     cl.user_session.set("state", state)
     cl.user_session.set("session_start", time.time())
     cl.user_session.set("warmup_done", False)
@@ -185,15 +186,64 @@ async def on_chat_start():
         await run_onboarding()
         await run_pre_quiz()
 
-    topic_list = "\n".join(f"{i+1}. {name}" for i, (name, _, _) in enumerate(_TOPIC_MENU))
-    await cl.Message(
+    topic_res = await cl.AskActionMessage(
         content=(
             "# 📚 Let's Study\n\n"
-            "**Which topic do you want to study today?**\n\n"
-            f"{topic_list}\n\n"
-            "Also — do you prefer **diagrams** or **written explanations**?\n\n"
-            "*(Reply with a number, topic name, or just describe what's giving you trouble!)*"
+            "**Which topic do you want to focus on today?**"
         ),
+        actions=[
+            cl.Action(name=key, value=f"topic:{key}", label=name, payload={"topic": key})
+            for name, key, _ in _TOPIC_MENU
+        ],
+        author="UnMask",
+        timeout=300,
+    ).send()
+    if topic_res:
+        # value field may be None in Chainlit 2.x — name is always reliable
+        val = topic_res.get("value") or topic_res.get("payload", {}).get("topic") or topic_res.get("name", "brachial_plexus")
+        study_focus = val if val.startswith("topic:") else f"topic:{val}"
+    else:
+        study_focus = "topic:brachial_plexus"
+
+    pref_res = await cl.AskActionMessage(
+        content="Do you prefer **diagrams** or **written explanations**?",
+        actions=[
+            cl.Action(name="visual", value="visual", label="🖼️ Diagrams",              payload={"mode": "visual"}),
+            cl.Action(name="text",   value="text",   label="📝 Written explanations",  payload={"mode": "text"}),
+        ],
+        author="UnMask",
+        timeout=60,
+    ).send()
+    if pref_res:
+        learning_mode = (
+            pref_res.get("value") or
+            pref_res.get("payload", {}).get("mode") or
+            pref_res.get("name", "text")
+        )
+    else:
+        learning_mode = "text"
+
+    state = cl.user_session.get("state")
+    state["study_focus"] = study_focus
+    state["learning_mode"] = learning_mode
+
+    order = get_diagnostic_order(study_focus, n=_DIAGNOSTIC_QUESTIONS)
+    diag_total = len(order)
+    cl.user_session.set("diag_order", order)
+    cl.user_session.set("diag_total", diag_total)
+    cl.user_session.set("warmup_done", True)
+    cl.user_session.set("diag_q_index", 1)
+
+    topic_key = study_focus.replace("topic:", "").replace("_", " ").title()
+    mode_note = " I'll include diagrams as we go." if learning_mode == "visual" else ""
+    q0 = generate_diagnostic_question(order[0])
+    q0_block = _fmt_diag_q(0, q0, diag_total, first=True)
+    state["current_diagnostic_question"] = q0
+    state["current_diagnostic_answer_hint"] = get_diagnostic_answer_keywords(order[0])
+    cl.user_session.set("state", state)
+
+    await cl.Message(
+        content=f"**{topic_key}** — good choice.{mode_note} Let me see what you already know.\n\n{q0_block}",
         author="UnMask",
     ).send()
 
@@ -213,12 +263,7 @@ async def on_message(message: cl.Message):
     # Do NOT re-pass accumulated history — operator.add in state doubles it via checkpointer
     state["conversation_history"] = []
 
-    # Capture topic + learning mode from first message
     warmup_already_done = cl.user_session.get("warmup_done", False)
-    if not warmup_already_done:
-        study_focus, learning_mode = await _parse_topic_choice(message.content)
-        state["study_focus"] = study_focus
-        state["learning_mode"] = learning_mode
 
     # VLM: student-uploaded anatomical image
     vlm_image_analyzed = False
@@ -308,11 +353,16 @@ async def on_message(message: cl.Message):
                     result["current_diagnostic_answer_hint"] = get_diagnostic_answer_keywords(order[diag_idx])
                     cl.user_session.set("diag_q_index", diag_idx + 1)
 
+    # ── Detect explicit diagram request — suppress the graph's text response ──
+    _msg_lower = (message.content or "").lower()
+    _diagram_kw = ("diagram", "image", "picture", "figure", "visual", "show me", "illustrate")
+    _explicit_image_req = phase == "tutoring" and any(w in _msg_lower for w in _diagram_kw)
+
     # ── Render main response ───────────────────────────────────────────────────
     author_map = {"wrapup": "📋 Session Report", "assessment": "🧪 Assessment", "tutoring": "📖 Tutor"}
     author = author_map.get(phase, "UnMask")
 
-    if response:
+    if response and not _explicit_image_req:
         if thinking_msg is not None:
             thinking_msg.content = response
             thinking_msg.author = author
@@ -335,9 +385,7 @@ async def on_message(message: cl.Message):
         )
 
     # ── Force visual hint on explicit diagram request ─────────────────────────
-    _msg_lower = (message.content or "").lower()
-    _diagram_kw = ("diagram", "image", "picture", "figure", "visual", "show me", "illustrate")
-    if phase == "tutoring" and not result.get("visual_hint") and any(w in _msg_lower for w in _diagram_kw):
+    if _explicit_image_req and not result.get("visual_hint"):
         topic_for_img = result.get("current_topic") or state.get("current_topic") or ""
         result["visual_hint"] = f"__concept__:{topic_for_img}\nHere is a diagram for this topic."
         result["learning_mode"] = "visual"
@@ -345,7 +393,7 @@ async def on_message(message: cl.Message):
         cl.user_session.set("state", result)
 
     # ── Visual hint card ───────────────────────────────────────────────────────
-    await _render_visual_hint(result, phase)
+    await _render_visual_hint(result, phase, suppress_text=_explicit_image_req)
 
     # ── Assessment feedback ───────────────────────────────────────────────────
     assessment_feedback = result.get("assessment_feedback")
@@ -361,13 +409,11 @@ async def on_message(message: cl.Message):
             topics = ", ".join(mastery_scores.keys()) if mastery_scores else "general"
             await run_post_survey(result.get("session_id", state.get("session_id", "")), duration_min, topics)
 
-    # ── Debug panel (as a Step, not a blank message) ──────────────────────────
-    await _render_debug_step(result, phase, turn)
 
 
 # ── Rendering helpers ──────────────────────────────────────────────────────────
 
-async def _render_visual_hint(result: dict, phase: str) -> None:
+async def _render_visual_hint(result: dict, phase: str, suppress_text: bool = False) -> None:
     visual_hint = result.get("visual_hint")
     if not visual_hint or phase != "tutoring":
         return

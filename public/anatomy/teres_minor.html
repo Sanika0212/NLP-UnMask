@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Teres Minor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .bone{fill:#f5ecd9;stroke:#1a1a1a;stroke-width:1.6}
+  .musc{fill:#b06060;stroke:#1a1a1a;stroke-width:1.4}
+  .musc-active{fill:#c43c2c}
+  .musc-major{fill:#a07878;stroke:#1a1a1a;stroke-width:1.2;opacity:.7}
+  .tendon{fill:#e8d8b0;stroke:#1a1a1a;stroke-width:1.2}
+  .arrow{fill:none;stroke:#c43c2c;stroke-width:2.4;marker-end:url(#ar)}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:600;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#555;letter-spacing:.04em}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#c43c2c"/></marker></defs>
+
+  <text x="550" y="28" class="lbl-title" text-anchor="middle">Teres Minor</text>
+  <text x="550" y="48" class="caption" text-anchor="middle">4th rotator cuff muscle · axillary nerve (C5, C6) · lateral rotator</text>
+
+  <g transform="translate(280 110)">
+    <path class="bone" d="M 0 60 L 250 30 L 270 80 L 260 220 L 200 270 L 60 260 L 0 220 Z"/>
+    <line x1="20" y1="100" x2="240" y2="80" stroke="#1a1a1a" stroke-width="1.4"/>
+    <text x="115" y="58" class="lbl-tiny">SCAPULA — POSTERIOR</text>
+
+    <!-- Infraspinatus (context, faded) -->
+    <path class="musc-major" d="M 25 110 Q 140 95 240 115 Q 250 145 240 175 L 60 175 Q 35 150 25 110 Z"/>
+    <text x="120" y="148" class="lbl-tiny" fill="#666">Infraspinatus</text>
+
+    <!-- Teres major (context, faded) below -->
+    <path class="musc-major" d="M 60 220 Q 130 215 200 230 Q 230 240 240 245 L 250 250 L 240 260 L 80 255 Z"/>
+    <text x="125" y="245" class="lbl-tiny" fill="#666">Teres major</text>
+
+    <!-- TERES MINOR -->
+    <path id="tm" class="musc" d="M 90 200 Q 160 192 230 200 Q 250 210 245 222 L 90 220 Z"/>
+
+    <!-- Tendon to greater tubercle inferior facet -->
+    <path id="tmt" class="tendon" d="M 245 215 Q 290 218 320 230 L 340 248 L 335 268 L 305 258 Q 270 250 245 240 Z"/>
+
+    <ellipse class="bone" cx="370" cy="240" rx="50" ry="55"/>
+    <path class="bone" d="M 370 290 Q 365 360 370 420 L 400 420 Q 410 360 400 295 Z"/>
+    <circle cx="335" cy="248" r="5" fill="#1a1a1a"/>
+    <text x="345" y="250" class="lbl-tiny">INFERIOR FACET</text>
+
+    <path d="M 405 320 A 35 35 0 0 0 380 295" class="arrow" opacity="0">
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.3;0.7;1" dur="3s" repeatCount="indefinite"/>
+    </path>
+
+    <use href="#tm" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.3;0.7;1" dur="3s" repeatCount="indefinite"/>
+    </use>
+    <use href="#tmt" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.35;0.75;1" dur="3s" repeatCount="indefinite"/>
+    </use>
+  </g>
+
+  <g transform="translate(800 150)" class="nlbl">
+    <text x="0" y="-30">Origin</text>
+    <text x="0" y="-14" class="nsub">Lateral border of scapula</text>
+
+    <text x="0" y="40">Insertion</text>
+    <text x="0" y="56" class="nsub">Greater tubercle (inferior facet)</text>
+
+    <text x="0" y="120">Action</text>
+    <text x="0" y="136" class="nsub">Laterally rotates humerus</text>
+    <text x="0" y="150" class="nsub">Adducts arm at glenohumeral joint</text>
+
+    <text x="0" y="200">Innervation</text>
+    <text x="0" y="216" class="nsub">Axillary nerve · C5, C6</text>
+    <text x="0" y="230" class="nsub">(only cuff muscle not by suprascapular)</text>
+
+    <text x="0" y="280">Note</text>
+    <text x="0" y="296" class="nsub">Smallest of the SITS quartet —</text>
+    <text x="0" y="310" class="nsub">often spared in cuff tears</text>
+  </g>
+</svg></div></body></html>

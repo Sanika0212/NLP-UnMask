@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Peripheral Nerves of the Upper Limb</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .arm{fill:#f4d4c4;stroke:#1a1a1a;stroke-width:1.4}
+  .nerve{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+  .median{stroke:#3a6ea5}
+  .ulnar{stroke:#9b59b6}
+  .radial{stroke:#c43c2c}
+  .axill{stroke:#d49b3c}
+  .musc{stroke:#4a8a5c}
+  .trace{fill:none;stroke-width:4.2;stroke-linecap:round;stroke-dasharray:800;stroke-dashoffset:800}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:700;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#555;letter-spacing:.04em}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <text x="550" y="28" class="lbl-title" text-anchor="middle">Five Terminal Branches of the Brachial Plexus</text>
+  <text x="550" y="48" class="caption" text-anchor="middle">Each nerve traces from cord to hand — color-coded territory</text>
+
+  <!-- Arm + hand silhouette -->
+  <g transform="translate(380 80)">
+    <path class="arm" d="M 60 0 Q 130 -10 200 0 L 215 80 Q 220 200 215 320 L 200 440 Q 190 480 195 510 L 145 510 Q 140 480 130 440 Q 120 320 125 200 Q 130 100 60 0 Z"/>
+    <!-- Hand -->
+    <path class="arm" d="M 145 510 L 200 510 Q 215 525 215 545 Q 213 575 200 590 L 188 595 L 188 612 L 175 622 L 162 620 L 158 632 L 142 628 L 140 638 L 128 632 Q 115 615 110 595 Q 102 565 105 540 Q 110 520 145 510 Z"/>
+
+    <!-- AXILLARY: short, wraps surgical neck -->
+    <path id="ax" class="nerve axill" d="M 70 5 Q 90 25 110 60 Q 130 80 170 75"/>
+    <!-- MUSCULOCUTANEOUS: through coracobrach into biceps -->
+    <path id="mc" class="nerve musc" d="M 75 8 Q 105 35 135 80 Q 150 150 165 230 Q 175 290 200 380"/>
+    <!-- MEDIAN: medial then through cubital fossa to palm -->
+    <path id="mn" class="nerve median" d="M 90 12 Q 120 80 140 180 Q 150 280 155 380 Q 158 440 165 490 Q 172 525 175 555"/>
+    <!-- ULNAR: medial cord, behind medial epicondyle, ulnar side hand -->
+    <path id="un" class="nerve ulnar" d="M 95 15 Q 115 90 130 200 Q 138 300 145 390 Q 142 425 140 460 Q 138 510 130 555"/>
+    <!-- RADIAL: posterior, spiral groove -->
+    <path id="rn" class="nerve radial" d="M 80 12 Q 110 60 145 120 Q 175 180 200 240 Q 215 300 215 350 Q 210 410 200 470 Q 195 510 198 540"/>
+
+    <!-- Animated traces, sequential -->
+    <path class="trace axill" d="M 70 5 Q 90 25 110 60 Q 130 80 170 75">
+      <animate attributeName="stroke-dashoffset" values="800;0;0;800" keyTimes="0;0.16;0.18;0.2" dur="20s" repeatCount="indefinite"/>
+    </path>
+    <path class="trace musc" d="M 75 8 Q 105 35 135 80 Q 150 150 165 230 Q 175 290 200 380">
+      <animate attributeName="stroke-dashoffset" values="800;800;0;0;800" keyTimes="0;0.2;0.36;0.4;0.42" dur="20s" repeatCount="indefinite"/>
+    </path>
+    <path class="trace median" d="M 90 12 Q 120 80 140 180 Q 150 280 155 380 Q 158 440 165 490 Q 172 525 175 555">
+      <animate attributeName="stroke-dashoffset" values="800;800;0;0;800" keyTimes="0;0.42;0.58;0.62;0.64" dur="20s" repeatCount="indefinite"/>
+    </path>
+    <path class="trace ulnar" d="M 95 15 Q 115 90 130 200 Q 138 300 145 390 Q 142 425 140 460 Q 138 510 130 555">
+      <animate attributeName="stroke-dashoffset" values="800;800;0;0;800" keyTimes="0;0.64;0.78;0.82;0.84" dur="20s" repeatCount="indefinite"/>
+    </path>
+    <path class="trace radial" d="M 80 12 Q 110 60 145 120 Q 175 180 200 240 Q 215 300 215 350 Q 210 410 200 470 Q 195 510 198 540">
+      <animate attributeName="stroke-dashoffset" values="800;800;0;0;800" keyTimes="0;0.84;0.96;0.98;1" dur="20s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(720 110)" class="nlbl">
+    <g><line x1="0" y1="0" x2="40" y2="0" class="nerve axill"/><text x="55" y="4">Axillary (C5,C6)</text><text x="55" y="20" class="nsub">Deltoid · regimental badge</text></g>
+    <g transform="translate(0 60)"><line x1="0" y1="0" x2="40" y2="0" class="nerve musc"/><text x="55" y="4">Musculocutaneous (C5–C7)</text><text x="55" y="20" class="nsub">Biceps · brachialis · coracobrach.</text></g>
+    <g transform="translate(0 120)"><line x1="0" y1="0" x2="40" y2="0" class="nerve median"/><text x="55" y="4">Median (C6–T1)</text><text x="55" y="20" class="nsub">Forearm flexors · thenar · LOAF</text></g>
+    <g transform="translate(0 180)"><line x1="0" y1="0" x2="40" y2="0" class="nerve ulnar"/><text x="55" y="4">Ulnar (C8,T1)</text><text x="55" y="20" class="nsub">Intrinsic hand · medial 1½ digits</text></g>
+    <g transform="translate(0 240)"><line x1="0" y1="0" x2="40" y2="0" class="nerve radial"/><text x="55" y="4">Radial (C5–T1)</text><text x="55" y="20" class="nsub">All extensors · BEST</text></g>
+  </g>
+</svg></div></body></html>

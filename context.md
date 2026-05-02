@@ -18,14 +18,14 @@ Every existing Socratic AI tutor (Khanmigo, SocraticLM, TutorRL) retrieves the a
 
 ---
 
-## Architecture
+## Architecture (Current — May 2026)
 
 ```
-Browser (Chainlit UI)
-    │
+Browser (Next.js 14 App Router — frontend/)
+    │  SSE stream + REST POST /api/message
     ▼
-app.py — session lifecycle, UI rendering, Chainlit hooks
-    │
+FastAPI  (src/api.py — port 8000)
+    │  uvicorn --reload
     ▼
 LangGraph State Machine  (src/graph.py)
     │
@@ -42,6 +42,8 @@ LangGraph State Machine  (src/graph.py)
             NetworkX DAG, 16 concepts, Bayesian mastery update
 ```
 
+> **Note**: Chainlit (`app.py`) is retained for backward compatibility / HF Spaces deployment. The primary dev interface is now the Next.js frontend. Both hit the same LangGraph backend.
+
 ### Graph topology
 
 ```
@@ -56,16 +58,92 @@ The loopback (diagnostic → supervisor) runs entirely within a single `graph.in
 
 ---
 
+## Frontend Stack (Next.js UI)
+
+**Location**: `frontend/`
+
+- **Framework**: Next.js 14 App Router, TypeScript
+- **State**: Zustand (`frontend/src/lib/store.ts`) — session state, mastery, messages, phase, PCR mode
+- **Styling**: CSS Modules in `globals.css` — warm paper palette (`oklch()` color space), 3-pane grid layout
+- **Layout**: 3-column grid `280px 1fr 340px` — Rail | Main (TopBar + Thread + Composer) | Aside
+- **Real-time**: SSE stream from FastAPI (`/api/stream/{session_id}`) via `EventSource`
+- **Session setup**: POST `/api/session` → redirect to `/chat`
+
+### Pages
+
+| Route | File | Purpose |
+|-------|------|---------|
+| `/` | `src/app/page.tsx` | Welcome — topic selection, PCR mode, student name |
+| `/chat` | `src/app/chat/page.tsx` | 3-pane chat interface |
+
+### Components
+
+| Component | Purpose |
+|-----------|---------|
+| `Rail.tsx` | Left sidebar — phase timeline, topic mastery meters, session timer |
+| `TopBar.tsx` | Top bar — breadcrumb, nav tabs, toggle buttons, user chip |
+| `Thread.tsx` | Message list — turns, supervisor step badges, thinking indicator |
+| `Turn.tsx` | Individual message bubble with avatar, quick replies |
+| `Aside.tsx` | Right panel — concept DAG, misconceptions, topic mastery bars, agent trace |
+| `Composer.tsx` | Text input + send button |
+| `DiagramCard.tsx` | Visual hint display — animated HTML iframe or image |
+| `Avatar.tsx` | UnMask animated SVG avatar (9 states: idle/listening/thinking/speaking/asking/reveal/assess/celebrate/error) |
+
+### SSE Event Types (FastAPI → Next.js)
+
+| Event | Payload | Effect |
+|-------|---------|--------|
+| `thinking` | `{text}` | Shows thinking status pill |
+| `supervisor` | `{agent, phase, reasoning}` | Adds step badge to thread, updates `phase` in store |
+| `state_update` | `{mastery, pcrMode, currentTopic, studyFocus, avatarState}` | Updates Zustand store |
+| `phase_change` | `{phase}` | Updates `phase` in store |
+| `message` | `{role, content, quickReplies?}` | Appends message to thread |
+| `visual_hint` | `{concept, image_url, caption, hint_text}` | Shows DiagramCard in thread |
+| `done` | — | Clears thinking indicator |
+| `error` | `{message}` | Shows error state |
+
+---
+
+## Visual Hints System
+
+### Animated HTML Diagrams (Primary)
+
+22 self-contained HTML files in `public/anatomy/` — served by FastAPI at `/static/anatomy/`:
+
+```
+brachial_plexus.html   spinal_cord.html     dermatomes.html
+rotator_cuff.html      shoulder_joint.html  shoulder_elbow.html
+elbow_joint.html       wrist_joint.html     carpal_bones.html
+hand_intrinsics.html   musculocutaneous_nerve.html  axillary_nerve.html
+median_nerve.html      ulnar_nerve.html     radial_nerve.html
+nerve_injury_syndromes.html  peripheral_nerves.html  upper_limb_muscles.html
+supraspinatus.html     infraspinatus.html   subscapularis.html  teres_minor.html
+```
+
+Each is a standalone animated SVG diagram. Rendered in `<iframe height="420px">` in `DiagramCard.tsx`. Badge shows "Animated".
+
+### Web Search Fallback (Secondary)
+
+When no local `.html` exists for a concept, `src/api.py` calls `search_anatomy_image(concept)`:
+
+1. DuckDuckGo image search (via `duckduckgo-search>=6.2.0`)
+2. Filter to trusted domains: `wikipedia`, `wikimedia`, `radiopaedia`, `kenhub`, `teachmeanatomy`
+3. Verify top 3 results with Claude Haiku vision API — ask "Does this image show [concept] anatomy? YES/NO"
+4. Return first verified URL
+
+External URLs render as `<img>` with badge "Web". Local PNGs render as `<img>` with badge "Image".
+
+---
+
 ## Session Phases
 
 | Phase | Time window | Entry condition | Exit condition |
 |-------|-------------|-----------------|----------------|
 | Rapport (Diagnostic) | 0–120s | session start | 4 diagnostic Qs complete |
 | Tutoring | 120–720s | diagnostic_complete | coverage ≥ 0.80 OR t ≥ 720s |
+| Revisit | ~480s in Tutoring | weak topic + 180s cooldown | auto |
 | Assessment | 720–840s | time/mastery trigger | t ≥ 840s |
 | Wrapup | 840–900s | time trigger or quit intent | session end |
-
-Proactive revisit fires at **t ≥ 480s** in Tutoring if weak topics exist and cooldown (180s) has passed.
 
 ---
 
@@ -105,10 +183,10 @@ Post-generation: if `socratic_question` contains ≥4 significant words from `co
 `supervisor_agent` (src/agents/supervisor.py) runs on every turn:
 
 1. **Rule engine** (`_rule_based_decision`) — pure Python, handles time limits, quit intent, mastery milestones. Always runs.
-2. **LLM decision** (`_llm_decision`) — GPT-4o-mini, human-readable reasoning, shown in UI via `cl.Step`. Runs concurrently.
+2. **LLM decision** (`_llm_decision`) — GPT-4o-mini, human-readable reasoning, shown in UI via supervisor SSE event. Runs concurrently.
 3. **Merge**: if LLM agrees with rule → use LLM decision (better reasoning text). If they disagree → use rule (safety).
 
-The supervisor also handles proactive revisit scheduling (previously in orchestrator.py) and the rapport→tutoring transition (picking the weakest concept to start tutoring on).
+The supervisor also handles proactive revisit scheduling and the rapport→tutoring transition (picking the weakest concept).
 
 ---
 
@@ -122,13 +200,13 @@ The supervisor also handles proactive revisit scheduling (previously in orchestr
 | `mistake_log` | `operator.add` | Append-only mistake records |
 | `mastery_scores` | none | Overwritten each turn |
 | `_last_agent` | none | Which specialist ran last turn |
-| `_supervisor_reasoning` | none | Shown in UI `cl.Step` |
+| `_supervisor_reasoning` | none | Shown in UI supervisor step badge |
 
 **Critical**: `conversation_history` uses `operator.add` with MemorySaver checkpointer. Always pass `state["conversation_history"] = []` before `graph.invoke` — passing the full history doubles it.
 
 ---
 
-## Evaluation Results (May 2026, post-architectural-changes)
+## Evaluation Results (May 2026)
 
 | Metric | Score | Target | Pass |
 |--------|-------|--------|------|
@@ -138,29 +216,40 @@ The supervisor also handles proactive revisit scheduling (previously in orchestr
 | Ends with ? | 1.000 | ≥ 95% | ✓ |
 | Avg Socratic Purity | 4.87/5 | ≥ 4.0 | ✓ |
 | Adversarial Hold Rate | 1.000 | ≥ 90% | ✓ |
-| RAGAS Faithfulness | 0.838 | ≥ 0.85 | ✗ (measurement mismatch — see below) |
+| RAGAS Faithfulness | 0.838 | ≥ 0.85 | ✗ (measurement mismatch) |
 | RAGAS Answer Relevancy | 0.622 | ≥ 0.80 | ✗ (measurement mismatch) |
 
-RAGAS penalizes Socratic questions that make no factual claims — which is exactly what a good Socratic question does. Socratic Purity (4.87/5) is the appropriate metric. RAGAS is included for completeness.
+RAGAS penalizes Socratic questions that make no factual claims — which is exactly what a good Socratic question does. Socratic Purity (4.87/5) is the appropriate metric.
 
 ---
 
 ## Running Locally
 
 ```bash
-# 1. Install deps
+# Terminal 1 — FastAPI backend
+cd /path/to/NLP\ final\ 2
 pip install -r requirements.txt
+uvicorn src.api:app --reload --port 8000
 
-# 2. Set env vars (copy .env.example → .env, fill in keys)
-#    OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, GOOGLE_API_KEY
-#    QDRANT_COLLECTION=unmask_anatomy, EMBEDDING_PROVIDER=gemini
+# Terminal 2 — Next.js frontend
+cd frontend
+npm install
+npm run dev   # → http://localhost:3000
 
-# 3. Run
-chainlit run app.py --port 8000
+# Qdrant runs in local file mode (./qdrant_data). No Docker needed.
+# Do NOT run eval and app simultaneously — Qdrant file lock conflict.
 ```
 
-Qdrant runs in local file mode — `./qdrant_data`. No Docker needed.
-Do NOT run eval and app simultaneously — Qdrant file lock will conflict.
+Required env vars (`.env` in project root):
+```
+OPENAI_API_KEY=...
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_MODEL=openai/gpt-4o
+GOOGLE_API_KEY=...
+QDRANT_COLLECTION=unmask_anatomy
+EMBEDDING_PROVIDER=gemini
+ANTHROPIC_API_KEY=...   # for Claude Haiku vision (web search fallback)
+```
 
 ---
 
@@ -179,8 +268,9 @@ Kill the app before running evals (shared Qdrant file lock).
 
 ## Deploying to HuggingFace Spaces
 
+HF Spaces runs Chainlit (`app.py`) — the Next.js frontend is local-only for now.
+
 ```bash
-# git push via HF Python API (git push rejected — HF requires Xet for binaries)
 python3 - <<'EOF'
 from huggingface_hub import HfApi
 HfApi().upload_folder(
@@ -188,7 +278,8 @@ HfApi().upload_folder(
     repo_id="Gustav-Proxi/UnmaskTutor",
     repo_type="space",
     ignore_patterns=["*.zip","*.pptx",".git/*","__pycache__/*","*.pyc",
-                     ".env","report.pdf","supplementary.pdf",".claude/*"],
+                     ".env","report.pdf","supplementary.pdf",".claude/*",
+                     "frontend/.next/*","frontend/node_modules/*"],
 )
 EOF
 ```
@@ -201,7 +292,9 @@ Set secrets at https://huggingface.co/spaces/Gustav-Proxi/UnmaskTutor/settings:
 ## File Map
 
 ```
-app.py                          Chainlit entry point — UI, session lifecycle
+app.py                          Chainlit entry point (HF Spaces / legacy)
+src/api.py                      FastAPI entry point (Next.js frontend)
+src/session_manager.py          Session registry (thread_id, state per session)
 config.yaml                     All thresholds, model names, session timing
 src/
   graph.py                      LangGraph state machine definition
@@ -214,18 +307,34 @@ src/
     pedagogy_agent.py           Mastery update + concept DAG + mistake log
   knowledge_base/
     concept_graph.json          16-concept NetworkX DAG
-  anatomy_images.py             concept → Gray's Anatomy image mapping
-  survey.py                     Pilot study pre/post quiz
+  anatomy_images.py             concept → anatomy HTML/image mapping
+  survey.py                     Pilot study pre/post quiz (Chainlit only)
+frontend/
+  src/app/
+    page.tsx                    Welcome/setup page
+    chat/page.tsx               3-pane chat UI
+    globals.css                 All styles — design tokens, layout, components
+    layout.jsx                  Root layout + font imports
+  src/components/
+    Rail.tsx                    Left sidebar
+    TopBar.tsx                  Top navigation bar
+    Thread.tsx                  Message list
+    Turn.tsx                    Individual message turn
+    Aside.tsx                   Right inspector panel
+    Composer.tsx                Text input
+    DiagramCard.tsx             Visual hint display
+    Avatar.tsx                  Animated SVG avatar
+  src/lib/
+    store.ts                    Zustand session store
+    types.ts                    TypeScript interfaces
+    topics.ts                   Topic list (key, label)
 eval/
   run_eval.py                   Main eval runner
   ablation.py                   4-variant ablation
   eval_dataset.json             30 QA triples
   adversarial_prompts.json      20 adversarial prompts
-  metrics/
-    answer_leak.py
-    socratic_purity.py
-    retrieval_precision.py
-    ragas_eval.py
-public/anatomy/                 Gray's Anatomy PNG images (16 plates)
-screenshots/                    Auto-generated UI screenshots (playwright)
+  metrics/                      Individual metric modules
+public/anatomy/                 22 animated HTML anatomy diagrams
+  _shared.css                   Shared styles for HTML diagrams
+screenshots/                    Playwright UI screenshots
 ```

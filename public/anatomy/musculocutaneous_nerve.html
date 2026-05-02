@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Musculocutaneous Nerve</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .arm{fill:#f4d4c4;stroke:#1a1a1a;stroke-width:1.4}
+  .musc{fill:#c97070;stroke:#1a1a1a;stroke-width:1.2}
+  .musc-active{fill:#c43c2c}
+  .nerve{fill:none;stroke:#d49b3c;stroke-width:2.6;stroke-linecap:round}
+  .nerve-trace{fill:none;stroke:#c43c2c;stroke-width:3.2;stroke-linecap:round;stroke-dasharray:600;stroke-dashoffset:600}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:600;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#555;letter-spacing:.04em}
+  .lead{fill:none;stroke:#1a1a1a;stroke-width:1}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <text x="550" y="28" class="lbl-title" text-anchor="middle">Musculocutaneous Nerve</text>
+  <text x="550" y="48" class="caption" text-anchor="middle">Lateral cord (C5–C7) · pierces coracobrachialis · innervates flexors of arm</text>
+
+  <!-- Arm -->
+  <g transform="translate(380 80)">
+    <path class="arm" d="M 60 0 Q 130 -10 200 0 L 215 80 Q 220 200 215 320 L 200 440 Q 190 480 195 510 L 145 510 Q 140 480 130 440 Q 120 320 125 200 Q 130 100 60 0 Z"/>
+
+    <!-- Coracobrachialis -->
+    <path id="cb" class="musc" d="M 100 30 Q 140 25 175 35 Q 180 80 170 130 L 130 130 Q 110 80 100 30 Z"/>
+    <text x="105" y="22" class="lbl-tiny">CORACOBRACHIALIS</text>
+
+    <!-- Biceps -->
+    <path id="bi" class="musc" d="M 130 130 Q 175 130 200 140 Q 205 230 195 320 L 145 320 Q 130 230 130 130 Z"/>
+    <text x="148" y="240" class="lbl-mono" fill="#fff">BICEPS</text>
+
+    <!-- Brachialis -->
+    <path id="br" class="musc" d="M 145 320 Q 195 320 200 330 L 205 380 L 145 380 Z"/>
+    <text x="155" y="358" class="lbl-tiny" fill="#fff">BRACHIALIS</text>
+
+    <!-- Nerve path -->
+    <path id="mcpath" class="nerve" d="M 80 5 Q 110 30 140 60 Q 160 95 165 130 Q 170 200 175 280 Q 180 340 200 380 Q 230 410 260 430"/>
+
+    <!-- Animated trace -->
+    <path class="nerve-trace" d="M 80 5 Q 110 30 140 60 Q 160 95 165 130 Q 170 200 175 280 Q 180 340 200 380 Q 230 410 260 430">
+      <animate attributeName="stroke-dashoffset" values="600;0;0;600" keyTimes="0;0.3;0.85;1" dur="6s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Branch points + sequential muscle activation -->
+    <use href="#cb" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.18;0.22;0.4;0.45;1" dur="6s" repeatCount="indefinite"/>
+    </use>
+    <use href="#bi" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0;0;1;1;0;0" keyTimes="0;0.3;0.34;0.4;0.6;0.65;1" dur="6s" repeatCount="indefinite"/>
+    </use>
+    <use href="#br" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;1;1;0;0" keyTimes="0;0.5;0.55;0.58;0.62;0.78;0.85;1" dur="6s" repeatCount="indefinite"/>
+    </use>
+
+    <!-- Continues as lateral cutaneous nerve of forearm -->
+    <text x="265" y="425" class="lbl-tiny">→ Lateral cut. of forearm</text>
+  </g>
+
+  <g transform="translate(740 130)" class="nlbl">
+    <text x="0" y="0">Origin</text>
+    <text x="0" y="16" class="nsub">Lateral cord of brachial plexus</text>
+    <text x="0" y="30" class="nsub">Roots: C5, C6, C7</text>
+
+    <text x="0" y="70">Course</text>
+    <text x="0" y="86" class="nsub">Pierces coracobrachialis →</text>
+    <text x="0" y="100" class="nsub">runs between biceps + brachialis</text>
+
+    <text x="0" y="140">Motor</text>
+    <text x="0" y="156" class="nsub">Coracobrachialis</text>
+    <text x="0" y="170" class="nsub">Biceps brachii</text>
+    <text x="0" y="184" class="nsub">Brachialis</text>
+
+    <text x="0" y="224">Sensory</text>
+    <text x="0" y="240" class="nsub">Lateral cutaneous of forearm</text>
+    <text x="0" y="254" class="nsub">(terminal sensory branch)</text>
+
+    <text x="0" y="294">Test</text>
+    <text x="0" y="310" class="nsub">Resisted elbow flexion + supination</text>
+    <text x="0" y="324" class="nsub">"BBC" — Biceps, Brachialis, Coracobrach.</text>
+  </g>
+</svg></div></body></html>

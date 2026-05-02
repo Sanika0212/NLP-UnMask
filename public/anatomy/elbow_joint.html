@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Elbow Joint</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .bone{fill:#f5ecd9;stroke:#1a1a1a;stroke-width:1.6}
+  .cart{fill:#bfd6e0;stroke:#1a1a1a;stroke-width:1.2}
+  .lig{fill:none;stroke:#a85b5b;stroke-width:2.6;stroke-linecap:round}
+  .pulse{fill:none;stroke:#c43c2c;stroke-width:2.4}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:700;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#555;letter-spacing:.04em}
+  .lbl-mono{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#444}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <text x="550" y="28" class="lbl-title" text-anchor="middle">Elbow Joint</text>
+  <text x="550" y="48" class="caption" text-anchor="middle">Three articulations · hinge with rotation · flexion sweep below</text>
+
+  <!-- Anterior view of elbow -->
+  <g transform="translate(280 100)">
+    <!-- Humerus -->
+    <path id="hum" class="bone" d="M 130 0 L 200 0 L 205 180 Q 220 200 230 220 L 240 240 L 230 260 L 200 260 Q 180 250 165 235 L 140 235 Q 125 250 105 260 L 75 260 L 65 240 L 75 220 Q 85 200 100 180 L 105 0 Z"/>
+    <text x="135" y="100" class="lbl-mono">Humerus</text>
+    <!-- Trochlea (medial pulley) -->
+    <ellipse id="tr" class="cart" cx="155" cy="252" rx="22" ry="14"/>
+    <text x="135" y="280" class="lbl-tiny">TROCHLEA</text>
+    <!-- Capitulum (lateral round) -->
+    <ellipse id="cap" class="cart" cx="200" cy="252" rx="18" ry="13"/>
+    <text x="184" y="280" class="lbl-tiny">CAPITULUM</text>
+
+    <!-- Ulna with trochlear notch -->
+    <path id="uln" class="bone" d="M 130 270 Q 140 290 155 296 L 175 296 Q 178 350 174 420 L 150 420 Q 144 350 130 270 Z"/>
+    <text x="138" y="380" class="lbl-mono">Ulna</text>
+    <!-- Olecranon -->
+    <path class="bone" d="M 130 270 Q 120 260 115 250 L 130 245 L 145 260 Z"/>
+
+    <!-- Radius with head -->
+    <ellipse id="rh" class="cart" cx="210" cy="290" rx="16" ry="10"/>
+    <path id="rad" class="bone" d="M 195 295 Q 200 350 210 420 L 230 420 Q 232 350 225 300 Z"/>
+    <text x="216" y="380" class="lbl-mono">Radius</text>
+
+    <!-- Annular ligament around radial head -->
+    <path id="annu" class="lig" d="M 192 286 Q 210 278 230 286 Q 232 296 225 304 Q 210 308 195 304 Q 188 296 192 286 Z" fill="none"/>
+
+    <!-- Collateral ligaments -->
+    <g id="ucl">
+      <path class="lig" d="M 130 235 Q 130 270 145 296"/>
+    </g>
+    <g id="rcl">
+      <path class="lig" d="M 215 235 Q 220 265 220 286"/>
+    </g>
+
+    <!-- Pulse cycle -->
+    <use href="#hum" class="pulse" opacity="0"><animate attributeName="opacity" values="0;1;0;0;0;0;0;0;0" keyTimes="0;0.05;0.15;0.25;0.4;0.55;0.7;0.85;1" dur="16s" repeatCount="indefinite"/></use>
+    <use href="#uln" class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;1;0;0;0;0;0;0" keyTimes="0;0.15;0.2;0.3;0.4;0.55;0.7;0.85;1" dur="16s" repeatCount="indefinite"/></use>
+    <use href="#rad" class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;1;0;0;0;0;0" keyTimes="0;0.3;0.34;0.4;0.5;0.55;0.7;0.85;1" dur="16s" repeatCount="indefinite"/></use>
+    <use href="#tr"  class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;1;0;0;0;0" keyTimes="0;0.45;0.5;0.55;0.6;0.65;0.7;0.85;1" dur="16s" repeatCount="indefinite"/></use>
+    <use href="#cap" class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;0;1;0;0;0" keyTimes="0;0.55;0.6;0.65;0.7;0.74;0.78;0.85;1" dur="16s" repeatCount="indefinite"/></use>
+    <use href="#annu" class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;0;0;1;0;0" keyTimes="0;0.7;0.75;0.78;0.8;0.82;0.85;0.92;1" dur="16s" repeatCount="indefinite"/></use>
+    <use href="#ucl"  class="pulse" opacity="0" stroke-width="3.5"><animate attributeName="opacity" values="0;0;0;0;0;0;0;1;0" keyTimes="0;0.82;0.84;0.86;0.88;0.9;0.92;0.94;1" dur="16s" repeatCount="indefinite"/></use>
+    <use href="#rcl"  class="pulse" opacity="0" stroke-width="3.5"><animate attributeName="opacity" values="0;0;0;0;0;0;0;0;1;0" keyTimes="0;0.92;0.94;0.95;0.96;0.97;0.98;0.99;0.995;1" dur="16s" repeatCount="indefinite"/></use>
+  </g>
+
+  <g transform="translate(740 130)" class="nlbl">
+    <text x="0" y="0">Three articulations</text>
+    <text x="0" y="16" class="nsub">Humeroulnar (trochlea ↔ trochlear notch)</text>
+    <text x="0" y="30" class="nsub">Humeroradial (capitulum ↔ radial head)</text>
+    <text x="0" y="44" class="nsub">Proximal radioulnar (pivot)</text>
+
+    <text x="0" y="84">Type</text>
+    <text x="0" y="100" class="nsub">Synovial hinge + pivot</text>
+
+    <text x="0" y="140">Movements</text>
+    <text x="0" y="156" class="nsub">Flexion / extension (humeroulnar)</text>
+    <text x="0" y="170" class="nsub">Pronation / supination (radioulnar)</text>
+
+    <text x="0" y="210">Stabilizers</text>
+    <text x="0" y="226" class="nsub">Ulnar collateral (medial)</text>
+    <text x="0" y="240" class="nsub">Radial collateral (lateral)</text>
+    <text x="0" y="254" class="nsub">Annular ligament (radial head)</text>
+
+    <text x="0" y="294">Clinical</text>
+    <text x="0" y="310" class="nsub">"Tommy John" UCL injury</text>
+    <text x="0" y="324" class="nsub">Pulled elbow — annular slip in kids</text>
+  </g>
+</svg></div></body></html>

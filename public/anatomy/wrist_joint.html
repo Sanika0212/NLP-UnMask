@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Wrist Joint</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .bone{fill:#f5ecd9;stroke:#1a1a1a;stroke-width:1.6}
+  .cart{fill:#bfd6e0;stroke:#1a1a1a;stroke-width:1.1}
+  .disc{fill:#9bb8c4;stroke:#1a1a1a;stroke-width:1.1}
+  .pulse{fill:none;stroke:#c43c2c;stroke-width:2.4}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:700;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#555;letter-spacing:.04em}
+  .arc{fill:none;stroke:#d49b3c;stroke-width:2.4;stroke-dasharray:4 4}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <text x="550" y="28" class="lbl-title" text-anchor="middle">Radiocarpal (Wrist) Joint</text>
+  <text x="550" y="48" class="caption" text-anchor="middle">Radius + disc articulate with the proximal carpal row</text>
+
+  <g transform="translate(260 100)">
+    <!-- Radius (left) -->
+    <path id="rad" class="bone" d="M 60 0 L 130 0 L 138 200 Q 145 230 160 245 L 130 248 Q 95 250 60 248 L 75 230 L 80 200 Z"/>
+    <text x="80" y="120" class="lbl-mono">Radius</text>
+    <!-- Ulna (right, slightly shorter) -->
+    <path id="uln" class="bone" d="M 165 0 L 230 0 L 238 195 L 220 215 L 180 215 L 168 195 Z"/>
+    <text x="183" y="120" class="lbl-mono">Ulna</text>
+
+    <!-- Articular disc (TFCC) -->
+    <path id="disc" class="disc" d="M 165 215 Q 200 218 235 215 L 232 235 Q 200 240 168 235 Z"/>
+    <text x="180" y="232" class="lbl-tiny">DISC</text>
+
+    <!-- Distal radius articular cartilage -->
+    <path id="rac" class="cart" d="M 65 248 Q 100 256 160 252 L 158 268 Q 100 275 70 268 Z"/>
+
+    <!-- Proximal carpal row: Scaphoid, Lunate, Triquetrum, Pisiform -->
+    <g id="proxrow">
+      <ellipse class="bone" cx="85"  cy="290" rx="22" ry="18"/>
+      <ellipse class="bone" cx="135" cy="290" rx="22" ry="18"/>
+      <ellipse class="bone" cx="185" cy="290" rx="22" ry="18"/>
+      <ellipse class="bone" cx="225" cy="298" rx="14" ry="12"/>
+      <text x="73" y="294" class="lbl-tiny">SCA</text>
+      <text x="123" y="294" class="lbl-tiny">LUN</text>
+      <text x="172" y="294" class="lbl-tiny">TRQ</text>
+      <text x="216" y="302" class="lbl-tiny">PIS</text>
+    </g>
+
+    <!-- Distal carpal row -->
+    <g id="distrow" opacity=".7">
+      <ellipse class="bone" cx="85"  cy="335" rx="20" ry="16"/>
+      <ellipse class="bone" cx="130" cy="335" rx="20" ry="16"/>
+      <ellipse class="bone" cx="175" cy="335" rx="20" ry="16"/>
+      <ellipse class="bone" cx="218" cy="335" rx="20" ry="16"/>
+    </g>
+
+    <!-- Flex/Ext arc visualization -->
+    <path class="arc" d="M 150 360 Q 100 400 80 460" opacity="0">
+      <animate attributeName="opacity" values="0;1;0;0;0" keyTimes="0;0.2;0.4;0.7;1" dur="5s" repeatCount="indefinite"/>
+    </path>
+    <path class="arc" d="M 150 360 Q 200 400 230 460" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;0;0" keyTimes="0;0.4;0.6;0.8;1" dur="5s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Pulse cycle: radius, ulna, disc, proximal row, distal row -->
+    <use href="#rad" class="pulse" opacity="0"><animate attributeName="opacity" values="0;1;0;0;0;0" keyTimes="0;0.05;0.18;0.4;0.6;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#uln" class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;1;0;0;0" keyTimes="0;0.18;0.22;0.4;0.6;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#disc" class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;1;0;0" keyTimes="0;0.4;0.42;0.5;0.6;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#proxrow" class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;1;0" keyTimes="0;0.6;0.62;0.65;0.7;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#distrow" class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;0;1;0" keyTimes="0;0.8;0.82;0.85;0.88;0.92;1" dur="14s" repeatCount="indefinite"/></use>
+  </g>
+
+  <g transform="translate(620 130)" class="nlbl">
+    <text x="0" y="0">Type</text>
+    <text x="0" y="16" class="nsub">Synovial ellipsoid (condyloid)</text>
+
+    <text x="0" y="56">Articular surfaces</text>
+    <text x="0" y="72" class="nsub">Distal radius + articular disc (TFCC)</text>
+    <text x="0" y="86" class="nsub">↔ scaphoid, lunate, triquetrum</text>
+    <text x="0" y="100" class="nsub">(ulna does NOT articulate directly)</text>
+
+    <text x="0" y="140">Movements</text>
+    <text x="0" y="156" class="nsub">Flexion / extension</text>
+    <text x="0" y="170" class="nsub">Radial / ulnar deviation</text>
+    <text x="0" y="184" class="nsub">Circumduction (sum of the four)</text>
+
+    <text x="0" y="224">Stabilizers</text>
+    <text x="0" y="240" class="nsub">Palmar + dorsal radiocarpal lig.</text>
+    <text x="0" y="254" class="nsub">Radial + ulnar collateral lig.</text>
+
+    <text x="0" y="294">Clinical</text>
+    <text x="0" y="310" class="nsub">Scaphoid # — most common carpal #</text>
+    <text x="0" y="324" class="nsub">FOOSH → Colles' / scaphoid injuries</text>
+  </g>
+</svg></div></body></html>

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Upper Limb Muscles</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .musc{stroke:#1a1a1a;stroke-width:1.4;stroke-linejoin:round}
+  .deltoid{fill:#e8b4a0}.biceps{fill:#d49a8a}.triceps{fill:#b88578}
+  .brach{fill:#c98a7a}.flex{fill:#d6a892}.ext{fill:#c5917f}
+  .pec{fill:#e0a090}.lat{fill:#b8857a}.trap{fill:#cf9a8a}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:11px;font-weight:600;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:9px;fill:#666;letter-spacing:.04em}
+  .pulse{fill:none;stroke:#c43c2c;stroke-width:2.6}
+  .lead{fill:none;stroke:#1a1a1a;stroke-width:1}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <text x="550" y="26" class="lbl-title" text-anchor="middle">Muscles of the Upper Limb</text>
+  <text x="550" y="44" class="caption" text-anchor="middle">Major muscle groups, anterior view — each layer pulses in turn</text>
+
+  <!-- Torso silhouette -->
+  <path d="M 360 90 Q 410 80 460 90 L 470 130 Q 480 200 470 280 Q 460 340 450 380 L 360 380 Q 350 340 340 280 Q 330 200 340 130 Z" fill="#f8e4d4" stroke="#1a1a1a" stroke-width="1.4"/>
+
+  <!-- Trapezius -->
+  <path id="m-trap" class="musc trap" d="M 360 90 Q 410 70 460 90 L 470 120 Q 430 110 390 110 L 350 120 Z"/>
+  <!-- Pectoralis major -->
+  <path id="m-pec" class="musc pec" d="M 350 130 Q 410 125 470 130 Q 475 175 460 215 Q 410 230 360 215 Q 345 175 350 130 Z"/>
+  <!-- Deltoid (left arm, viewer's right) -->
+  <path id="m-delt" class="musc deltoid" d="M 460 100 Q 510 105 540 140 Q 555 180 545 215 Q 520 225 500 215 Q 475 195 470 165 Q 465 130 460 100 Z"/>
+  <!-- Biceps brachii -->
+  <path id="m-bi" class="musc biceps" d="M 500 220 Q 530 220 545 230 Q 555 290 548 350 Q 530 360 510 355 Q 498 295 500 220 Z"/>
+  <!-- Triceps (showing through laterally) -->
+  <path id="m-tri" class="musc triceps" d="M 545 230 Q 565 235 575 250 Q 580 310 572 360 Q 555 365 548 350 Q 555 290 545 230 Z"/>
+  <!-- Brachialis (deep, peeking) -->
+  <path id="m-brach" class="musc brach" d="M 510 355 L 548 350 L 552 380 L 510 384 Z"/>
+  <!-- Forearm flexors (anterior compartment) -->
+  <path id="m-flex" class="musc flex" d="M 506 384 L 552 380 Q 565 440 555 500 Q 540 520 525 520 Q 510 460 506 384 Z"/>
+  <!-- Forearm extensors (lateral edge) -->
+  <path id="m-ext" class="musc ext" d="M 552 380 Q 575 385 580 410 Q 580 470 565 510 Q 555 520 555 500 Q 565 440 552 380 Z"/>
+  <!-- Latissimus dorsi peek -->
+  <path id="m-lat" class="musc lat" d="M 340 220 Q 330 280 335 340 L 360 380 L 360 215 Q 350 215 340 220 Z"/>
+
+  <!-- Hand placeholder -->
+  <path d="M 525 520 Q 555 522 565 530 Q 568 555 555 575 L 540 580 L 525 580 L 515 572 Q 510 545 525 520 Z" fill="#f4d4c4" stroke="#1a1a1a" stroke-width="1.4"/>
+
+  <!-- Pulse cycles through each muscle -->
+  <use href="#m-trap"  class="pulse" opacity="0"><animate attributeName="opacity" values="0;1;0;0;0;0;0;0;0;0" keyTimes="0;0.04;0.1;0.2;0.3;0.45;0.6;0.75;0.9;1" dur="22s" repeatCount="indefinite"/></use>
+  <use href="#m-pec"   class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;1;0;0;0;0;0;0;0" keyTimes="0;0.1;0.14;0.2;0.3;0.45;0.6;0.75;0.9;1" dur="22s" repeatCount="indefinite"/></use>
+  <use href="#m-delt"  class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;1;0;0;0;0;0;0" keyTimes="0;0.18;0.22;0.28;0.36;0.45;0.6;0.75;0.9;1" dur="22s" repeatCount="indefinite"/></use>
+  <use href="#m-bi"    class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;1;0;0;0;0;0" keyTimes="0;0.28;0.34;0.4;0.46;0.5;0.6;0.75;0.9;1" dur="22s" repeatCount="indefinite"/></use>
+  <use href="#m-tri"   class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;0;1;0;0;0;0" keyTimes="0;0.4;0.46;0.5;0.54;0.58;0.62;0.75;0.9;1" dur="22s" repeatCount="indefinite"/></use>
+  <use href="#m-brach" class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;0;0;1;0;0;0" keyTimes="0;0.5;0.56;0.6;0.64;0.68;0.72;0.78;0.9;1" dur="22s" repeatCount="indefinite"/></use>
+  <use href="#m-flex"  class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;0;0;0;1;0;0" keyTimes="0;0.6;0.66;0.7;0.74;0.78;0.82;0.86;0.9;1" dur="22s" repeatCount="indefinite"/></use>
+  <use href="#m-ext"   class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;0;0;0;0;1;0" keyTimes="0;0.74;0.8;0.84;0.86;0.88;0.9;0.92;0.94;1" dur="22s" repeatCount="indefinite"/></use>
+  <use href="#m-lat"   class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;0;0;0;0;0;1" keyTimes="0;0.86;0.9;0.92;0.94;0.95;0.96;0.97;0.98;1" dur="22s" repeatCount="indefinite"/></use>
+
+  <!-- Legend / labels on right -->
+  <g transform="translate(640 100)">
+    <g class="nlbl">
+      <line x1="0" y1="-5" x2="-150" y2="0" class="lead"/><rect width="14" height="14" class="trap"/><text x="20" y="12">Trapezius</text><text x="20" y="26" class="nsub">Scapular elevation</text>
+
+      <g transform="translate(0 50)"><rect width="14" height="14" class="pec"/><text x="20" y="12">Pectoralis major</text><text x="20" y="26" class="nsub">Adducts + medially rotates</text></g>
+      <g transform="translate(0 100)"><rect width="14" height="14" class="deltoid"/><text x="20" y="12">Deltoid</text><text x="20" y="26" class="nsub">Abducts arm 15°–90°</text></g>
+      <g transform="translate(0 150)"><rect width="14" height="14" class="biceps"/><text x="20" y="12">Biceps brachii</text><text x="20" y="26" class="nsub">Flexes elbow + supinates</text></g>
+      <g transform="translate(0 200)"><rect width="14" height="14" class="triceps"/><text x="20" y="12">Triceps brachii</text><text x="20" y="26" class="nsub">Extends elbow</text></g>
+      <g transform="translate(0 250)"><rect width="14" height="14" class="brach"/><text x="20" y="12">Brachialis</text><text x="20" y="26" class="nsub">Pure elbow flexor</text></g>
+      <g transform="translate(0 300)"><rect width="14" height="14" class="flex"/><text x="20" y="12">Forearm flexors</text><text x="20" y="26" class="nsub">Wrist + finger flexion (anterior)</text></g>
+      <g transform="translate(0 350)"><rect width="14" height="14" class="ext"/><text x="20" y="12">Forearm extensors</text><text x="20" y="26" class="nsub">Wrist + finger extension (posterior)</text></g>
+      <g transform="translate(0 400)"><rect width="14" height="14" class="lat"/><text x="20" y="12">Latissimus dorsi</text><text x="20" y="26" class="nsub">Adducts + extends arm</text></g>
+    </g>
+  </g>
+</svg></div></body></html>

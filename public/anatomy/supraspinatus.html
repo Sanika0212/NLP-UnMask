@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Supraspinatus</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .bone{fill:#f5ecd9;stroke:#1a1a1a;stroke-width:1.6}
+  .musc{fill:#c97070;stroke:#1a1a1a;stroke-width:1.4}
+  .musc-active{fill:#c43c2c}
+  .tendon{fill:#e8d8b0;stroke:#1a1a1a;stroke-width:1.2}
+  .arrow{fill:none;stroke:#c43c2c;stroke-width:2.4;marker-end:url(#ar)}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:600;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#555;letter-spacing:.04em}
+  .lead{fill:none;stroke:#1a1a1a;stroke-width:1}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#c43c2c"/></marker></defs>
+
+  <text x="550" y="28" class="lbl-title" text-anchor="middle">Supraspinatus</text>
+  <text x="550" y="48" class="caption" text-anchor="middle">First 15° of arm abduction · suprascapular nerve (C5,C6)</text>
+
+  <!-- Posterior view: scapula + humerus -->
+  <g transform="translate(280 110)">
+    <!-- Scapula -->
+    <path class="bone" d="M 0 60 L 250 30 L 270 80 L 260 180 L 200 230 L 60 220 L 0 180 Z"/>
+    <!-- Spine of scapula (divides supra/infraspinous fossa) -->
+    <line x1="20" y1="100" x2="240" y2="80" stroke="#1a1a1a" stroke-width="1.4"/>
+    <text x="120" y="74" class="lbl-mono">Spine of scapula</text>
+
+    <!-- Supraspinous fossa label -->
+    <text x="120" y="56" class="lbl-tiny">SUPRASPINOUS FOSSA</text>
+    <text x="130" y="160" class="lbl-tiny">INFRASPINOUS FOSSA</text>
+
+    <!-- Supraspinatus muscle (in supraspinous fossa) -->
+    <path id="ssm" class="musc" d="M 30 75 Q 130 50 230 70 Q 250 80 240 95 Q 130 88 30 95 Z"/>
+    <!-- Tendon crossing under acromion -->
+    <path id="sst" class="tendon" d="M 240 88 Q 285 85 320 95 L 340 110 L 335 125 L 305 118 Q 270 108 240 102 Z"/>
+
+    <!-- Humeral head -->
+    <ellipse class="bone" cx="370" cy="125" rx="50" ry="55"/>
+    <path class="bone" d="M 370 175 Q 365 250 370 340 L 400 340 Q 410 250 400 180 Z"/>
+
+    <!-- Greater tubercle insertion site -->
+    <circle cx="335" cy="125" r="5" fill="#1a1a1a"/>
+
+    <!-- Abduction arc -->
+    <path id="abduct" d="M 385 175 Q 410 200 430 230" class="arrow" opacity="0">
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.3;0.7;1" dur="3s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Active flash on muscle -->
+    <use href="#ssm" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.3;0.7;1" dur="3s" repeatCount="indefinite"/>
+    </use>
+    <use href="#sst" class="musc-active" opacity="0">
+      <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.35;0.75;1" dur="3s" repeatCount="indefinite"/>
+    </use>
+
+    <!-- Humerus rotates slightly to show abduction -->
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="0 370 175;0 370 175;-12 370 175;-12 370 175;0 370 175" keyTimes="0;0.2;0.5;0.7;1" dur="3s" repeatCount="indefinite"/>
+    </g>
+  </g>
+
+  <!-- Labels right side -->
+  <g transform="translate(800 150)" class="nlbl">
+    <line x1="-30" y1="-30" x2="-160" y2="-40" class="lead"/>
+    <text x="0" y="-30">Origin</text>
+    <text x="0" y="-14" class="nsub">Supraspinous fossa of scapula</text>
+
+    <text x="0" y="40">Insertion</text>
+    <text x="0" y="56" class="nsub">Greater tubercle of humerus</text>
+    <text x="0" y="70" class="nsub">(superior facet)</text>
+
+    <text x="0" y="120">Action</text>
+    <text x="0" y="136" class="nsub">Initiates abduction (0–15°)</text>
+    <text x="0" y="150" class="nsub">Stabilizes humeral head</text>
+
+    <text x="0" y="200">Innervation</text>
+    <text x="0" y="216" class="nsub">Suprascapular nerve · C5, C6</text>
+
+    <text x="0" y="266">Clinical</text>
+    <text x="0" y="282" class="nsub">Most commonly torn rotator cuff</text>
+    <text x="0" y="296" class="nsub">muscle — empty can test +ve</text>
+  </g>
+</svg></div></body></html>

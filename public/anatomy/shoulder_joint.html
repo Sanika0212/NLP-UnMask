@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Shoulder Joint</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .bone{fill:#f5ecd9;stroke:#1a1a1a;stroke-width:1.6}
+  .cart{fill:#bfd6e0;stroke:#1a1a1a;stroke-width:1.2}
+  .lab{fill:#9bb8c4;stroke:#1a1a1a;stroke-width:1}
+  .cap{fill:#f4d4c4;stroke:#1a1a1a;stroke-width:1.2;opacity:.6}
+  .lig{fill:none;stroke:#a85b5b;stroke-width:2.4;stroke-linecap:round}
+  .pulse{fill:none;stroke:#c43c2c;stroke-width:2.6}
+  .nlbl{font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:700;fill:#1a1a1a}
+  .nsub{font-family:"JetBrains Mono",monospace;font-size:10px;fill:#555;letter-spacing:.04em}
+</style></head><body><div class="frame">
+<svg viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+  <text x="550" y="28" class="lbl-title" text-anchor="middle">Glenohumeral Joint</text>
+  <text x="550" y="48" class="caption" text-anchor="middle">Ball &amp; socket — cycle through bones, cartilage, labrum, capsule, ligaments</text>
+
+  <g transform="translate(280 100)">
+    <!-- Scapula with glenoid -->
+    <path id="sc" class="bone" d="M 0 60 L 220 50 L 260 120 Q 270 180 250 240 L 200 280 L 0 260 Z"/>
+    <text x="60" y="160" class="lbl-mono">Scapula</text>
+
+    <!-- Glenoid fossa (cartilage covering scapula's lateral surface) -->
+    <path id="gf" class="cart" d="M 250 120 Q 275 150 270 200 Q 260 230 245 240 Q 235 200 240 160 Q 245 130 250 120 Z"/>
+
+    <!-- Glenoid labrum (rim) -->
+    <path id="lb" class="lab" d="M 252 118 Q 280 150 275 200 Q 265 235 246 245 L 240 235 Q 258 225 268 200 Q 270 155 248 130 Z"/>
+
+    <!-- Humerus head + shaft -->
+    <ellipse id="hh" class="bone" cx="345" cy="180" rx="52" ry="58"/>
+    <path id="hs" class="bone" d="M 345 235 Q 340 320 350 400 L 380 400 Q 390 320 380 240 Z"/>
+    <!-- Articular cartilage on head -->
+    <path id="hac" class="cart" d="M 295 175 Q 295 220 305 240 Q 320 240 305 195 Q 300 178 295 175 Z"/>
+
+    <!-- Joint capsule -->
+    <path id="cap" class="cap" d="M 240 110 Q 230 165 240 250 Q 280 290 340 285 Q 395 275 405 230 Q 410 160 395 105 Q 340 95 290 100 Q 260 105 240 110 Z"/>
+
+    <!-- Glenohumeral ligaments -->
+    <g id="lig">
+      <path class="lig" d="M 250 130 Q 290 140 330 145"/>
+      <path class="lig" d="M 248 180 Q 290 185 335 188"/>
+      <path class="lig" d="M 250 230 Q 290 240 335 232"/>
+    </g>
+
+    <!-- Sequential pulse highlights -->
+    <use href="#sc"  class="pulse" opacity="0"><animate attributeName="opacity" values="0;1;0;0;0;0;0" keyTimes="0;0.05;0.18;0.35;0.55;0.75;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#hh"  class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;1;0;0;0;0" keyTimes="0;0.18;0.22;0.35;0.55;0.75;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#gf"  class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;1;0;0;0" keyTimes="0;0.35;0.4;0.5;0.55;0.75;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#lb"  class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;1;0;0" keyTimes="0;0.5;0.55;0.58;0.62;0.75;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#cap" class="pulse" opacity="0"><animate attributeName="opacity" values="0;0;0;0;0;1;0" keyTimes="0;0.62;0.7;0.74;0.76;0.82;1" dur="14s" repeatCount="indefinite"/></use>
+    <use href="#lig" class="pulse" opacity="0" stroke-width="3"><animate attributeName="opacity" values="0;0;0;0;0;0;1;0" keyTimes="0;0.82;0.85;0.88;0.9;0.92;0.94;1" dur="14s" repeatCount="indefinite"/></use>
+  </g>
+
+  <g transform="translate(740 130)" class="nlbl">
+    <text x="0" y="0">Type</text>
+    <text x="0" y="16" class="nsub">Synovial ball &amp; socket</text>
+    <text x="0" y="30" class="nsub">Most mobile joint in body</text>
+
+    <text x="0" y="70">Articular surfaces</text>
+    <text x="0" y="86" class="nsub">Head of humerus + glenoid fossa</text>
+    <text x="0" y="100" class="nsub">Deepened by glenoid labrum</text>
+
+    <text x="0" y="140">Stabilizers</text>
+    <text x="0" y="156" class="nsub">Rotator cuff (dynamic)</text>
+    <text x="0" y="170" class="nsub">Glenohumeral ligaments (static)</text>
+    <text x="0" y="184" class="nsub">Coracoacromial arch (superior)</text>
+
+    <text x="0" y="224">Movements</text>
+    <text x="0" y="240" class="nsub">Flex/Ext · Abd/Add · Med/Lat rotation</text>
+    <text x="0" y="254" class="nsub">Circumduction</text>
+
+    <text x="0" y="294">Clinical</text>
+    <text x="0" y="310" class="nsub">Anterior dislocation most common</text>
+    <text x="0" y="324" class="nsub">Bankart + Hill–Sachs lesions</text>
+  </g>
+</svg></div></body></html>

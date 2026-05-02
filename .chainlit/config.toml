@@ -99,6 +99,7 @@ default_theme = "dark"
 layout = "wide"
 default_sidebar_state = "open"
 custom_css = "/public/unmask.css"
+custom_js = "/public/unmask.js"
 cot = "tool_call"
 
 # Force a specific language for all users (e.g., "en-US", "he-IL", "fr-FR")
