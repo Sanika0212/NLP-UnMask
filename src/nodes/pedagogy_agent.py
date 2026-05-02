@@ -232,13 +232,13 @@ _DIAGNOSTIC_BANK: list[dict] = [
     # wrist_hand
     {"question": "Name the two rows of carpal bones in order from radial to ulnar.",
      "concept": "wrist_hand.carpals", "topic": "wrist_hand",
-     "keywords": ["scaphoid", "lunate", "triquetrum", "pisiform", "trapezium", "trapezoid", "capitate", "hamate"]},
+     "keywords": ["scaphoid", "lunate", "trapezium", "capitate", "hamate"]},
     {"question": "What muscles form the thenar eminence and what nerve innervates them?",
      "concept": "wrist_hand.intrinsic_muscles", "topic": "wrist_hand",
      "keywords": ["abductor pollicis", "flexor pollicis brevis", "opponens", "median"]},
     {"question": "What is carpal tunnel syndrome — which nerve is compressed and what are the classic symptoms?",
      "concept": "wrist_hand.carpal_tunnel", "topic": "wrist_hand",
-     "keywords": ["median", "transverse carpal ligament", "numbness", "thenar wasting", "tinel", "phalen"]},
+     "keywords": ["median", "transverse carpal ligament", "numbness", "thenar"]},
     {"question": "What is the anatomical snuffbox and why is tenderness there clinically significant?",
      "concept": "wrist_hand.scaphoid", "topic": "wrist_hand",
      "keywords": ["scaphoid", "fracture", "avascular necrosis", "radial artery", "extensor pollicis"]},
@@ -395,7 +395,7 @@ def _init_mastery_from_diagnostic(
     keywords = entry["keywords"]
     score = sum(1 for k in keywords if k in ans) / max(len(keywords), 1)
     updated = dict(mastery)
-    updated[entry["concept"]] = 0.5 if score > 0.5 else 0.1
+    updated[entry["concept"]] = 0.5 if score >= 0.4 else 0.1
     return updated
 
 
