@@ -5,8 +5,11 @@ import { useSessionStore } from '@/lib/store';
 export default function Composer() {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isThinking = useSessionStore((state) => state.isThinking);
   const sendMessage = useSessionStore((state) => state.sendMessage);
+  const sessionId = useSessionStore((state) => state.sessionId);
+  const addMessage = useSessionStore((state) => state.addMessage);
 
   const handleInput = () => {
     if (textareaRef.current) {
@@ -29,6 +32,57 @@ export default function Composer() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !sessionId) return;
+
+    // Show loading state
+    const setIsThinking = useSessionStore.setState;
+    setIsThinking({ isThinking: true, avatarState: 'thinking' });
+
+    try {
+      // Add user message
+      addMessage({ role: 'user', content: '[Uploaded an anatomy image]' });
+
+      // Upload the image
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`/api/sessions/${sessionId}/image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error('Image upload failed');
+      }
+
+      const data = await res.json();
+
+      // Add bot message with socratic question
+      addMessage({
+        role: 'bot',
+        content: data.socratic_question,
+        avatarState: 'asking',
+      });
+
+      setIsThinking({ isThinking: false, avatarState: 'idle' });
+    } catch (err) {
+      console.error('Image upload error:', err);
+      addMessage({
+        role: 'bot',
+        content: '⚠️ Failed to process the image. Please try again.',
+        avatarState: 'error',
+      });
+      setIsThinking({ isThinking: false, avatarState: 'error' });
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 

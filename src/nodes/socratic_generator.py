@@ -189,6 +189,7 @@ TONE GUIDE — encouragement must be exactly ONE sentence, original, not canned:
 CRITICAL: Write ONE sentence only for encouragement. No joining two phrases with a dash or period.
 NEVER say "great job" / "well done" / "you're doing great" / "you've got X right" when the student expressed uncertainty or said they don't know.
 Evaluate ONLY the CURRENT student message — ignore how well they answered in previous turns.
+ANTI-REPETITION: The conversation history above contains your previous responses. Your new socratic_question MUST be DIFFERENT from your last question — use different wording, a different angle, or a more concrete scaffold. If the student has said "idk"/"no idea" twice in a row, do NOT ask the same question again; instead give a specific leading clue or a simpler sub-question.
 {revisit_block}"""
 
 _REVEAL_SYSTEM = """\
@@ -773,13 +774,30 @@ def socratic_generator(state: TutoringState) -> dict:
         # Leak guard: check if response contains ≥3 words from the correct answer
         if correct_answer and _response_leaks_answer(candidate, correct_answer):
             if attempt == 0:
-                # Inject explicit instruction and retry
                 messages = [
                     {"role": "system", "content": system + "\n\nCRITICAL: Your previous response was too revealing. Do NOT mention specific anatomical names or values from the answer. Ask only a broad, open-ended guiding question."},
                     *history[-10:],
                     {"role": "user", "content": user_msg},
                 ]
                 continue
+
+        # Repetition guard: if the new question is nearly identical to the last assistant turn, retry
+        last_assistant_q = next(
+            (m["content"] for m in reversed(history) if m["role"] == "assistant"),
+            "",
+        )
+        if last_assistant_q and attempt == 0:
+            cand_words = set(visible.socratic_question.lower().split())
+            prev_words = set(last_assistant_q.lower().split())
+            overlap = len(cand_words & prev_words) / max(len(cand_words), 1)
+            if overlap > 0.65:
+                messages = [
+                    {"role": "system", "content": system + "\n\nYou just asked: \"" + last_assistant_q + "\"\nThe student still doesn't know. Do NOT repeat or rephrase that question. Ask a completely different, simpler sub-question or give a concrete leading clue instead."},
+                    *history[-10:],
+                    {"role": "user", "content": user_msg},
+                ]
+                continue
+
         response_text = candidate
         break  # accept on second attempt regardless
 
