@@ -471,7 +471,7 @@ async def stream_message(session_id: str, content: str):
 
     # YouTube Resources in wrapup phase
     if phase == "wrapup":
-        internal_analysis = result.get("_internal_analysis", {})
+        internal_analysis = result.get("_internal_analysis") or {}
         youtube_resources = internal_analysis.get("youtube_resources", [])
         if youtube_resources:
             resources_data = []
@@ -535,6 +535,13 @@ def submit_survey(session_id: str, body: SurveyBody):
     # Compute learning_gain
     learning_gain = post_score - body.pre_score
 
+    # Pull mastery + session report from session state
+    sess = get_session(session_id)
+    sess_state = sess.state if sess else {}
+    mastery_scores = sess_state.get("mastery_scores", {})
+    session_report = sess_state.get("generated_response", "")
+    mistake_count = len(sess_state.get("mistake_log", []))
+
     # Build data dict with all fields
     data = {
         "timestamp": datetime.now().isoformat(),
@@ -551,10 +558,16 @@ def submit_survey(session_id: str, body: SurveyBody):
         **{f"exp_q{i}": r for i, r in enumerate(body.exp_ratings, 1)},
         "exp_mean": round(sum(body.exp_ratings) / len(body.exp_ratings), 2) if body.exp_ratings else "",
         "open_feedback": body.open_feedback,
+        "mistake_count": mistake_count,
+        "mastery_json": json.dumps(mastery_scores),
+        "session_report": session_report[:2000] if session_report else "",  # truncate for CSV
     }
 
-    # Save results
-    save_results(data)
+    # Save to CSV
+    filepath = save_results(data)
+
+    # Also log to stdout — HF Space logs persist across restarts, CSV doesn't
+    print(f"[SURVEY_RESULT] {json.dumps(data)}", flush=True)
 
     return {
         "ok": True,
