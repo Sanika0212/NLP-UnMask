@@ -849,9 +849,12 @@ def socratic_generator(state: TutoringState) -> dict:
         except Exception:
             pass
 
-        # Fallback: extract question from plain text
-        sentences = _re.split(r"(?<=[.!?])\s+", raw)
-        question = next((s for s in sentences if "?" in s), raw or "What do you think about this anatomy concept?")
+        # Fallback: regex-extract socratic_question, never return raw JSON
+        m_fallback = _re.search(r'"socratic_question"\s*:\s*"((?:[^"\\]|\\.)*)"', raw)
+        if m_fallback:
+            question = m_fallback.group(1).replace('\\"', '"').replace('\\n', ' ')
+        else:
+            question = "What do you think is the key anatomical structure involved here?"
         return SocraticOutput(
             internal_analysis=InternalAnalysis(
                 correct_answer="", student_misconception="",
