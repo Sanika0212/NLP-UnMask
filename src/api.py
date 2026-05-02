@@ -44,7 +44,9 @@ async def search_anatomy_image(concept: str) -> dict:
     """
     import urllib.request, urllib.parse, json as _json
     try:
-        query = f"{concept.replace('_', ' ')} anatomy"
+        # Clean concept ID: "peripheral_nerves.axillary" → "axillary nerve anatomy"
+        concept_clean = concept.split(".")[-1].replace("_", " ")
+        query = f"{concept_clean} anatomy"
         params = urllib.parse.urlencode({
             "action": "query",
             "list": "search",
@@ -466,7 +468,9 @@ async def stream_message(session_id: str, content: str):
 
         sess.last_diagram_concept = hint_concept
 
-        yield f"data: {json.dumps({'type': 'visual_hint', 'concept': hint_concept, 'image_url': image_url, 'caption': caption, 'diagram_text': diagram_text, 'study_notes': hint_text[:300]})}\n\n"
+        # Prefer local diagram text as study note; fall back to hint_text from generator
+        display_note = (diagram_text or hint_text)[:400]
+        yield f"data: {json.dumps({'type': 'visual_hint', 'concept': hint_concept, 'image_url': image_url, 'caption': caption, 'diagram_text': diagram_text, 'study_notes': display_note})}\n\n"
 
     yield f"data: {json.dumps({'type': 'state_update', 'phase': phase, 'mastery': result.get('mastery_scores', {}), 'consecutive_incorrect': result.get('consecutive_incorrect', 0), 'consecutive_correct': result.get('consecutive_correct', 0), 'diagnostic_complete': diagnostic_complete, 'weak_topics': result.get('weak_topics', []), 'mistake_log': result.get('mistake_log', []), 'turn_count': result.get('turn_count', 0)})}\n\n"
 
