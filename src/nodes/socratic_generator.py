@@ -69,6 +69,20 @@ class Flashcard(BaseModel):
     """Answer side — concise, factual, 1-2 sentences max."""
 
 
+class YouTubeResource(BaseModel):
+    """Curated YouTube reference for weak topics."""
+    concept: str
+    """The concept this video addresses, e.g. 'peripheral_nerves.radial'"""
+    title: str
+    """Exact title of the YouTube video or channel"""
+    creator: str
+    """Creator/channel name (e.g. 'Osmosis', 'Khan Academy', 'Netter Anatomy')"""
+    search_query: str
+    """Suggested search query to find this video on YouTube, e.g. 'Osmosis median nerve anatomy'"""
+    description: str
+    """Why this video helps — what concept it covers clearly (1 sentence)"""
+
+
 class SessionSummary(BaseModel):
     overall_assessment: str
     """2-3 sentences summarising the session honestly. Name what went well AND
@@ -88,6 +102,10 @@ class SessionSummary(BaseModel):
     - KenHub or Visible Body search query (e.g. 'KenHub: search "median nerve course upper limb"')
     - NBCOT-specific practice (e.g. 'NBCOT Prep: clinical scenarios for peripheral nerve injuries')
     Reference real OpenStax 2e chapters (Ch 11=muscle, Ch 13=spinal/plexuses, Ch 14=PNS, Ch 15=ANS, Ch 16=sensorimotor)."""
+    youtube_resources: list[YouTubeResource]
+    """2-4 curated YouTube videos for the weakest topics. Each includes title, creator, search query, and why it helps.
+    Prioritize reputable anatomy channels: Osmosis, Khan Academy, Netter Anatomy, AnatomyZone, Armando Hasudungan.
+    Focus on videos covering exact weak topics from this session."""
     diagram_suggestions: list[str]
     """2-3 specific anatomical diagrams to study, each describing WHAT the diagram shows and WHY it helps.
     Format: 'Netter Plate XXX — [Title]: shows [key structures] — useful for understanding [concept]'
@@ -349,6 +367,19 @@ resources: 3-4 specific study resources, mixing:
     Example: 'KenHub: search "median nerve" — interactive 3D model with clinical notes'
   - NBCOT-specific practice
     Example: 'NBCOT Prep: clinical scenarios — peripheral nerve injury splinting'
+
+youtube_resources: 2-4 curated YouTube videos based on the weakest topics from this session.
+  For each weak topic, suggest a real video from reputable anatomy channels (Osmosis, Khan Academy,
+  Netter Anatomy, AnatomyZone, Armando Hasudungan, etc.).
+  Each resource must include:
+    - concept: the weak topic ID (e.g., 'peripheral_nerves.radial')
+    - title: exact video title
+    - creator: channel/creator name
+    - search_query: suggested YouTube search to find it (e.g., 'Osmosis median nerve anatomy')
+    - description: why this video helps (1 sentence explaining what concept it covers)
+  Examples:
+    - concept: 'brachial_plexus', title: 'Brachial Plexus – Complete Anatomy', creator: 'Osmosis',
+      search_query: 'Osmosis brachial plexus anatomy', description: 'Covers the full structure from roots to terminal branches with clear diagrams'
 
 diagram_suggestions: 2-3 anatomical diagrams to study, each with what to look for:
   - Netter/Gray's plate reference with plate number AND what structures to trace

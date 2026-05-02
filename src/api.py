@@ -277,6 +277,31 @@ async def stream_message(session_id: str, content: str):
 
     yield f"data: {json.dumps({'type': 'state_update', 'phase': phase, 'mastery': result.get('mastery_scores', {}), 'consecutive_incorrect': result.get('consecutive_incorrect', 0), 'consecutive_correct': result.get('consecutive_correct', 0), 'diagnostic_complete': diagnostic_complete, 'weak_topics': result.get('weak_topics', []), 'mistake_log': result.get('mistake_log', []), 'turn_count': result.get('turn_count', 0)})}\n\n"
 
+    # YouTube Resources in wrapup phase
+    if phase == "wrapup":
+        internal_analysis = result.get("_internal_analysis", {})
+        youtube_resources = internal_analysis.get("youtube_resources", [])
+        if youtube_resources:
+            resources_data = []
+            for yt in youtube_resources:
+                if isinstance(yt, dict):
+                    resources_data.append({
+                        "concept": yt.get("concept", ""),
+                        "title": yt.get("title", ""),
+                        "creator": yt.get("creator", ""),
+                        "search_query": yt.get("search_query", ""),
+                        "description": yt.get("description", ""),
+                    })
+                else:
+                    resources_data.append({
+                        "concept": getattr(yt, "concept", ""),
+                        "title": getattr(yt, "title", ""),
+                        "creator": getattr(yt, "creator", ""),
+                        "search_query": getattr(yt, "search_query", ""),
+                        "description": getattr(yt, "description", ""),
+                    })
+            yield f"data: {json.dumps({'type': 'youtube_resources', 'resources': resources_data})}\n\n"
+
     yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
