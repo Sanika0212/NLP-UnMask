@@ -4,6 +4,7 @@
 
 # Qdrant local data (committed for deployment — do not ignore)
 qdrant_storage/
+qdrant_data/.lock
 
 # Python
 __pycache__/
