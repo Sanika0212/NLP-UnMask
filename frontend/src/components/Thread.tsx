@@ -13,17 +13,17 @@ export default function Thread({ activeTab }: { activeTab?: string }) {
   const isThinking = useSessionStore((state) => state.isThinking);
   const elapsedSeconds = 0;
 
+  // All hooks must run unconditionally before any early return
+  useEffect(() => {
+    if (threadRef.current && activeTab === 'tutor') {
+      threadRef.current.scrollTop = threadRef.current.scrollHeight;
+    }
+  }, [messages.length, activeTab]);
+
   // Show tab-specific views
   if (activeTab === 'progress') return <ProgressView />;
   if (activeTab === 'practice') return <PracticeView />;
   if (activeTab === 'assess') return <AssessView />;
-
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    if (threadRef.current) {
-      threadRef.current.scrollTop = threadRef.current.scrollHeight;
-    }
-  }, [messages.length]);
 
   if (messages.length === 0) {
     return (

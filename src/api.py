@@ -27,7 +27,7 @@ from src.nodes.pedagogy_agent import (
     get_diagnostic_answer_keywords,
 )
 from src.anatomy_images import get_image_for_topic
-from src.session_manager import create_session, get_session, delete_session
+from src.session_manager import create_session, get_session, delete_session, save_session
 from src.survey import POST_QUIZ, save_results
 
 with open("config.yaml") as f:
@@ -165,6 +165,7 @@ def setup_session(session_id: str, body: SetupBody):
         f"**Q1 of {sess.diag_total}:** {q0}"
     )
 
+    save_session(session_id)
     return {
         "first_question": q0,
         "welcome_message": welcome,
@@ -199,6 +200,7 @@ async def stream_message(session_id: str, content: str):
             None, lambda: graph.invoke(state, config=config)
         )
         sess.state = result
+        save_session(session_id)
     except Exception as e:
         yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
         return

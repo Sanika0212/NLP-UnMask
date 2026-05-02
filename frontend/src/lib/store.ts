@@ -207,6 +207,56 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
           } else if (type === 'error') {
             const msg = (evt.message as string) ?? 'Something went wrong.';
+            if (msg === 'Session not found') {
+              // Backend restarted — silently recreate session and retry
+              set({ isThinking: true, avatarState: 'thinking' });
+              try {
+                const { studyFocus, learningMode } = get();
+                const topic = (studyFocus ?? '').replace('topic:', '') || 'brachial_plexus';
+                const mode = learningMode ?? 'text';
+                await get().createSession();
+                await get().setupSession(topic, mode);
+                // Retry the message with the new session
+                const newSessionId = get().sessionId!;
+                const retryResp = await fetch(`/api/sessions/${newSessionId}/messages`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ content }),
+                });
+                // Drain the retry stream (best-effort)
+                if (retryResp.body) {
+                  const retryReader = retryResp.body.getReader();
+                  const retryDec = new TextDecoder();
+                  let retryBuf = '';
+                  while (true) {
+                    const { done: rd, value: rv } = await retryReader.read();
+                    if (rd) break;
+                    retryBuf += retryDec.decode(rv, { stream: true });
+                    const rparts = retryBuf.split('\n\n');
+                    retryBuf = rparts.pop() ?? '';
+                    for (const rp of rparts) {
+                      const rline = rp.trim();
+                      if (!rline.startsWith('data:')) continue;
+                      const rraw = rline.slice(5).trim();
+                      if (!rraw || rraw === '[DONE]') continue;
+                      let revt: Record<string, unknown>;
+                      try { revt = JSON.parse(rraw); } catch { continue; }
+                      if (revt.type === 'message') {
+                        const av: AvatarState = AGENT_AVATAR[(revt.agent as string) ?? ''] ?? 'speaking';
+                        get().addMessage({ role: 'bot', content: revt.content as string, author: revt.author as string, avatarState: av });
+                        set({ isThinking: false, avatarState: av });
+                      } else if (revt.type === 'done') {
+                        set({ isThinking: false, avatarState: 'idle' });
+                      }
+                    }
+                  }
+                }
+              } catch {
+                get().addMessage({ role: 'bot', content: '⚠️ Session lost. Please refresh the page to continue.', avatarState: 'error' });
+                set({ isThinking: false, avatarState: 'error' });
+              }
+              return;
+            }
             get().addMessage({ role: 'bot', content: `⚠️ ${msg}`, avatarState: 'error' });
             set({ isThinking: false, avatarState: 'error' });
           }
