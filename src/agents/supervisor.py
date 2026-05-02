@@ -119,14 +119,9 @@ def _llm_decision(state: TutoringState) -> Optional[SupervisorDecision]:
     phase = state["phase"]
     turn = state.get("turn_count", 0)
 
-    # Deterministic phases — skip LLM call entirely.
-    # rapport: rule-based diagnostic routing
-    # synthetic trigger ("Let's work on …"): first tutoring question after diagnostic
-    if phase == "rapport":
-        return None
-    msg = (state.get("student_message") or "").strip()
-    if msg.startswith("Let's work on"):
-        return None
+    # All routing decisions are handled deterministically by _rule_based_decision.
+    # The LLM adds only a human-readable reasoning string — not worth 1-3s per turn.
+    return None
 
     client = OpenAI(
         api_key=os.environ["OPENAI_API_KEY"],

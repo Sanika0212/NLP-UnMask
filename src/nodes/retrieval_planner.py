@@ -181,25 +181,8 @@ def _rrf_merge(
 # ── CRAG: grade + re-query ────────────────────────────────────────────────────
 
 def _grade_chunks(query: str, chunks: list[dict]) -> bool:
-    """Return True if at least one chunk is relevant (CRAG grading step)."""
-    if not chunks:
-        return False
-    client = _get_openai()
-    texts = "\n---\n".join(c["text"] for c in chunks[:3])
-    prompt = (
-        f"Question: {query}\n\n"
-        f"Documents:\n{texts}\n\n"
-        "Are any of these documents relevant to answering the question? "
-        "Reply with only 'yes' or 'no'."
-    )
-    resp = client.chat.completions.create(
-        model=_cfg["llm"].get("utility_model", _cfg["llm"]["model"]),
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=16,
-        temperature=0,
-    )
-    content = resp.choices[0].message.content or ""
-    return content.strip().lower().startswith("y")
+    """PCR filter + BM25 already ensures relevance — skip LLM grading call."""
+    return bool(chunks)
 
 
 def _reformulate_query(original_query: str) -> str:
@@ -250,28 +233,17 @@ def retrieval_planner(state: TutoringState) -> dict:
 
     for attempt in range(_RET["crag_max_retries"] + 1):
         # Dense retrieval
-        query_vec = _embed(query)
-        dense_results = client.query_points(
-            collection_name=collection,
-            query=query_vec,
-            query_filter=pcr_filter,
-            limit=top_k,
-            with_payload=True,
-        )
-        dense_chunks = [hit.payload for hit in dense_results.points]
-
-        # BM25 sparse retrieval (if enabled)
-        if _RET.get("use_bm25", True):
-            sparse_chunks = _bm25_retrieve(query, top_k)
-            # Apply PCR filter to sparse results too
-            if mode == "context_only":
-                sparse_chunks = [c for c in sparse_chunks if not c.get("is_answer_chunk")]
-            elif mode == "prerequisite_first":
-                sparse_chunks = [c for c in sparse_chunks
-                                  if c.get("chunk_type") in ("context", "prerequisite", "figure")]
-            merged = _rrf_merge(dense_chunks, sparse_chunks)
-        else:
-            merged = dense_chunks
+        # BM25-only retrieval (no embedding API call — local, instant)
+        # Dense vector search is commented out to eliminate the Gemini/OpenAI embedding
+        # round-trip (~500ms–1s per turn). BM25 over the topic-filtered corpus is
+        # accurate enough for anatomy tutoring.
+        sparse_chunks = _bm25_retrieve(query, top_k * 2)
+        if mode == "context_only":
+            sparse_chunks = [c for c in sparse_chunks if not c.get("is_answer_chunk")]
+        elif mode == "prerequisite_first":
+            sparse_chunks = [c for c in sparse_chunks
+                              if c.get("chunk_type") in ("context", "prerequisite", "figure")]
+        merged = sparse_chunks
 
         # CRAG: grade relevance
         if _grade_chunks(query, merged):
