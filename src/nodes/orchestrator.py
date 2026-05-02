@@ -41,7 +41,7 @@ def orchestrator(state: TutoringState) -> dict:
     diagnostic_complete = state["diagnostic_complete"]
 
     def _transition(new_phase: str, extra: dict | None = None) -> dict:
-        """Return a phase transition dict, setting last_phase for app.py detection."""
+        """Return a phase transition dict, setting last_phase for api.py detection."""
         result = {"phase": new_phase, "last_phase": phase}
         if extra:
             result.update(extra)

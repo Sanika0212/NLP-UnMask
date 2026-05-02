@@ -3,7 +3,8 @@ llm:
   utility_model: openai/gpt-4o-mini  # fast model for CRAG grading, mastery eval, query reformulation
   vision_model: anthropic/claude-haiku-4-5  # image verification (via OpenRouter)
   temperature: 0.3
-  use_local_for: []
+  use_local_for: []          # empty = all phases via OpenRouter
+  local_model: llama3.1     # unused; kept so _call_ollama doesn't KeyError if toggled
   max_history_turns: 8    # cap conversation context to prevent unbounded growth
 
 embedding:

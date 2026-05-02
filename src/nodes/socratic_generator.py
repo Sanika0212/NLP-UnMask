@@ -31,7 +31,7 @@ class InternalAnalysis(BaseModel):
 
 
 class VisibleResponse(BaseModel):
-    """Only this is rendered in Chainlit."""
+    """Only this is sent to the frontend via SSE."""
     socratic_question: str
     encouragement: str
     """Honest, calibrated feedback.
@@ -464,7 +464,7 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
             lines.append(f"- {r}")
         lines.append("")
 
-    # Flashcards and diagrams are sent as separate rich messages by app.py
+    # Flashcards and diagrams are sent as separate SSE events by api.py
     # (_send_followup_resources) — omit them here to avoid duplication.
 
     # Next session questions
@@ -587,7 +587,7 @@ def socratic_generator(state: TutoringState) -> dict:
                 temperature=0.6,
             )
             text = (resp.choices[0].message.content or "").strip()
-        # Strip any question the model generated — the next diagnostic Q is appended by app.py
+        # Strip any question the model generated — the next diagnostic Q is appended by api.py
         if text and "?" in text:
             import re
             sentences = re.split(r'(?<=[.!])\s+', text.strip())
@@ -670,7 +670,7 @@ def socratic_generator(state: TutoringState) -> dict:
                 learning_mode=state.get("learning_mode") or "text",
             )
 
-        # Build visual hint — shown as a UI card by app.py, NOT in the LLM response
+        # Build visual hint — sent as a visual_hint SSE event by api.py, NOT in the LLM response
         visual_hint = None
         # visual mode: hint after 1 wrong; text mode: after 2 wrong
         visual_threshold = 1 if state.get("learning_mode") == "visual" else 2

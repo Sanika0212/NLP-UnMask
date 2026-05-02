@@ -35,7 +35,7 @@ def _after_pedagogy(state: TutoringState) -> Literal["supervisor", "__end__"]:
     """
     Loopback edge: if diagnostic just completed (phase still rapport, diagnostic_complete now True),
     loop back to supervisor so it can transition to tutoring and generate the first question —
-    all within the same graph.invoke call. Eliminates the double-invoke hack from app.py.
+    all within the same graph.invoke call.
     """
     if state.get("diagnostic_complete") and state.get("phase") == "rapport":
         return "supervisor"
