@@ -94,17 +94,24 @@ reaction_on_message_received = false
     allowed_executables = [ "npx", "uvx" ]
 
 [UI]
-name = "UnMask"
-default_theme = "dark"
-layout = "wide"
-default_sidebar_state = "open"
-custom_css = "/public/unmask.css"
-custom_js = "/public/unmask.js"
-cot = "tool_call"
+# Name of the assistant.
+name = "Assistant"
+
+# default_theme = "dark"
 
 # Force a specific language for all users (e.g., "en-US", "he-IL", "fr-FR")
 # If not set, the browser's language will be used
 # language = "en-US"
+
+# layout = "wide"
+
+# default_sidebar_state = "open"  # Options: "open", "closed", "hidden"
+
+# Chat settings display location: "message_composer" (default) or "sidebar" (header)
+# chat_settings_location = "message_composer"
+
+# Default state of chat settings sidebar when location is "sidebar"
+# default_chat_settings_open = false
 
 # Whether to prompt user confirmation on clicking 'New Chat'
 confirm_new_chat = true
@@ -112,8 +119,12 @@ confirm_new_chat = true
 # Description of the assistant. This is used for HTML tags.
 # description = ""
 
-# Specify additional CSS files here if needed
-# custom_css = "/public/other.css"
+# Chain of Thought (CoT) display mode. Can be "hidden", "tool_call" or "full".
+cot = "full"
+
+# Specify a CSS file that can be used to customize the user interface.
+# The CSS file can be served from the public directory or via an external link.
+# custom_css = "/public/test.css"
 
 # Specify additional attributes for a custom CSS file
 # custom_css_attributes = "media=\"print\""
