@@ -415,8 +415,9 @@ resources: 3-4 specific study resources, mixing:
   - NBCOT-specific practice
     Example: 'NBCOT Prep: clinical scenarios — peripheral nerve injury splinting'
 
-youtube_resources: 2-4 curated YouTube videos, one per WEAKEST topic (mastery < 0.5 from mastery_json above).
-  Prioritize the lowest-mastery concepts — only recommend videos for topics the student actually struggled with.
+youtube_resources: 2-4 curated YouTube videos for the weak topics listed above. ALWAYS include at least 2 videos —
+  even if the session was brief, recommend videos for the topics listed in weak_topics.
+  Prioritize the lowest-mastery concepts.
   Use real videos from reputable anatomy channels: Osmosis, Khan Academy, AnatomyZone, Armando Hasudungan,
   Netter Anatomy, Acland's Video Atlas, Ninja Nerd Science.
   Each resource must include:
@@ -461,7 +462,15 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
         [(k, v) for k, v in visited_mastery.items() if v < 0.5],
         key=lambda x: x[1]
     )
-    weak_topics_str = ", ".join(f"{k} ({v:.0%})" for k, v in weak_topics) or "none"
+
+    # Fallback: if no mastery data, use the study focus topic so YouTube recs are always generated
+    if not weak_topics:
+        fallback = (state.get("study_focus") or "brachial_plexus").replace("topic:", "").strip()
+        weak_topics = [(fallback, 0.0)]
+        if fallback not in topics_visited:
+            topics_visited.add(fallback)
+
+    weak_topics_str = ", ".join(f"{k} ({v:.0%})" for k, v in weak_topics)
 
     client = _get_client()
     prompt = _SUMMARY_PROMPT.format(
