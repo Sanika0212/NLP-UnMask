@@ -39,52 +39,58 @@ _DIAGNOSTIC_QUESTIONS = cfg["session"]["diagnostic_questions"]
 
 
 async def search_anatomy_image(concept: str) -> dict:
-    """Search DuckDuckGo images for an anatomy diagram, verify with vision LLM.
+    """Search Wikimedia Commons for an anatomy diagram.
     Returns dict with image_url and caption, or empty dict on failure.
     """
+    import urllib.request, urllib.parse, json as _json
     try:
-        from duckduckgo_search import DDGS
-        query = f"{concept} anatomy diagram medical illustration"
+        query = f"{concept.replace('_', ' ')} anatomy"
+        params = urllib.parse.urlencode({
+            "action": "query",
+            "list": "search",
+            "srnamespace": "6",  # File namespace
+            "srsearch": f"{query} filetype:jpg|png",
+            "srlimit": "8",
+            "format": "json",
+        })
+        url = f"https://commons.wikimedia.org/w/api.php?{params}"
         loop = asyncio.get_event_loop()
-        results = await loop.run_in_executor(
-            None,
-            lambda: list(DDGS().images(query, max_results=6, safesearch="moderate"))
-        )
-        # Prefer Wikipedia/medical sources
-        trusted = [r for r in results if any(d in r.get("url", "") for d in
-                   ("wikipedia", "wikimedia", "radiopaedia", "kenhub", "teachmeanatomy"))]
-        candidates = trusted[:3] or results[:3]
-        if not candidates:
+
+        def _fetch():
+            req = urllib.request.Request(url, headers={"User-Agent": "UnMaskTutor/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return _json.loads(r.read())
+
+        data = await loop.run_in_executor(None, _fetch)
+        hits = data.get("query", {}).get("search", [])
+        if not hits:
             return {}
 
-        # LLM vision check via OpenRouter — ask Claude Haiku to verify image relevance
-        from openai import OpenAI
-        vision_client = OpenAI(
-            api_key=os.environ["OPENAI_API_KEY"],
-            base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
-        )
-        vision_model = os.getenv("VISION_MODEL", "anthropic/claude-opus-4")
-        for r in candidates:
-            img_url = r.get("image", "")
-            if not img_url:
-                continue
-            try:
-                resp = vision_client.chat.completions.create(
-                    model=vision_model,
-                    max_tokens=16,
-                    messages=[{
-                        "role": "user",
-                        "content": [
-                            {"type": "image_url", "image_url": {"url": img_url}},
-                            {"type": "text", "text": f"Is this image a medical/anatomy diagram of '{concept}'? Reply YES or NO only."}
-                        ]
-                    }]
-                )
-                verdict = resp.choices[0].message.content.strip().upper()
-                if verdict.startswith("YES"):
-                    return {"image_url": img_url, "caption": r.get("title", concept)}
-            except Exception:
-                continue
+        # Get image URL for first hit
+        title = hits[0]["title"]
+        params2 = urllib.parse.urlencode({
+            "action": "query",
+            "titles": title,
+            "prop": "imageinfo",
+            "iiprop": "url|mime",
+            "format": "json",
+        })
+        url2 = f"https://commons.wikimedia.org/w/api.php?{params2}"
+
+        def _fetch2():
+            req = urllib.request.Request(url2, headers={"User-Agent": "UnMaskTutor/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return _json.loads(r.read())
+
+        data2 = await loop.run_in_executor(None, _fetch2)
+        pages = data2.get("query", {}).get("pages", {})
+        for page in pages.values():
+            info = (page.get("imageinfo") or [{}])[0]
+            img_url = info.get("url", "")
+            mime = info.get("mime", "")
+            if img_url and mime.startswith("image/"):
+                caption = title.replace("File:", "").rsplit(".", 1)[0]
+                return {"image_url": img_url, "caption": caption}
     except Exception:
         pass
     return {}
@@ -402,9 +408,16 @@ async def stream_message(session_id: str, content: str):
             hint_concept = visual_hint[len("__concept__:") : nl].strip()
             hint_text = visual_hint[nl + 1 :].strip()
 
-        img_data = get_image_for_topic(hint_concept) or get_image_for_topic(
-            result.get("current_topic") or ""
-        )
+        # If student explicitly asked for a "new" diagram, skip local cache for this concept
+        want_new = "new" in content.lower() and explicit_image_req
+        last_shown = getattr(sess, "last_diagram_concept", None)
+        skip_local = want_new and last_shown == hint_concept
+
+        img_data = None
+        if not skip_local:
+            img_data = get_image_for_topic(hint_concept) or get_image_for_topic(
+                result.get("current_topic") or ""
+            )
         image_url = ""
         caption = ""
         diagram_text = ""
@@ -421,13 +434,15 @@ async def stream_message(session_id: str, content: str):
             caption = img_data.get("caption", "")
             diagram_text = img_data.get("diagram", "")
 
-        # Web search fallback: if no local file, search for an anatomical image
-        if not image_url and hint_concept:
+        # Web search: always try when student asks for "new diagram", or when no local file
+        if (not image_url or skip_local) and hint_concept:
             web = await search_anatomy_image(hint_concept)
             if web:
                 image_url = web.get("image_url", "")
                 if not caption:
                     caption = web.get("caption", hint_concept)
+
+        sess.last_diagram_concept = hint_concept
 
         yield f"data: {json.dumps({'type': 'visual_hint', 'concept': hint_concept, 'image_url': image_url, 'caption': caption, 'diagram_text': diagram_text, 'study_notes': hint_text[:300]})}\n\n"
 
