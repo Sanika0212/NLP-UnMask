@@ -36,7 +36,7 @@ _QUIT_PHRASES = (
     "stop for now", "i'm finished", "im finished",
     "enough for today", "i'll stop here", "ill stop here",
     "goodbye", "bye for now", "see you later",
-    "lets end", "let's end", "end the session", "end now",
+    "lets end", "let's end", "end the session", "end now", "can we end",
     "stop the session", "wrap up", "wrapup", "wrap it up",
     "i'm ready to end", "im ready to end", "ready to end",
 )

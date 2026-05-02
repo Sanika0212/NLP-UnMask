@@ -12,6 +12,7 @@ export default function Composer() {
   const sendMessage = useSessionStore((state) => state.sendMessage);
   const sessionId = useSessionStore((state) => state.sessionId);
   const addMessage = useSessionStore((state) => state.addMessage);
+  const phase = useSessionStore((state) => state.phase);
 
   const toggleSTT = useCallback(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -185,6 +186,17 @@ export default function Composer() {
                 style={{ display: 'none' }}
               />
             </div>
+            {phase !== 'wrapup' && (
+              <button
+                className="icon-btn"
+                title="End session"
+                onClick={() => sendMessage('end session')}
+                disabled={isThinking}
+                style={{ color: 'var(--ink-3)', fontSize: '12px', padding: '0 10px', height: '32px', borderRadius: 'var(--r)', border: '1px solid var(--rule)' }}
+              >
+                End
+              </button>
+            )}
             <button
               className="composer-send"
               onClick={handleSend}
