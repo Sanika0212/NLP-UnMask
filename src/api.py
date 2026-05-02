@@ -26,6 +26,7 @@ from src.nodes.pedagogy_agent import (
     get_diagnostic_order,
     get_diagnostic_answer_keywords,
 )
+from src.agents.supervisor import _pick_start_concept
 from src.anatomy_images import get_image_for_topic
 from src.session_manager import create_session, get_session, delete_session, save_session
 from src.survey import POST_QUIZ, save_results
@@ -217,11 +218,6 @@ async def stream_message(session_id: str, content: str):
         ("tutoring", "wrapup"): "## 📋 Session Time Up — Generating Your Report\n\nTime's up! Compiling your session report...",
     }
 
-    if prev_phase != phase:
-        banner = _PHASE_TRANSITION_MSGS.get((prev_phase, phase), "")
-        if banner:
-            yield f"data: {json.dumps({'type': 'phase_change', 'from': prev_phase, 'to': phase, 'banner': banner})}\n\n"
-
     response = result.get("generated_response", "")
 
     msg_lower = content.lower()
@@ -251,6 +247,41 @@ async def stream_message(session_id: str, content: str):
         }
         author = author_map.get(phase, "UnMask")
         yield f"data: {json.dumps({'type': 'message', 'content': response, 'author': author})}\n\n"
+
+    # ── Diagnostic → Tutoring transition ─────────────────────────────────────
+    # The graph no longer loops back after diagnostic completes (to avoid stacking 4 LLM calls
+    # in one invoke). Instead, we detect the transition here and fire a second invoke to generate
+    # the first tutoring question, streaming it as a separate message.
+    if diagnostic_complete and phase == "rapport":
+        start_concept = _pick_start_concept(result)
+        trigger = f"Let's work on {start_concept.replace('_', ' ').replace('.', ' ')}"
+        tutoring_state = dict(result)
+        tutoring_state.update({
+            "phase": "tutoring",
+            "student_message": trigger,
+            "current_topic": start_concept,
+            "consecutive_incorrect": 0,
+            "consecutive_correct": 0,
+        })
+        banner = _PHASE_TRANSITION_MSGS[("rapport", "tutoring")]
+        yield f"data: {json.dumps({'type': 'phase_change', 'from': 'rapport', 'to': 'tutoring', 'banner': banner})}\n\n"
+        yield f"data: {json.dumps({'type': 'thinking'})}\n\n"
+        try:
+            result2 = await loop.run_in_executor(None, lambda: graph.invoke(tutoring_state, config=config))
+            sess.state = result2
+            save_session(session_id)
+            tut_response = result2.get("generated_response", "")
+            if tut_response:
+                yield f"data: {json.dumps({'type': 'message', 'content': tut_response, 'author': '📖 Tutor'})}\n\n"
+            yield f"data: {json.dumps({'type': 'state_update', 'phase': 'tutoring', 'mastery': result2.get('mastery_scores', {}), 'consecutive_incorrect': 0, 'consecutive_correct': 0, 'diagnostic_complete': True, 'weak_topics': result2.get('weak_topics', []), 'mistake_log': result2.get('mistake_log', []), 'turn_count': result2.get('turn_count', 0)})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        return
+
+    if prev_phase != phase:
+        banner = _PHASE_TRANSITION_MSGS.get((prev_phase, phase), "")
+        if banner:
+            yield f"data: {json.dumps({'type': 'phase_change', 'from': prev_phase, 'to': phase, 'banner': banner})}\n\n"
 
     visual_hint = result.get("visual_hint")
     if explicit_image_req and not visual_hint:
