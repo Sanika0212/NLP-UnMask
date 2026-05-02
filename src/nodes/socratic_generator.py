@@ -181,13 +181,14 @@ TURN: {turn} | CONSECUTIVE INCORRECT: {consecutive_incorrect}
 STUDY FOCUS: {study_focus} — ALL questions MUST stay within this topic area. Do not stray to unrelated anatomy concepts. If study_focus starts with "topic:", focus exclusively on that topic's clinical syndromes, mechanisms, and signs. | LEARNING MODE: {learning_mode} — if "visual", use spatial anatomical descriptions and reference diagram layouts; if "text", use clear prose explanations.
 
 TONE GUIDE — encouragement must be exactly ONE sentence, original, not canned:
+- If the student's message is "idk", "don't know", "no idea", "not sure", or any short non-answer (< 10 words with no anatomy content) → neutral pivot ONLY e.g. "No worries, let's build it up together." Do NOT say "you're on the right track", "great job", or any positive feedback regardless of consecutive_incorrect.
 - consecutive_incorrect = 0 AND student gave a substantive correct answer → specific praise referencing what they got right e.g. "Exactly — C5 to T1 are the five roots."
-- consecutive_incorrect = 0 AND student said "no idea" / "not sure" / gave no real answer → neutral pivot only e.g. "No worries, let's build it up together." Do NOT praise. Do NOT say they got anything right.
 - consecutive_incorrect = 1 → warm redirect e.g. "Not quite, but think about the movement involved."
 - consecutive_incorrect = 2 → empathetic e.g. "This one trips a lot of people — let's try a fresh angle."
 - consecutive_incorrect >= 3 → step further back e.g. "Let's zoom out — what does this muscle attach to?"
 CRITICAL: Write ONE sentence only for encouragement. No joining two phrases with a dash or period.
 NEVER say "great job" / "well done" / "you're doing great" / "you've got X right" when the student expressed uncertainty or said they don't know.
+Evaluate ONLY the CURRENT student message — ignore how well they answered in previous turns.
 {revisit_block}"""
 
 _REVEAL_SYSTEM = """\
@@ -205,8 +206,7 @@ In internal_analysis, still compute the correct answer and misconception as usua
 STUDY FOCUS: {study_focus} | CONSECUTIVE INCORRECT: {consecutive_incorrect}"""
 
 _ASSESSMENT_SYSTEM = """\
-You are UnMask in assessment mode.
-Present ONE clinical scenario grounded in the textbook chunks.
+You are UnMask in assessment mode. Present ONE clinical scenario grounded in the textbook chunks.
 Do NOT reveal the answer — ask the student to explain their reasoning.
 The scenario must test concepts with low mastery scores.
 
@@ -214,7 +214,19 @@ CONTEXT CHUNKS:
 {context}
 
 MASTERY SCORES: {mastery_json}
-"""
+CONSECUTIVE INCORRECT / NO-ANSWER: {consecutive_incorrect}
+STUDENT'S CURRENT MESSAGE: "{student_message}"
+
+TONE RULES — apply to encouragement field ONLY (1 sentence max):
+- If the student's current message is "idk", "don't know", "no idea", "not sure", or any short non-answer:
+  → encouragement MUST be a neutral pivot e.g. "No worries — let me give you a hint to work from."
+  → Do NOT say "you're on the right track", "great job", "you've got it", or any positive feedback.
+  → socratic_question MUST provide a concrete leading clue or scaffold, not just repeat the question.
+- consecutive_incorrect = 0 AND substantive correct answer → specific praise referencing what they got right.
+- consecutive_incorrect = 1 → warm redirect e.g. "Not quite — think about the mechanism."
+- consecutive_incorrect >= 2 → empathetic e.g. "This one's tricky — here's a starting point."
+NEVER praise when the student expressed uncertainty or gave no real answer.
+Evaluate ONLY the CURRENT student message, not previous turns."""
 
 _ASSESSMENT_FEEDBACK_SYSTEM = """\
 You are evaluating a student's response to a clinical scenario in an OT anatomy session.
@@ -715,6 +727,8 @@ def socratic_generator(state: TutoringState) -> dict:
         system = _ASSESSMENT_SYSTEM.format(
             context=context_text,
             mastery_json=json.dumps(mastery, indent=2),
+            consecutive_incorrect=state.get("consecutive_incorrect", 0),
+            student_message=(state.get("student_message") or "")[:120],
         )
     else:
         system = _RAPPORT_SYSTEM  # fallback
