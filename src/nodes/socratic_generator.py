@@ -794,59 +794,45 @@ def socratic_generator(state: TutoringState) -> dict:
         token_q = _get_token_queue(_session_id)
 
         if token_q is not None:
-            # Streaming path: collect all tokens; extract visible_response value and push to queue
-            stream = client.chat.completions.create(
+            # Streaming path: collect full response, then push visible text as one token.
+            # Mercury 2 outputs ~1000 JSON tokens; character-level streaming of JSON keys
+            # leaks syntax to the frontend. Instead we stream=True for latency benefit
+            # (Mercury 2 starts generating immediately) and emit the visible question once done.
+            stream_resp = client.chat.completions.create(
                 model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
                 temperature=temp,
                 messages=augmented,
-                max_tokens=800,
+                max_tokens=1000,
                 stream=True,
             )
             raw_parts: list[str] = []
-            # State machine to extract the string value of "socratic_question" field
-            # States: 0=scanning, 1=inside socratic_question value
-            _sq_state = 0
-            _sq_buf = ""
-            _emitted_chars = 0
-            for chunk in stream:
+            for chunk in stream_resp:
                 delta = chunk.choices[0].delta.content if chunk.choices else None
-                if not delta:
-                    continue
-                raw_parts.append(delta)
-                so_far = "".join(raw_parts)
-                # Detect start of socratic_question value
-                if _sq_state == 0 and '"socratic_question"' in so_far:
-                    # Find the opening quote of the value
-                    idx = so_far.index('"socratic_question"') + len('"socratic_question"')
-                    rest = so_far[idx:]
-                    colon_q = rest.find('"')
-                    if colon_q != -1:
-                        _sq_state = 1
-                        _sq_buf = rest[colon_q + 1:]
-                        # Emit any already-buffered characters
-                        clean_chunk = _sq_buf.replace("\\n", " ").replace('\\"', '"')
-                        if clean_chunk:
-                            token_q.put(clean_chunk)
-                            _emitted_chars += len(clean_chunk)
-                elif _sq_state == 1:
-                    # Check if this delta closes the string
-                    if '"' in delta and not delta.endswith('\\"'):
-                        # End of value — emit everything up to closing quote
-                        end_part = delta.split('"')[0]
-                        if end_part:
-                            token_q.put(end_part.replace("\\n", " ").replace('\\"', '"'))
-                        _sq_state = 2  # done
-                    else:
-                        clean_delta = delta.replace("\\n", " ").replace('\\"', '"')
-                        token_q.put(clean_delta)
-            token_q.put(None)  # end sentinel
+                if delta:
+                    raw_parts.append(delta)
             raw = "".join(raw_parts).strip()
+            # Extract visible text from JSON, emit as single token
+            try:
+                clean = _re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=_re.DOTALL).strip()
+                data = _json.loads(clean)
+                vr = data.get("visible_response", {})
+                enc = vr.get("encouragement", "")
+                sq = vr.get("socratic_question", "")
+                visible_text = f"{enc} {sq}".strip() if enc else sq
+                if visible_text:
+                    token_q.put(visible_text)
+            except Exception:
+                # Fallback: extract question via regex
+                m = _re.search(r'"socratic_question"\s*:\s*"((?:[^"\\]|\\.)*)"', raw)
+                if m:
+                    token_q.put(m.group(1).replace('\\"', '"').replace('\\n', ' '))
+            token_q.put(None)  # end sentinel
         else:
             resp = client.chat.completions.create(
                 model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
                 temperature=temp,
                 messages=augmented,
-                max_tokens=800,
+                max_tokens=1000,
             )
             raw = (resp.choices[0].message.content or "").strip()
 
