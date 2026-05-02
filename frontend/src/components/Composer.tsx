@@ -102,11 +102,23 @@ export default function Composer() {
           />
           <div className="composer-row">
             <div className="composer-tools">
-              <button className="icon-btn" title="Attach image">
+              <button
+                className="icon-btn"
+                title="Attach image"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isThinking}
+              >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path d="M21 12.5l-8 8a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.6-7.6"/>
                 </svg>
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ display: 'none' }}
+              />
             </div>
             <button
               className="composer-send"

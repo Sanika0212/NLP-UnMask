@@ -1,47 +1,39 @@
 llm:
-  model: openai/gpt-4o             # main Socratic generation (via OpenRouter)
-  utility_model: openai/gpt-4o-mini  # fast model for CRAG grading, mastery eval, query reformulation
-  vision_model: anthropic/claude-haiku-4-5  # image verification (via OpenRouter)
+  model: anthropic/claude-opus-4
+  utility_model: anthropic/claude-sonnet-4-5
+  vision_model: anthropic/claude-opus-4
   temperature: 0.3
-  use_local_for: []          # empty = all phases via OpenRouter
-  local_model: llama3.1     # unused; kept so _call_ollama doesn't KeyError if toggled
-  max_history_turns: 8    # cap conversation context to prevent unbounded growth
-
+  use_local_for: []
+  local_model: llama3.1
+  max_history_turns: 8
 embedding:
-  provider: gemini        # "gemini" | "openai"
+  provider: gemini
   openai_model: text-embedding-3-small
   gemini_model: gemini-embedding-2-preview
-  dimension: 3072         # 3072 for gemini-embedding-2-preview
-
+  dimension: 3072
 qdrant:
   host: localhost
   port: 6333
   collection: unmask_anatomy
-
 pcr:
-  # Mastery thresholds — calibrated via threshold sweep on 50 QA eval set
-  threshold_low: 0.4      # below: context_only (no answer chunks)
-  threshold_high: 0.7     # above: full_reveal (all chunks)
-  # between: prerequisite_first
-
+  threshold_low: 0.4
+  threshold_high: 0.7
 retrieval:
   top_k: 5
-  use_bm25: true          # hybrid: dense + BM25 merged by RRF
-  crag_max_retries: 2     # Corrective RAG retry limit
-
+  use_bm25: true
+  crag_max_retries: 2
 session:
-  rapport_cutoff_sec: 120     # 2 min
-  assessment_cutoff_sec: 720  # 12 min
-  wrapup_cutoff_sec: 840      # 14 min
-  max_session_sec: 900        # 15 min hard ceiling
-  diagnostic_questions: 4     # questions during rapport to init mastery
-  revisit_after_sec: 480      # 8 min — proactively revisit weakest topic after this point
-  revisit_cooldown_sec: 180   # minimum gap between successive revisit triggers
-
+  rapport_cutoff_sec: 120
+  assessment_cutoff_sec: 720
+  wrapup_cutoff_sec: 840
+  max_session_sec: 900
+  diagnostic_questions: 4
+  revisit_after_sec: 480
+  revisit_cooldown_sec: 180
 mastery:
-  default_prior: 0.2          # P(L0) cold start
-  correct_gain: 0.15          # mastery increase per correct
-  incorrect_loss: 0.05        # mastery decrease per incorrect
-  weak_threshold: 0.4         # topics below this get revisit flag
+  default_prior: 0.2
+  correct_gain: 0.15
+  incorrect_loss: 0.05
+  weak_threshold: 0.4
   consecutive_correct_for_advance: 5
   consecutive_incorrect_for_hint: 2

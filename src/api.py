@@ -14,7 +14,7 @@ load_dotenv()
 
 import httpx
 import yaml
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -382,3 +382,76 @@ def submit_survey(session_id: str, body: SurveyBody):
         "post_score": post_score,
         "learning_gain": learning_gain,
     }
+
+
+@app.post("/api/sessions/{session_id}/image")
+async def upload_image(session_id: str, file: UploadFile = File(...)):
+    """Upload an anatomy image for VLM identification."""
+    sess = get_session(session_id)
+    if not sess:
+        return {"error": "Session not found"}, 404
+
+    try:
+        # Read the file and convert to base64
+        file_content = await file.read()
+        import base64
+        image_base64 = base64.b64encode(file_content).decode("utf-8")
+
+        # Determine media type from file extension
+        file_ext = file.filename.lower().split(".")[-1] if file.filename else "jpeg"
+        media_type_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg"}
+        media_type = media_type_map.get(file_ext, "image/jpeg")
+
+        # Call vision model via OpenRouter to identify the structure
+        from openai import OpenAI
+        vision_client = OpenAI(
+            api_key=os.environ["OPENAI_API_KEY"],
+            base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
+        )
+        vision_model = os.getenv("VISION_MODEL", "anthropic/claude-opus-4")
+
+        identification_resp = vision_client.chat.completions.create(
+            model=vision_model,
+            max_tokens=50,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image_base64}"}},
+                    {"type": "text", "text": "A student in an OT anatomy class uploaded this image. Identify the anatomical structure shown (be specific: e.g. 'brachial plexus', 'median nerve', 'rotator cuff'). Reply with ONLY the anatomical name, nothing else."}
+                ]
+            }]
+        )
+
+        identified_structure = identification_resp.choices[0].message.content.strip()
+
+        # Generate a Socratic question
+        openai_client = OpenAI(
+            api_key=os.environ["OPENAI_API_KEY"],
+            base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
+        )
+        openai_model = os.getenv("OPENAI_MODEL", "anthropic/claude-opus-4")
+
+        socratic_resp = openai_client.chat.completions.create(
+            model=openai_model,
+            max_tokens=100,
+            messages=[
+                {"role": "system", "content": f"You are a Socratic anatomy tutor. The student uploaded an image of {identified_structure}. Ask ONE Socratic question that makes them think about its function or clinical relevance. Do NOT name the structure in your question. End with '?'"},
+                {"role": "user", "content": "Ask your Socratic question."},
+            ]
+        )
+
+        socratic_question = socratic_resp.choices[0].message.content.strip()
+
+        # Look up local anatomy image if it exists
+        img_data = get_image_for_topic(identified_structure)
+        image_url = ""
+        if img_data and img_data.get("image_file"):
+            image_url = f"/static/anatomy/{img_data['image_file']}"
+
+        return {
+            "concept": identified_structure,
+            "socratic_question": socratic_question,
+            "image_url": image_url,
+        }
+    except Exception as e:
+        return {"error": str(e)}, 500
