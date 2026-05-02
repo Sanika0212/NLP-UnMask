@@ -116,14 +116,20 @@ def _llm_decision(state: TutoringState) -> Optional[SupervisorDecision]:
     import json
     from openai import OpenAI
 
+    phase = state["phase"]
+    turn = state.get("turn_count", 0)
+
+    # Rapport transitions are fully deterministic — skip expensive LLM call to avoid
+    # the ~15 s latency spike that causes the "stuck thinking" hang on Q4 completion.
+    if phase == "rapport":
+        return None
+
     client = OpenAI(
         api_key=os.environ["OPENAI_API_KEY"],
         base_url=os.getenv("OPENAI_BASE_URL"),
         timeout=15.0,
     )
 
-    phase = state["phase"]
-    turn = state.get("turn_count", 0)
     elapsed = state.get("elapsed_seconds", 0.0)
     diagnostic_complete = state.get("diagnostic_complete", False)
     mastery = state.get("mastery_scores", {})

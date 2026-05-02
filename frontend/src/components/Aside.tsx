@@ -108,7 +108,7 @@ export default function Aside({ onCollapse }: { onCollapse?: () => void }) {
                     <path d="M75 72 L38 132" /><path d="M75 72 L108 132" />
                     <path d="M210 72 L178 132" /><path d="M210 72 L248 132" />
                     {/* L2→L3 */}
-                    <path d="M38 132 L28 188" /><path d="M38 132 L88 188" />
+                    <path d="M38 132 L28 188" />
                     <path d="M178 132 L168 188" /><path d="M248 132 L238 188" />
                   </g>
                   {/* nodes */}
@@ -122,11 +122,11 @@ export default function Aside({ onCollapse }: { onCollapse?: () => void }) {
                       { key:'shoulder_joint',    cx:178, cy:132, r:8,  ty:148 },
                       { key:'upper_limb_muscles',cx:248, cy:132, r:8,  ty:148 },
                       { key:'nerve_injuries',    cx:28,  cy:188, r:6,  ty:202 },
-                      { key:'elbow_joint',       cx:88,  cy:188, r:6,  ty:202 },
-                      { key:'wrist_hand',        cx:168, cy:188, r:6,  ty:202 },
+                      { key:'elbow_joint',       cx:168, cy:188, r:6,  ty:202 },
+                      { key:'wrist_hand',        cx:238, cy:188, r:6,  ty:202 },
                     ].map(({ key, cx, cy, r, ty }) => (
                       <g key={key}>
-                        <title>{topicLabel(key)} — {Math.round(topicMastery(key) * 100)}%</title>
+                        <title suppressHydrationWarning>{topicLabel(key)} — {Math.round(topicMastery(key) * 100)}%</title>
                         <circle cx={cx} cy={cy} r={r} fill={nodeColor(key)} stroke={nodeBorder(key)} strokeWidth="1.5" />
                         <text x={cx} y={ty} textAnchor="middle">{dagLabel(key)}</text>
                       </g>

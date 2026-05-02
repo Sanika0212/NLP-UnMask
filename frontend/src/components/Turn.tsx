@@ -5,23 +5,83 @@ import Avatar from './Avatar';
 import DiagramCard from './DiagramCard';
 import { useSessionStore } from '@/lib/store';
 
+const audioRef = { current: null as HTMLAudioElement | null };
+
+function getBestVoice(): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices();
+  const priority = [
+    'Google US English',
+    'Microsoft Aria Online (Natural) - English (United States)',
+    'Microsoft Jenny Online (Natural) - English (United States)',
+    'Microsoft Zira Online (Natural) - English (United States)',
+    'Samantha (Enhanced)',
+    'Karen (Enhanced)',
+    'Alex',
+    'Samantha',
+  ];
+  for (const name of priority) {
+    const v = voices.find((v) => v.name === name);
+    if (v) return v;
+  }
+  return voices.find((v) => !v.localService && v.lang.startsWith('en'))
+    || voices.find((v) => v.lang === 'en-US')
+    || null;
+}
+
+function cleanForSpeech(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/[#_`>~]/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\n\n+/g, '. ')
+    .replace(/\n/g, ', ')
+    .trim();
+}
+
 function useTTS() {
   const [speaking, setSpeaking] = useState(false);
-  const speak = useCallback((text: string) => {
+
+  const stop = useCallback(() => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    setSpeaking(false);
+  }, []);
+
+  const speak = useCallback(async (text: string) => {
+    if (speaking) { stop(); return; }
+
+    const clean = cleanForSpeech(text);
+
+    // Try backend neural TTS first
+    try {
+      const res = await fetch(`/api/tts?${new URLSearchParams({ text: clean, voice: 'nova' })}`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        setSpeaking(true);
+        audio.onended = () => { URL.revokeObjectURL(url); setSpeaking(false); audioRef.current = null; };
+        audio.onerror = () => { URL.revokeObjectURL(url); setSpeaking(false); audioRef.current = null; };
+        audio.play();
+        return;
+      }
+    } catch { /* fall through to browser TTS */ }
+
+    // Browser fallback with best available voice
     if (!('speechSynthesis' in window)) return;
-    if (speaking) {
-      window.speechSynthesis.cancel();
-      setSpeaking(false);
-      return;
-    }
-    const clean = text.replace(/[#*_`>~]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
     const utt = new SpeechSynthesisUtterance(clean);
-    utt.rate = 0.95;
+    utt.rate = 0.92;
+    utt.pitch = 1.0;
+    const voice = getBestVoice();
+    if (voice) utt.voice = voice;
     utt.onend = () => setSpeaking(false);
     utt.onerror = () => setSpeaking(false);
     setSpeaking(true);
     window.speechSynthesis.speak(utt);
-  }, [speaking]);
+  }, [speaking, stop]);
+
   return { speaking, speak };
 }
 
