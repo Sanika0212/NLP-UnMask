@@ -15,7 +15,7 @@ ANATOMY_DIAGRAMS: dict[str, dict] = {
     # ── Spinal cord ──────────────────────────────────────────────────────────
     "spinal_cord.anatomy": {
         "caption": "Spinal cord cross-section — dorsal/ventral horns, rami, grey/white matter",
-        "image_file": "spinal_cord.png",
+        "image_file": "spinal_cord.html",
         "diagram": """\
  SPINAL CORD CROSS-SECTION
 
@@ -69,7 +69,7 @@ ANATOMY_DIAGRAMS: dict[str, dict] = {
     # ── Brachial plexus sub-diagrams ─────────────────────────────────────────
     "brachial_plexus.origin": {
         "caption": "Brachial plexus origins — C5–T1 anterior rami and first branches",
-        "image_file": "brachial_plexus.png",
+        "image_file": "brachial_plexus.html",
         "diagram": """\
  BRACHIAL PLEXUS ORIGINS
 
@@ -94,7 +94,7 @@ ANATOMY_DIAGRAMS: dict[str, dict] = {
 
     "brachial_plexus.trunks": {
         "caption": "Brachial plexus trunks — upper, middle, lower and Erb's/Klumpke's point",
-        "image_file": "brachial_plexus.png",
+        "image_file": "brachial_plexus.html",
         "diagram": """\
  BRACHIAL PLEXUS — TRUNKS
 
@@ -126,7 +126,7 @@ ANATOMY_DIAGRAMS: dict[str, dict] = {
 
     "brachial_plexus.divisions": {
         "caption": "Brachial plexus divisions — anterior vs posterior, flexor vs extensor",
-        "image_file": "brachial_plexus.png",
+        "image_file": "brachial_plexus.html",
         "diagram": """\
  BRACHIAL PLEXUS — DIVISIONS
 
@@ -155,7 +155,7 @@ ANATOMY_DIAGRAMS: dict[str, dict] = {
 
     "brachial_plexus.cords": {
         "caption": "Brachial plexus cords — lateral, medial, posterior and their branches",
-        "image_file": "brachial_plexus.png",
+        "image_file": "brachial_plexus.html",
         "diagram": """\
  BRACHIAL PLEXUS — CORDS
  (named by position relative to axillary artery)
@@ -185,7 +185,7 @@ ANATOMY_DIAGRAMS: dict[str, dict] = {
 
     "brachial_plexus.terminal_branches": {
         "caption": "5 terminal branches — roots, motor targets and key injury patterns",
-        "image_file": "brachial_plexus.png",
+        "image_file": "brachial_plexus.html",
         "diagram": """\
  BRACHIAL PLEXUS — TERMINAL BRANCHES
 
@@ -211,7 +211,7 @@ ANATOMY_DIAGRAMS: dict[str, dict] = {
     # ── Rotator cuff sub-diagrams ────────────────────────────────────────────
     "rotator_cuff.muscles": {
         "caption": "Rotator cuff SITS muscles — origins, insertions, nerves, OT tests",
-        "image_file": "shoulder_joint.png",
+        "image_file": "shoulder_joint.html",
         "diagram": """\
  ROTATOR CUFF — SITS OVERVIEW
 
@@ -237,7 +237,7 @@ ANATOMY_DIAGRAMS: dict[str, dict] = {
 
     "rotator_cuff.infraspinatus": {
         "caption": "Infraspinatus — external rotation, suprascapular nerve, OT relevance",
-        "image_file": "shoulder_joint.png",
+        "image_file": "shoulder_joint.html",
         "diagram": """\
  INFRASPINATUS
 
@@ -271,7 +271,7 @@ ANATOMY_DIAGRAMS: dict[str, dict] = {
 
     "rotator_cuff.teres_minor": {
         "caption": "Teres Minor — lateral rotation, axillary nerve, Hornblower's sign",
-        "image_file": "shoulder_joint.png",
+        "image_file": "shoulder_joint.html",
         "diagram": """\
  TERES MINOR
 
@@ -303,7 +303,7 @@ ANATOMY_DIAGRAMS: dict[str, dict] = {
 
     "brachial_plexus": {
         "caption": "Brachial Plexus — trace C5→T1 through trunks, divisions, cords to terminal branches",
-        "image_file": "brachial_plexus.png",
+        "image_file": "brachial_plexus.html",
         "diagram": """\
 ROOTS   TRUNKS     DIVS    CORDS        TERMINAL BRANCHES
                    ┌ Ant ─────────────┐
@@ -324,7 +324,7 @@ Memory: Robert Taylor Drinks Cold Beer
 
     "rotator_cuff": {
         "caption": "Rotator Cuff — SITS muscles, attachments, movements, and clinical tests",
-        "image_file": "shoulder_joint.png",
+        "image_file": "shoulder_joint.html",
         "diagram": """\
 ┌──────────────────────────────────────────────────────────────┐
 │            ROTATOR CUFF — SITS Mnemonic                      │
@@ -348,7 +348,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "peripheral_nerves": {
         "caption": "Upper limb peripheral nerve territories — sensory and motor",
-        "image_file": "peripheral_nerves.png",
+        "image_file": "peripheral_nerves.html",
         "diagram": """\
          PERIPHERAL NERVE TERRITORIES — Upper Limb
 
@@ -374,7 +374,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "peripheral_nerves.median": {
         "caption": "Median nerve — course, motor, sensory and CTS clinical features",
-        "image_file": "median_nerve.png",
+        "image_file": "median_nerve.html",
         "diagram": """\
  MEDIAN NERVE (C6–T1) — Lateral + Medial cords
 
@@ -404,7 +404,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "peripheral_nerves.ulnar": {
         "caption": "Ulnar nerve — course, cubital tunnel, claw hand and Froment's sign",
-        "image_file": "ulnar_nerve.png",
+        "image_file": "ulnar_nerve.html",
         "diagram": """\
  ULNAR NERVE (C8–T1) — Medial cord
 
@@ -432,7 +432,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "peripheral_nerves.radial": {
         "caption": "Radial nerve — spiral groove, wrist drop and cock-up splint",
-        "image_file": "radial_nerve.png",
+        "image_file": "radial_nerve.html",
         "diagram": """\
  RADIAL NERVE (C5–T1) — Posterior cord
 
@@ -461,7 +461,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "peripheral_nerves.axillary": {
         "caption": "Axillary nerve — deltoid, surgical neck fracture",
-        "image_file": "axillary_nerve.png",
+        "image_file": "axillary_nerve.html",
         "diagram": """\
  AXILLARY NERVE (C5–C6) — Posterior cord
 
@@ -488,7 +488,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "rotator_cuff.subscapularis": {
         "caption": "Subscapularis — medial rotation, lesser tubercle, lift-off test",
-        "image_file": "shoulder_joint.png",
+        "image_file": "shoulder_joint.html",
         "diagram": """\
  SUBSCAPULARIS
 
@@ -514,7 +514,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "rotator_cuff.supraspinatus": {
         "caption": "Supraspinatus — initiates abduction, empty can test, impingement",
-        "image_file": "shoulder_joint.png",
+        "image_file": "shoulder_joint.html",
         "diagram": """\
  SUPRASPINATUS
 
@@ -542,7 +542,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "shoulder_joint": {
         "caption": "Glenohumeral joint — ball-and-socket, rotator cuff stabilisation",
-        "image_file": "shoulder_joint.png",
+        "image_file": "shoulder_joint.html",
         "diagram": """\
  GLENOHUMERAL (Shoulder) JOINT
 
@@ -571,7 +571,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
     # ── Elbow joint ───────────────────────────────────────────────────────────
     "elbow_joint.anatomy": {
         "caption": "Elbow joint — humeroulnar/humeroradial articulations, carrying angle",
-        "image_file": "elbow_joint.png",
+        "image_file": "elbow_joint.html",
         "diagram": """\
  ELBOW JOINT (Gray329)
 
@@ -597,7 +597,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "elbow_joint.ligaments": {
         "caption": "Elbow ligaments — MCL, LCL, annular ligament",
-        "image_file": "elbow_joint.png",
+        "image_file": "elbow_joint.html",
         "diagram": """\
  ELBOW LIGAMENTS
 
@@ -621,7 +621,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "elbow_joint.cubital_tunnel": {
         "caption": "Cubital tunnel — ulnar nerve compression at medial elbow",
-        "image_file": "elbow_joint.png",
+        "image_file": "elbow_joint.html",
         "diagram": """\
  CUBITAL TUNNEL SYNDROME
 
@@ -649,7 +649,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
     # ── Wrist and hand ────────────────────────────────────────────────────────
     "wrist_hand.carpals": {
         "caption": "Carpal bones — two rows, scaphoid fracture, DISI/VISI instability",
-        "image_file": "carpal_bones.png",
+        "image_file": "carpal_bones.html",
         "diagram": """\
  CARPAL BONES (Gray219)
 
@@ -679,7 +679,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "wrist_hand.intrinsic_muscles": {
         "caption": "Intrinsic hand muscles — thenar, hypothenar, lumbricals, interossei",
-        "image_file": "carpal_bones.png",
+        "image_file": "carpal_bones.html",
         "diagram": """\
  INTRINSIC HAND MUSCLES
 
@@ -709,7 +709,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "wrist_hand.flexor_tendons": {
         "caption": "Flexor tendons — zones, pulleys, FDS vs FDP, Jersey finger",
-        "image_file": "carpal_bones.png",
+        "image_file": "carpal_bones.html",
         "diagram": """\
  FLEXOR TENDONS
 
@@ -740,7 +740,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
     # ── Dermatomes ────────────────────────────────────────────────────────────
     "dermatomes.upper_limb": {
         "caption": "Upper limb dermatomes C5–T1 — key landmarks for NBCOT",
-        "image_file": "dermatomes.png",
+        "image_file": "dermatomes.html",
         "diagram": """\
  UPPER LIMB DERMATOMES (C5–T1)
 
@@ -770,7 +770,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "dermatomes.clinical": {
         "caption": "Dermatomes clinical — radiculopathy vs peripheral nerve distribution",
-        "image_file": "dermatomes.png",
+        "image_file": "dermatomes.html",
         "diagram": """\
  DERMATOMES: CLINICAL DIFFERENTIATION
 
@@ -797,7 +797,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
     # ── Nerve injuries ────────────────────────────────────────────────────────
     "nerve_injuries.radial": {
         "caption": "Radial nerve injuries — wrist drop, spiral groove, PIN palsy",
-        "image_file": "nerve_injury_syndromes.png",
+        "image_file": "nerve_injury_syndromes.html",
         "diagram": """\
  RADIAL NERVE INJURIES
 
@@ -826,7 +826,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "nerve_injuries.ulnar": {
         "caption": "Ulnar nerve injuries — claw hand, cubital tunnel, Guyon's canal",
-        "image_file": "nerve_injury_syndromes.png",
+        "image_file": "nerve_injury_syndromes.html",
         "diagram": """\
  ULNAR NERVE INJURIES
 
@@ -854,7 +854,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "nerve_injuries.median": {
         "caption": "Median nerve injuries — ape hand, CTS, anterior interosseous nerve",
-        "image_file": "nerve_injury_syndromes.png",
+        "image_file": "nerve_injury_syndromes.html",
         "diagram": """\
  MEDIAN NERVE INJURIES
 
@@ -882,7 +882,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "nerve_injuries.brachial_plexus": {
         "caption": "Brachial plexus injuries — Erb's palsy, Klumpke's palsy, avulsion",
-        "image_file": "brachial_plexus.png",
+        "image_file": "brachial_plexus.html",
         "diagram": """\
  BRACHIAL PLEXUS INJURIES
 
@@ -911,7 +911,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
     # ── Upper limb muscles ────────────────────────────────────────────────────
     "upper_limb_muscles.shoulder": {
         "caption": "Shoulder muscles — deltoid, pectoralis major, latissimus dorsi",
-        "image_file": "upper_limb_muscles.png",
+        "image_file": "upper_limb_muscles.html",
         "diagram": """\
  SHOULDER MUSCLES (Gray408)
 
@@ -938,7 +938,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "upper_limb_muscles.elbow_flexors": {
         "caption": "Elbow flexors — biceps, brachialis, brachioradialis innervations",
-        "image_file": "upper_limb_muscles.png",
+        "image_file": "upper_limb_muscles.html",
         "diagram": """\
  ELBOW FLEXORS
 
@@ -965,7 +965,7 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
 
     "upper_limb_muscles.elbow_extensors": {
         "caption": "Elbow extensors — triceps, anconeus; C7 radial nerve",
-        "image_file": "upper_limb_muscles.png",
+        "image_file": "upper_limb_muscles.html",
         "diagram": """\
  ELBOW EXTENSORS
 

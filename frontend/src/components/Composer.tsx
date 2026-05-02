@@ -33,6 +33,7 @@ export default function Composer() {
     rec.onresult = (e: any) => {
       const results = Array.from(e.results) as any[];
       const transcript = results
+        .slice(e.resultIndex)
         .filter((r: any) => r.isFinal)
         .map((r: any) => r[0].transcript)
         .join(' ')

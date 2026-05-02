@@ -274,6 +274,12 @@ async def stream_message(session_id: str, content: str):
         if img_data:
             image_file = img_data.get("image_file", "")
             if image_file:
+                # Prefer .html version if .png was stored but .html exists
+                if image_file.endswith(".png"):
+                    html_equiv = image_file.replace(".png", ".html")
+                    html_path = f"public/anatomy/{html_equiv}"
+                    if os.path.exists(html_path):
+                        image_file = html_equiv
                 image_url = f"/static/anatomy/{image_file}"
             caption = img_data.get("caption", "")
             diagram_text = img_data.get("diagram", "")
@@ -455,3 +461,39 @@ async def upload_image(session_id: str, file: UploadFile = File(...)):
         }
     except Exception as e:
         return {"error": str(e)}, 500
+
+
+@app.get("/api/tts")
+async def text_to_speech(text: str, voice: str = "nova"):
+    """Neural TTS via OpenAI. Requires OPENAI_TTS_KEY env var (direct OpenAI key, not OpenRouter)."""
+    tts_key = os.getenv("OPENAI_TTS_KEY")
+    if not tts_key:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "TTS not configured"}, status_code=501)
+
+    from openai import OpenAI
+    tts_client = OpenAI(api_key=tts_key)  # always api.openai.com
+
+    # Sanitise text: strip markdown
+    import re
+    clean = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    clean = re.sub(r'\*(.+?)\*', r'\1', clean)
+    clean = re.sub(r'[#_`>~]', '', clean)
+    clean = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', clean)
+    clean = clean.strip()[:4096]
+
+    allowed = {"alloy", "echo", "fable", "nova", "onyx", "shimmer"}
+    voice = voice if voice in allowed else "nova"
+
+    response = tts_client.audio.speech.create(
+        model="tts-1-hd",
+        voice=voice,  # type: ignore
+        input=clean,
+        response_format="mp3",
+    )
+
+    return StreamingResponse(
+        response.iter_bytes(chunk_size=4096),
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "no-store"},
+    )
