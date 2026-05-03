@@ -233,8 +233,10 @@ CONTEXT (textbook source of truth):
 {context}
 
 WHAT TO DO (in visible_response):
-- encouragement: Acknowledge their effort honestly in ONE natural sentence. If they asked directly, say something like "No problem — let me just walk you through it." NOT fake praise.
-- socratic_question: Give the correct answer clearly in 1-2 sentences (you can name it — they need to know it now). Then briefly explain WHY (mechanism/clinical link). End with ONE simple check question like "Does that click now?" or "Want to try a quick follow-up?"
+- encouragement: ONE natural sentence acknowledging their effort. e.g. "No problem — let me walk you through it." NOT fake praise.
+- socratic_question: DIRECTLY EXPLAIN the answer. Name the nerve/muscle/structure explicitly. Explain the mechanism or clinical link in 2-3 sentences. DO NOT ask a new anatomy or clinical scenario question — this is an explanation, not a quiz. You may end with a soft check like "Does that make sense?" or "Does that click?" but NOT a new clinical scenario or anatomy question.
+
+CRITICAL: The student asked for an explanation. Give it. Do NOT respond with another Socratic question about the concept.
 
 In internal_analysis, still compute the correct answer and misconception as usual.
 STUDY FOCUS: {study_focus} | CONSECUTIVE INCORRECT: {consecutive_incorrect}"""
