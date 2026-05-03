@@ -206,8 +206,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             const streamIdx = msgs2.slice(-3).reduce((found, m, i) =>
               m._streaming ? msgs2.length - 3 + i : found, -1);
             if (streamIdx >= 0) {
-              // Empty content = diagram-only turn; just clear _streaming, don't blank the text
-              const newContent = msgContent || msgs2[streamIdx].content;
+              // Empty string from backend = diagram-only turn; blank the bubble so only the diagram shows
+              const newContent = (msgContent !== undefined && msgContent !== null) ? msgContent : msgs2[streamIdx].content;
               set((s) => {
                 const updated = [...s.messages];
                 updated[streamIdx] = {
