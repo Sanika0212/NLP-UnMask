@@ -14,6 +14,7 @@ import uuid
 from typing import Literal
 
 from langgraph.graph import StateGraph, START, END
+import sqlite3
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 from src.state import TutoringState
@@ -70,7 +71,8 @@ def build_graph() -> StateGraph:
 
 
 _DB_PATH = "unmask_sessions.db"
-checkpointer = SqliteSaver.from_conn_string(_DB_PATH)
+_db_conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
+checkpointer = SqliteSaver(_db_conn)
 graph = build_graph().compile(checkpointer=checkpointer)
 
 
