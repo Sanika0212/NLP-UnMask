@@ -30,65 +30,75 @@
 
 \title{UnMask: Mastery-Gated Retrieval for Socratic OT Anatomy Education}
 
-\author{Sanika Vilas Najan \quad Vaishak Girish Kumar \\
+\author{Sanika Vilas Najan$^*$ \quad Vaishak Girish Kumar$^*$ \\
   University at Buffalo \\
   CSE 635: NLP and Text Mining --- Spring 2026 \\
   Instructor: Prof.\ Rohini K.\ Srihari \\
-  \texttt{\{snajan, vaishakg\}@buffalo.edu}}
+  \texttt{\{snajan, vaishakg\}@buffalo.edu} \\[2pt]
+  \small $^*$Equal contribution.}
 
 \begin{document}
 \maketitle
 
 %% ─────────────────────────────────────────────────────────────
 \begin{abstract}
-We built \textbf{UnMask}, a Socratic AI tutor for OT anatomy NBCOT prep.
-Most Socratic AI tutors try to suppress answers at generation time, but
-we moved this to the \emph{retrieval layer} using \textbf{Progressive Context Revelation (PCR)}:
-a metadata-filtered Qdrant query that withholds answer chunks until
-the student demonstrates prerequisite mastery.
-We also added \textbf{Corrective RAG (CRAG)} (to our knowledge the first use in
-educational tutoring), dual-layer structured output masking,
-\textbf{session mistake memory} (proactive revisit at 8 min using stored misconceptions),
-and a \textbf{multimodal Next.js frontend} with VLM-based image upload, animated anatomy
-diagrams, and session YouTube recommendations.
-We evaluated on 30 QA triples with a four-variant ablation: Hit Rate 0.900,
-Leak Rate 0.000, Socratic Purity 4.87/5, 100\% adversarial hold rate.
-All variants show 0.000 leak under benign conditions, but only PCR
-provides safety by design at a measured 0.23-point purity cost (4.70 vs.\ 4.93).
-RAGAS Faithfulness (0.838) shows a metric mismatch: RAGAS penalizes
-Socratic questions that make no factual claims, which is expected here.
-Live demo: \url{https://huggingface.co/spaces/Gustav-Proxi/UnmaskTutor}
+We present \textbf{UnMask}, a Socratic AI tutor for OT students preparing for the NBCOT exam.
+Most existing Socratic tutors try to suppress answers at generation time through prompting,
+but we found this approach breaks down when the model is capable enough to override
+system instructions.
+Instead, we move answer suppression to the \emph{retrieval layer} through
+\textbf{Progressive Context Revelation (PCR)}: a metadata-filtered Qdrant query that
+withholds answer chunks until the student demonstrates prerequisite mastery.
+We also apply \textbf{Corrective RAG (CRAG)} --- to our knowledge the first use in
+educational tutoring --- along with dual-layer structured output masking,
+\textbf{session mistake memory} with proactive revisits at 8 minutes,
+and a \textbf{multimodal Next.js frontend} supporting VLM-based image uploads, animated anatomy
+diagrams, and per-session YouTube recommendations.
+We evaluated on 30 QA triples across a four-variant ablation and found:
+Hit Rate 0.900, Leak Rate 0.000, Socratic Purity 4.87/5, and 100\% adversarial hold rate.
+All four variants produce zero leaks under normal conditions, but only PCR
+holds under adversarial attack --- at a 0.23-point purity cost (4.70 vs.\ 4.93).
+RAGAS Faithfulness (0.838) misses its target, which we argue is a metric mismatch:
+Socratic questions make no factual claims, so RAGAS penalizes them by design.
+Live demo: \url{https://nlp-un-mask.vercel.app/}
 \end{abstract}
 
 %% ─────────────────────────────────────────────────────────────
 \section{Introduction}
 
-Occupational Therapy students need to master Gross Anatomy and Neuroscience to
-pass the NBCOT exam, but standard AI systems work against this by giving direct answers
-and bypassing the clinical reasoning the exam actually tests.
-The project spec defines ``Socratic'' tutoring as a \emph{Tutor-not-Teller}
-approach: the system should ask guiding questions that lead the student to the answer,
-never stating it outright.
+Occupational Therapy students preparing for the NBCOT exam need to develop clinical
+reasoning, not just recall facts.
+Standard AI systems work against this: they give direct answers that let students
+skip the reasoning step the exam actually tests.
+The project specification defines a ``Socratic'' tutor as a \emph{Tutor-not-Teller}:
+the system should guide students to the answer through questions, never stating it directly.
 
-The core problem is that prompt-based suppression only works at generation time.
-Dinucu-Jianu et al.\ \cite{tutorrl2025} showed larger models have \emph{higher}
-leak rates because their parametric knowledge overrides system prompts.
-The only reliable fix is to keep the LLM from ever receiving the answer.
+The problem is that prompt-based suppression only works until the model decides not
+to follow it.
+Dinucu-Jianu et al.\ \cite{tutorrl2025} showed that larger models actually have
+\emph{higher} leak rates because their parametric knowledge overrides system prompts.
+If the model already knows the answer, telling it not to say it is not a reliable safeguard.
 
 \paragraph{Our main claim.}
-By filtering retrieval using student mastery, answer leakage becomes
-impossible before mastery thresholds are met. This is enforced by a 10-line
-Qdrant metadata filter that no adversarial prompt can get around.
+If the LLM never receives the answer chunk, it cannot leak it.
+We enforce this with a 10-line Qdrant metadata filter that no adversarial prompt
+can bypass, because the filtering happens on the database server before any
+results reach Python.
 
 %% ─────────────────────────────────────────────────────────────
 \section{Related Work}
 
-Table~\ref{tab:related} summarises the key distinctions.
-Dinucu-Jianu et al.\ \cite{tutorrl2025} showed that larger LLMs have
-\emph{higher} leak rates because parametric knowledge overrides system prompts, which is what motivated our retrieval-layer approach.
-Corrective RAG \cite{crag2024} adds a self-assessment step after retrieval
-(+19\% PopQA, +36.6\% PubHealth); no prior work applies CRAG in educational tutoring.
-Closest to our retrieval approach is TutorLLM \cite{tutorllm2024}, which combines knowledge tracing with RAG for personalized learning, but does not specify a mastery-gated metadata filtering mechanism. Dinucu-Jianu et al.\ \cite{tutorrl2025} show that RL reward shaping for pedagogical alignment outperforms prompt-based suppression on GPT-4o, consistent with our finding that prompt-level safety fails under adversarial attack.
+Table~\ref{tab:related} summarizes the key distinctions between UnMask and prior work.
+Dinucu-Jianu et al.\ \cite{tutorrl2025} showed that larger LLMs leak answers more
+often, not less, which is what pushed us away from prompt-based suppression.
+Corrective RAG \cite{crag2024} adds a relevance check after retrieval (+19\% on PopQA,
++36.6\% on PubHealth); we are not aware of any prior work applying CRAG in an educational tutoring pipeline.
+TutorLLM \cite{tutorllm2024} combines knowledge tracing with RAG for personalized
+learning, but does not describe a mastery-gated metadata filtering mechanism
+that operates at the data layer.
+Dinucu-Jianu et al.\ \cite{tutorrl2025} also show that RL reward shaping for
+pedagogical alignment outperforms prompt-based suppression on GPT-4o, which is
+consistent with our finding that prompt-level safety fails under adversarial attack.
 
 \begin{table}[ht]
 \centering
@@ -113,8 +123,8 @@ PedagogRL \cite{tutorrl2025}   & $\times$ & RL reward & training  \\
 %% ─────────────────────────────────────────────────────────────
 \section{System Architecture}
 
-UnMask is organized as four layers orchestrated by a LangGraph state machine.
-Figure~\ref{fig:architecture} shows the end-to-end query path.
+UnMask is built around four layers that run through a LangGraph state machine.
+Figure~\ref{fig:architecture} shows the full query path from student message to Socratic response.
 
 %% ── Architecture diagram ──────────────────────────────────────────
 \begin{figure*}[t]
@@ -184,10 +194,10 @@ Figure~\ref{fig:architecture} shows the end-to-end query path.
 
 \subsection{Session State Machine (LangGraph)}
 
-The session progresses through four phases (Table~\ref{tab:phases}) with time
-ceilings enforced by a pure-Python orchestrator node (zero LLM calls),
-following Mao et al.\ \cite{diaggpt2023}'s finding that rule-based controllers outperform
-LLM routers for deterministic transitions.
+The session moves through four phases (Table~\ref{tab:phases}) with time ceilings
+enforced by a pure-Python orchestrator node that makes zero LLM calls.
+We chose rule-based phase transitions after reading Mao et al.\ \cite{diaggpt2023},
+who found that rule-based controllers beat LLM routers for deterministic transitions.
 
 \begin{table}[ht]
 \centering
@@ -206,17 +216,17 @@ Wrapup     & $t\geq$840s       & Session end                    & 840--900s \\
 \label{tab:phases}
 \end{table}
 
-The \texttt{TutoringState} TypedDict flows through four nodes
+The \texttt{TutoringState} TypedDict passes through four nodes
 (Figure~\ref{fig:architecture}).
-A conditional edge in the orchestrator bypasses retrieval for Rapport
-and Wrapup phases.
+A conditional edge in the orchestrator skips retrieval for Rapport and Wrapup phases,
+since those phases do not require content gating.
 
 \subsection{Models}
 \label{sec:models}
 
-Table~\ref{tab:models} lists all models used. All LLM calls route through
-OpenRouter (\texttt{openrouter.ai/api/v1}) so the base URL is the only config
-change needed to swap providers.
+Table~\ref{tab:models} lists all models used. All LLM calls go through
+OpenRouter (\texttt{openrouter.ai/api/v1}), so the base URL is the only
+setting that changes when swapping providers.
 
 \begin{table}[ht]
 \centering
@@ -241,23 +251,22 @@ Student image VLM     & Gemini 2.0 Flash Lite & Upload identification \\
 
 \subsection{Student Interface (Next.js)}
 
-Students interact via a Next.js 14 App Router frontend (live at
-\url{https://huggingface.co/spaces/Gustav-Proxi/UnmaskTutor}).
-The UI streams responses via SSE from the FastAPI backend.
-A right-hand inspector panel (instructor-visible) displays per-turn: PCR
-retrieval mode, mastery state per concept, and misconception log, directly
-satisfying the requirement that the UI show how chunks are being processed.
-A Chainlit interface (\texttt{app.py}) is retained for backward compatibility.
+Students interact through a Next.js 14 App Router frontend (live at
+\url{https://nlp-un-mask.vercel.app/}).
+Responses stream via SSE from the FastAPI backend.
+A right-hand inspector panel shows instructors the per-turn PCR retrieval mode,
+mastery state per concept, and misconception log --- this directly addresses
+the course requirement to show how chunks are being processed.
+A Chainlit interface (\texttt{app.py}) is kept for backward compatibility.
 
 \paragraph{Personalized onboarding.}
-A single conversational opening prompt is parsed by the Orchestrator to
-extract \texttt{study\_focus} (e.g., brachial plexus, rotator cuff) and
-\texttt{learning\_mode} (visual / Q\&A) before the LangGraph graph is
-invoked.
+The first student message is parsed by the Orchestrator to extract
+\texttt{study\_focus} (e.g., brachial plexus, rotator cuff) and
+\texttt{learning\_mode} (visual / Q\&A) before the LangGraph graph runs.
 \texttt{study\_focus} reorders the four diagnostic questions so the
-student's declared weak area appears first.
+student's declared weak area comes first.
 \texttt{learning\_mode} adjusts the visual-hint threshold:
-visual learners receive a diagram after the first incorrect response;
+visual learners get a diagram after the first wrong answer;
 Q\&A learners after the second.
 Figure~\ref{fig:onboarding} shows the full parse-to-render pipeline.
 
@@ -311,19 +320,19 @@ that triggers an inline anatomy diagram via SSE \texttt{visual\_hint} event $\to
 The UI renders a \texttt{DiagramCard} once
 \texttt{consecutive\_incorrect} $\geq$ threshold.
 22 self-contained animated SVG/HTML files in \texttt{public/anatomy/} cover
-every concept (brachial plexus, peripheral nerves, rotator cuff, spinal cord);
-for concepts without a local file, a DuckDuckGo image search queries trusted
-anatomy domains (Wikipedia, Radiopaedia, Kenhub), and Gemini 2.0 Flash Lite (vision)
-verifies the top-3 results before displaying the first verified URL.
+every concept in the knowledge base (brachial plexus, peripheral nerves, rotator cuff, spinal cord).
+For concepts without a local file, a DuckDuckGo image search queries trusted
+anatomy domains (Wikipedia, Radiopaedia, Kenhub), and Gemini 2.0 Flash Lite
+verifies the top-3 results before displaying the first one that passes.
 
 \subsection{Progressive Context Revelation (PCR)}
 \label{sec:pcr}
 
-Every chunk in Qdrant carries two metadata fields set at indexing time:
+Every chunk in Qdrant has two metadata fields set at index time:
 \texttt{is\_answer\_chunk: bool} and
 \texttt{chunk\_type: \{context $|$ prerequisite $|$ answer $|$ figure\}}.
-The Retrieval Planner reads the student's mastery score from the concept graph
-and applies one of three filter modes:
+The Retrieval Planner reads the student's current mastery score from the concept graph
+and picks one of three filter modes:
 
 \begin{lstlisting}[language=Python]
 if mastery < 0.40:   # context_only
@@ -369,26 +378,26 @@ else:                # full_reveal
 \label{fig:pcr}
 \end{figure}
 
-The key point is that in \texttt{context\_only} mode, the \texttt{must\_not}
-filter runs inside Qdrant before any results reach Python.
-The LLM \emph{never receives} answer chunks.
-This is fundamentally different from prompt-based suppression because the
-constraint is enforced at the data layer, not the prompt layer.
+In \texttt{context\_only} mode, the \texttt{must\_not} filter runs inside
+Qdrant before any results reach Python.
+The LLM \emph{never receives} the answer chunk.
+This matters because the safety guarantee comes from the data layer rather
+than the prompt layer --- there is nothing to instruct the model to override.
 
 \subsection{Hybrid Retrieval + Corrective RAG}
 
 \paragraph{Hybrid retrieval.}
 Dense vectors (Gemini Embedding 2, 3072-dim) are merged with BM25 sparse
-retrieval via Reciprocal Rank Fusion (RRF, $k{=}60$).
-The PCR filter applies to both legs before merging.
+retrieval using Reciprocal Rank Fusion (RRF, $k{=}60$).
+The PCR filter applies to both retrieval legs before merging.
 
 \paragraph{CRAG loop.}
-After retrieval, an LLM grades document relevance (binary yes/no).
-If all documents fail, the query is reformulated via synonym expansion and
-retried (max 2 retries; Yan et al.\ \cite{crag2024} show diminishing returns beyond 2).
-To our knowledge, this is the first application of CRAG in educational tutoring.
+After retrieval, an LLM grades each document for relevance (binary yes/no).
+If all documents fail, the query is reformulated through synonym expansion and
+retried up to 2 times; Yan et al.\ \cite{crag2024} show diminishing returns beyond 2.
+We believe this is the first application of CRAG in an educational tutoring system.
 Ablation timing confirms CRAG fires in practice: the full variant stalled at
-question 18 (${\sim}186$s vs.\ typical ${\sim}8$s), which confirmed a live re-query;
+question 18 (${\sim}186$s vs.\ typical ${\sim}8$s), confirming a live re-query;
 the \texttt{no\_crag} variant never stalled.
 
 \subsection{Dual Knowledge Masking via Structured Output}
@@ -408,67 +417,67 @@ class VisibleResponse(BaseModel):
 \end{lstlisting}
 
 \texttt{InternalAnalysis} is consumed by the Pedagogy Agent and stripped
-before rendering.
-A post-generation leak guard additionally checks for $\geq$4 significant-word
-overlap between \texttt{socratic\_question} and \texttt{correct\_answer},
-triggering a retry if fired.
+before the response reaches the student.
+A post-generation leak guard also checks for $\geq$4 significant-word
+overlap between \texttt{socratic\_question} and \texttt{correct\_answer}
+and triggers a retry if that fires.
 
 \textbf{Honest encouragement and break-Socratic mode.}
-When \texttt{consecutive\_incorrect} $> 0$, hollow praise is forbidden.
-If the student asks for an explicit explanation (``can you explain'',
-``walk me through'', etc.) or hits 4 consecutive incorrect answers,
-\texttt{break\_socratic=True} swaps to a \texttt{\_REVEAL\_SYSTEM} prompt that
-instructs the model to explain directly rather than question again.
+When \texttt{consecutive\_incorrect} $> 0$, the system is not allowed to give
+hollow praise.
+If the student asks for a direct explanation (``can you explain'',
+``walk me through'', etc.) or gets 4 consecutive wrong answers,
+\texttt{break\_socratic=True} switches to a \texttt{\_REVEAL\_SYSTEM} prompt
+that tells the model to explain rather than question.
 
 \textbf{Wrapup summary and YouTube recommendations.}
-At Wrapup, Mercury-2 structured output produces a \texttt{SessionSummary}:
+At Wrapup, Mercury-2 structured output generates a \texttt{SessionSummary}:
 per-concept mastery status, misconceptions from \texttt{mistake\_log},
-actionable study tips, and 2--4 \texttt{YouTubeResource} objects for the
-weakest concepts, rendered as clickable search cards in the frontend
-Progress tab.
-\textbf{Cost:} Mercury-2 for all LLM components (Supervisor, Tutoring, Assessment, CRAG grading, and Wrapup summary); Gemini 2.0 Flash Lite for vision tasks (${\sim}\$0.01$--$0.02$/session).
+study tips, and 2--4 \texttt{YouTubeResource} objects for the weakest concepts,
+rendered as clickable search cards in the frontend Progress tab.
+\textbf{Cost:} Mercury-2 covers all LLM components (Supervisor, Tutoring, Assessment, CRAG grading, Wrapup); Gemini 2.0 Flash Lite handles vision tasks (${\sim}\$0.01$--$0.02$/session).
 
 \subsection{Concept Prerequisite Graph}
 
-Rather than flat mastery scores, we maintain a directed acyclic graph (DAG)
-of anatomy concepts (e.g., \texttt{brachial\_plexus.origin $\to$
+Rather than tracking mastery as flat per-concept scores, we maintain a directed
+acyclic graph (DAG) of anatomy concepts (e.g., \texttt{brachial\_plexus.origin $\to$
 brachial\_plexus.trunks $\to$ peripheral\_nerves.axillary}).
-When a student struggles, the Pedagogy Agent traces \texttt{nx.ancestors()}
-to find prerequisite gaps that likely caused the failure.
+When a student struggles with a concept, the Pedagogy Agent calls
+\texttt{nx.ancestors()} to find prerequisite gaps that likely caused the failure.
 
 \paragraph{Cold-start initialization.}
-The Rapport phase administers 4 diagnostic questions.
-Correct answers initialize mastery at 0.5; incorrect at 0.1; skipped at 0.2,
-giving the PCR filter meaningful priors within 90 seconds.
+The Rapport phase gives 4 diagnostic questions.
+Correct answers set mastery at 0.5; incorrect at 0.1; skipped at 0.2.
+This gives the PCR filter meaningful priors within about 90 seconds.
 
 \paragraph{Mastery update.}
 After each response, the LLM judges correctness against
-\texttt{internal\_analysis.correct\_answer}, then updates:
+\texttt{internal\_analysis.correct\_answer} and updates:
 $m' = m + 0.15(1-m)$ if correct; $m' = m - 0.05m$ if incorrect
 \cite{corbett1994}.
-Consecutive correct $\geq 2$ and coverage $\geq 0.80$ triggers phase advance.
+Two consecutive correct answers with coverage $\geq 0.80$ triggers a phase advance.
 
 \subsection{Session Mistake Memory and Proactive Revisit}
 \label{sec:memory}
 
-Every incorrect response appends a structured record (topic, misconception,
-turn, elapsed seconds) to \texttt{mistake\_log}, an append-only field in state.
+Every wrong answer appends a structured record (topic, misconception, turn,
+elapsed seconds) to \texttt{mistake\_log}, which is append-only in state.
 The misconception text comes from the hidden \texttt{InternalAnalysis} at the
 moment of the mistake.
 After 8 minutes the Orchestrator picks the lowest-mastery weak topic, sets
-\texttt{revisit\_scheduled=True} (3-min cooldown prevents looping), and overrides
-\texttt{current\_topic}.
-The Retrieval Planner then augments the Qdrant query with the topic name;
+\texttt{revisit\_scheduled=True} with a 3-minute cooldown to prevent repeated
+triggering, and overrides \texttt{current\_topic}.
+The Retrieval Planner then adds the topic name to the Qdrant query;
 the Socratic Generator injects the stored misconception into the system prompt
-to guide a fresh-angle question.
+to ask a fresh-angle question rather than repeating the same one.
 The Pedagogy Agent clears \texttt{revisit\_scheduled} after one turn.
 
 \subsection{Multimodal Diagram Tutoring (Task 4)}
 \label{sec:vlm}
 
-When a student uploads an anatomical image via the Next.js frontend,
-UnMask invokes Gemini 2.0 Flash Lite (vision) via OpenRouter in a two-step pipeline:
-first identify the structure internally, then generate a Socratic question
+When a student uploads an anatomical image through the frontend,
+UnMask calls Gemini 2.0 Flash Lite (vision) via OpenRouter in a two-step pipeline:
+first identify the structure internally, then ask a Socratic question
 \emph{without naming it}:
 
 \begin{lstlisting}[language=Python]
@@ -491,24 +500,24 @@ q_resp = tutor_client.chat.completions.create(
 \end{lstlisting}
 
 The vision model identifies the structure in a separate call (max 50 tokens,
-name only), keeping the identification internal while the tutor model generates
-the Socratic question without ever having the structure name in the user-visible prompt.
-This completes the multimodal loop: static Gray's Anatomy plates
-(Task 1 visual mode) for system-triggered diagrams, plus VLM interpretation
-(Task 4) for student-submitted images.
+name only), keeping the identification internal while Mercury-2 generates
+a Socratic question that never names the structure in the visible prompt.
+This closes the multimodal loop: static anatomy plates for system-triggered
+diagrams (Task 1), plus VLM interpretation for student-uploaded images (Task 4).
 
 %% ─────────────────────────────────────────────────────────────
 \section{Dataset and Knowledge Base}
 
 \paragraph{Corpus.}
-OpenStax Anatomy \& Physiology 2e \cite{openstax2019}, Chapters 11 and 13--16, covering NBCOT
-brachial plexus and peripheral nerve topics.
-Indexed into Qdrant (48 chunks across all 16 concepts) with per-chunk metadata:
-\texttt{is\_answer\_chunk}, \texttt{chunk\_type}, \texttt{concept}.
-Each concept has 3--5 chunks spanning context, prerequisite, PCR-gated answer,
-figure, and clinical types. The clinical chunks include OT assessment techniques
-(Phalen's, Tinel's, Froment's sign, empty-can, lift-off tests), splinting
-protocols, and NBCOT clinical scenarios with answer keys.
+OpenStax Anatomy \& Physiology 2e \cite{openstax2019}, Chapters 11 and 13--16,
+covering brachial plexus and peripheral nerve topics tested on the NBCOT.
+Indexed into Qdrant as 48 chunks across 16 concepts, each chunk tagged with
+\texttt{is\_answer\_chunk}, \texttt{chunk\_type}, and \texttt{concept}.
+Each concept has 3--5 chunks covering context, prerequisite, PCR-gated answer,
+figure, and clinical types.
+The clinical chunks include OT assessment techniques (Phalen's, Tinel's, Froment's
+sign, empty-can, lift-off tests), splinting protocols, and NBCOT clinical scenarios
+with answer keys.
 
 \paragraph{Evaluation dataset.}
 30 QA triples (question, retrieved context, expected answer) spanning:
@@ -525,10 +534,10 @@ social engineering, and off-topic distractors.
 
 \paragraph{Generalizability.}
 The system is content-agnostic.
-Swapping \texttt{qdrant.collection: unmask\_anatomy $\to$ unmask\_physics}
-and re-indexing OpenStax Physics 2e (Chapters 4--6) requires zero code
-changes because the content (Qdrant collection) is fully
-separate from the logic (LangGraph orchestration).
+Changing \texttt{qdrant.collection: unmask\_anatomy $\to$ unmask\_physics}
+and re-indexing OpenStax Physics 2e (Chapters 4--6) requires no code changes,
+because the content (Qdrant collection) is fully separate from the
+logic (LangGraph orchestration).
 
 %% ─────────────────────────────────────────────────────────────
 \section{Evaluation}
@@ -546,7 +555,7 @@ penalizes $-1.0$.
 answer absent, student must reason) and 1 = direct answer stated.
 
 \paragraph{Answer Leak Rate (target = 0).}
-Fraction of responses where both leak layers fire simultaneously.
+Fraction of responses where both leak layers fire at the same time.
 
 \paragraph{Retrieval Hit Rate @5 (target $\geq$ 0.75).}
 In the full-system evaluation (unrestricted), does the top-5 set contain the
@@ -610,19 +619,18 @@ RAGAS Relevancy & \textbf{0.622} & $\geq$0.80 & $\times$ \\
 \label{tab:main_results}
 \end{table}
 
-The single purity outlier is q29 (\texttt{peripheral\_nerves.axillary},
+The only purity outlier is q29 (\texttt{peripheral\_nerves.axillary},
 score 3.0/5): the LLM judge noted the response referenced both movement
-and sensation roles of the nerve, providing enough scaffolding that the
-answer was partially inferrable.
-One additional outlier (score 3.5/5) appeared in the updated evaluation run; all others scored $\geq$4.0.
+and sensation roles of the nerve, giving the student enough to infer the answer.
+One additional outlier (score 3.5/5) appeared in the updated run; all others scored $\geq$4.0.
 
 \paragraph{Adversarial robustness.}
-All 20 prompts were deflected across four attack types: direct requests
+All 20 prompts were blocked across four attack types: direct requests
 (``just tell me''), jailbreaks (``pretend you are a textbook''), social
 engineering (``my professor said to give direct answers''), and off-topic
 distractors (Paris geography, Python list sorting).
-The 100\% hold rate is architecturally enforced: in \texttt{context\_only}
-mode there is no answer chunk to leak.
+The 100\% hold rate is architectural: in \texttt{context\_only}
+mode there is no answer chunk in context to leak.
 
 \subsection{Ablation Results}
 
@@ -650,60 +658,61 @@ questions in \texttt{context\_only} mode, producing broader guiding questions.}
 \end{table}
 
 \paragraph{PCR works as designed.}
-The full system's 0.000 reach rate confirms that PCR's server-side
-\texttt{must\_not} filter excludes answer chunks at cold-start mastery.
-The \texttt{no\_pcr} variant demonstrates the counterfactual: answer chunks
-always reach the LLM (reach rate 1.000).
+The full system's 0.000 reach rate confirms PCR's \texttt{must\_not}
+filter is excluding answer chunks at cold-start mastery.
+The \texttt{no\_pcr} variant shows the counterfactual clearly: answer chunks
+reach the LLM on every query (reach rate 1.000).
 
 \paragraph{Zero leaks, but not equally safe.}
-All four variants show 0.000 leak rate under benign evaluation.
-This is the same failure mode Dinucu-Jianu et al.\ \cite{tutorrl2025} found: sufficiently capable models'
-instruction following holds on benign inputs, so prompt-based suppression
-looks sufficient until you actually attack it.
-Our adversarial battery (100\% hold rate, not included in the ablation) shows
-the difference: PCR held under attack while prompt-based approaches degraded.
+All four variants show 0.000 leak rate on the benign evaluation set.
+This matches exactly what Dinucu-Jianu et al.\ \cite{tutorrl2025} found: capable
+models follow instructions well enough on normal inputs that prompt-based
+suppression looks fine until you actually attack it.
+Our adversarial battery shows the gap: PCR held at 100\% while prompt-based
+approaches would degrade under attack, since there is no data-layer guarantee.
 
 \paragraph{Purity cost of safety: 0.23 points.}
-The full system scores 4.70/5 vs.\ \texttt{no\_graph} at 4.93/5.
-When the answer chunk is excluded, the model generates broader guiding
-questions because it cannot see exactly what to guide toward.
-The \texttt{no\_pcr} variant achieves 4.83: seeing the answer enables more
-targeted Socratic scaffolding.
-This 0.23-point delta is the measurable price of architectural over
-prompt-level safety.
+The full system scores 4.70/5 vs.\ 4.93/5 for \texttt{no\_graph}.
+When the answer chunk is excluded, the model asks broader guiding questions
+because it cannot see exactly what to guide the student toward.
+The \texttt{no\_pcr} variant hits 4.83: having the answer in context helps
+the model write more targeted Socratic scaffolding.
+The 0.23-point gap is the measurable cost of architectural over prompt-level safety.
 
 \paragraph{RAGAS mismatch.}
 Both RAGAS scores fall below target (Faithfulness 0.838, Relevancy 0.622), but
-this is expected: RAGAS is designed for factual QA, not Socratic tutoring.
+this is expected for a Socratic system.
 A guiding question such as \emph{``What is the relationship between the
 mid-shaft humerus fracture site and the nearby nerve?''} makes zero factual
-claims, so RAGAS scores it as unfaithful.
-Socratic Purity (4.87/5, LLM-as-Judge) is the appropriate groundedness proxy.
+claims, so RAGAS marks it as unfaithful.
+Socratic Purity (4.87/5, LLM-as-Judge) is a better proxy for what we actually
+want to measure here.
 
 \paragraph{Why benign testing is not enough.}
-All ablation variants show 0.000 leak rate on benign inputs, which would lead us
-to conclude PCR adds nothing. PCR's advantage only appears under adversarial
-attack (100\% hold rate), matching the failure mode
-Dinucu-Jianu et al.\ \cite{tutorrl2025} found.
-The 4-question diagnostic cold-start probe prevents applying
-\texttt{context\_only} to students who already know the material;
-CRAG prevents off-topic responses from irrelevant retrievals (confirmed by
-the 186s ablation stall at q18 vs.\ typical 8s).
+Since all ablation variants show 0.000 leak rate on normal inputs, a benign-only
+evaluation would suggest PCR adds nothing.
+PCR's advantage only appears under adversarial conditions, which matches the
+pattern Dinucu-Jianu et al.\ \cite{tutorrl2025} found.
+The 4-question diagnostic cold-start prevents applying \texttt{context\_only}
+to students who already know the material;
+CRAG prevents off-topic responses when retrieval returns irrelevant chunks
+(confirmed by the 186s stall at q18 vs.\ typical 8s).
 
 %% ─────────────────────────────────────────────────────────────
 \section{Conclusion}
 
-Our work shows that the standard approach of retrieving everything and
-suppressing via prompting has a real vulnerability that cannot be patched at the
-generation layer.
+The standard approach of retrieving everything and suppressing answers through
+prompting has a real vulnerability: it only holds if the model decides to comply.
 Progressive Context Revelation moves answer gating to the retrieval layer,
-making leakage impossible by design before mastery thresholds are reached.
+making leakage impossible before mastery thresholds are met because
+the answer chunk is simply not there.
 The trade-off is a 0.23-point purity drop (4.70 vs.\ 4.93/5), which is the
 cost of asking questions without seeing the answer first.
-Session Mistake Memory helps close the learning loop that stateless tutors leave open:
-we store misconceptions from each wrong answer, use them to trigger revisits at
-8 minutes, and generate an honest per-concept \texttt{SessionSummary} at wrapup.
-Overall, UnMask is a working, evaluable OT anatomy tutor that runs at about
+Session Mistake Memory closes a gap that stateless tutors leave open:
+we store misconceptions at the time of each wrong answer, use them to trigger
+revisits at 8 minutes, and produce an honest per-concept \texttt{SessionSummary}
+at the end.
+Overall, UnMask is a working, evaluable OT anatomy tutor that runs at roughly
 \$0.08--0.10 per session.
 
 

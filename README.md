@@ -13,7 +13,7 @@ pinned: false
 
 A multimodal AI tutor for Occupational Therapy students preparing for the **NBCOT certification exam**. UnMask never gives direct answers — it guides students toward discovering answers themselves through Socratic questioning, enforced architecturally at the retrieval layer.
 
-*Built by Sanika Vilas Najan & Vaishak Girish Kumar*
+*Built by Sanika Vilas Najan & Vaishak Girish Kumar — equal contribution*
 
 ---
 
@@ -307,7 +307,9 @@ Total project budget: ~$6–10.
 
 ---
 
-## Task Ownership
+## Authors — Equal Contribution
+
+Sanika Vilas Najan and Vaishak Girish Kumar contributed equally to this project.
 
 - **Sanika:** PCR filter, Qdrant integration, diagnostic probe, image curation
 - **Vaishak:** LangGraph orchestration, Socratic Generator, evaluation framework, pilot study recruitment
