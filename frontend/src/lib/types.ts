@@ -67,6 +67,7 @@ export interface SessionState {
   preQuizAnswers: number[];
   preQuizScore: number;
   youtubeResources: YouTubeResource[];
+  composerDraft: string;
 }
 
 export interface SessionStore extends SessionState {
@@ -80,4 +81,5 @@ export interface SessionStore extends SessionState {
   setParticipantInfo: (id: string, role: string) => void;
   setPreQuizResults: (answers: number[], score: number) => void;
   reset: () => void;
+  setComposerDraft: (text: string) => void;
 }

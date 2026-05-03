@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSessionStore } from '@/lib/store';
 
 export default function Composer() {
@@ -13,6 +13,17 @@ export default function Composer() {
   const sessionId = useSessionStore((state) => state.sessionId);
   const addMessage = useSessionStore((state) => state.addMessage);
   const phase = useSessionStore((state) => state.phase);
+  const composerDraft = useSessionStore((state) => state.composerDraft);
+
+  // Sync typed text from simulator into the textarea
+  useEffect(() => {
+    if (composerDraft === '') return;
+    setText(composerDraft);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+    }
+  }, [composerDraft]);
 
   const toggleSTT = useCallback(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;

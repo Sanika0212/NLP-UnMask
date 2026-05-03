@@ -493,37 +493,47 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
         total_turns=turn,
     )
 
-    # Use plain create + manual JSON parse to avoid schema serialization overhead.
-    # (beta.parse embeds the full Pydantic JSON schema, exceeding Mercury-2's 128K limit.)
-    # Embed a compact schema stub in the prompt so the model knows the exact keys.
+    # Use plain create + system-message JSON instruction.
+    # (beta.parse embeds the full Pydantic schema, exceeding Mercury-2's context limit.)
+    # max_tokens=4096: 16-topic report with flashcards+youtube easily hits 3k tokens.
     import re as _re
-    _SCHEMA_STUB = (
-        "\n\nRespond ONLY with a JSON object (no markdown, no prose) with these exact keys:\n"
-        '{"overall_assessment": "...", '
-        '"topic_reports": [{"concept": "...", "mastery_score": 0.5, "status": "mastered|progressing|needs_review", "honest_feedback": "..."}], '
-        '"mistake_highlights": ["..."], '
-        '"study_recommendations": ["..."], '
-        '"resources": ["..."], '
-        '"youtube_resources": [{"concept": "...", "title": "...", "creator": "...", "search_query": "...", "description": "..."}], '
-        '"diagram_suggestions": ["..."], '
-        '"flashcards": [{"concept": "...", "front": "...?", "back": "..."}], '
-        '"next_session_questions": ["...?"], '
-        '"closing_reflection": "...?"}'
+    _SYSTEM_JSON = (
+        "You are a JSON-only assistant. Respond ONLY with a valid JSON object — "
+        "no markdown fences, no prose before or after. "
+        "Required keys: overall_assessment, topic_reports, mistake_highlights, "
+        "study_recommendations, resources, youtube_resources, diagram_suggestions, "
+        "flashcards, next_session_questions, closing_reflection. "
+        "topic_reports items: {concept, mastery_score, status (mastered|progressing|needs_review), honest_feedback}. "
+        "youtube_resources items: {concept, title, creator, search_query, description}. "
+        "flashcards items: {concept, front, back}."
     )
-    resp_raw = client.chat.completions.create(
-        model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
-        messages=[{"role": "user", "content": prompt + _SCHEMA_STUB}],
-        max_tokens=2500,
-        temperature=0.3,
-    )
-    raw_content = (resp_raw.choices[0].message.content or "").strip()
-    # Strip markdown code fences — model may add leading whitespace/newline before ```json
+    import logging as _logging
+    raw_content = ""
+    for _attempt in range(2):
+        try:
+            resp_raw = client.chat.completions.create(
+                model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
+                messages=[
+                    {"role": "system", "content": _SYSTEM_JSON},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=4096,
+                temperature=0.3,
+            )
+            raw_content = (resp_raw.choices[0].message.content or "").strip()
+            if raw_content:
+                break
+            _logging.warning(f"[session_summary] attempt {_attempt+1}: empty response from model")
+        except Exception as _api_err:
+            _logging.warning(f"[session_summary] attempt {_attempt+1}: API error {_api_err!r}")
+
+    # Strip markdown code fences and extract first {...} block
     raw_content = _re.sub(r"```(?:json)?\s*", "", raw_content).replace("```", "").strip()
-    # If the model still wrapped prose around the JSON, extract the first {...} block
     _brace = raw_content.find("{")
     _rbrace = raw_content.rfind("}")
     if _brace != -1 and _rbrace != -1 and _rbrace > _brace:
         raw_content = raw_content[_brace : _rbrace + 1]
+
     summary: SessionSummary | None = None
     try:
         data = json.loads(raw_content)
@@ -537,10 +547,10 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
         data.setdefault("flashcards", [])
         data.setdefault("next_session_questions", [])
         data.setdefault("closing_reflection", "Keep reviewing!")
-        summary = SessionSummary(**data)
+        # Tolerate extra keys and coerce types the model may have gotten wrong
+        summary = SessionSummary.model_validate(data)
     except Exception as _parse_err:
-        import logging as _logging
-        _logging.warning(f"[session_summary] JSON parse failed: {_parse_err!r} | raw[:300]={raw_content[:300]!r}")
+        _logging.warning(f"[session_summary] JSON parse failed: {_parse_err!r} | raw[:400]={raw_content[:400]!r}")
 
     if summary is None:
         fallback = "## 📋 Session Report\n\nSession complete. Great work today — review your weak topics before next time."

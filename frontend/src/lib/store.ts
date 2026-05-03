@@ -33,12 +33,15 @@ const initialState = {
   preQuizAnswers: [] as number[],
   preQuizScore: 0,
   youtubeResources: [] as YouTubeResource[],
+  composerDraft: '',
 };
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
   ...initialState,
 
   reset: () => set(initialState),
+
+  setComposerDraft: (text) => set({ composerDraft: text }),
 
   setAvatarState: (s) => set({ avatarState: s }),
 
