@@ -100,23 +100,23 @@ Dinucu-Jianu et al.\ \cite{tutorrl2025} also show that RL reward shaping for
 pedagogical alignment outperforms prompt-based suppression on GPT-4o, which is
 consistent with our finding that prompt-level safety fails under adversarial attack.
 
-\begin{table}[ht]
+\begin{table}
 \centering
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}lccc@{}}
-\toprule
-\textbf{System} & \textbf{RAG} & \textbf{Mastery gate} & \textbf{Layer} \\
-\midrule
-Khanmigo         & \checkmark & $\times$ & prompt \\
-SocraticLM \cite{socraticlm2024} & $\times$ & $\times$ & fine-tune \\
-KELE \cite{kele2025}      & \checkmark & $\times$ & prompt \\
-TutorLLM \cite{tutorllm2024}  & \checkmark & KT-guided & retrieval \\
-PedagogRL \cite{tutorrl2025}   & $\times$ & RL reward & training  \\
-\textbf{UnMask (ours)} & \checkmark & \checkmark & \textbf{retrieval} \\
-\bottomrule
+\setlength{\tabcolsep}{3pt}
+\scriptsize
+\begin{tabular}{lccl}
+\hline
+\textbf{System} & \textbf{RAG} & \textbf{Gate} & \textbf{Layer} \\
+\hline
+Khanmigo                          & \checkmark & $\times$      & prompt \\
+SocraticLM \cite{socraticlm2024}  & $\times$   & $\times$      & fine-tune \\
+KELE \cite{kele2025}              & \checkmark & $\times$      & prompt \\
+TutorLLM \cite{tutorllm2024}      & \checkmark & KT            & retrieval \\
+PedagogRL \cite{tutorrl2025}      & $\times$   & RL            & training \\
+\textbf{UnMask (ours)}            & \checkmark & \checkmark    & \textbf{retrieval} \\
+\hline
 \end{tabular}
-\caption{Comparison of Socratic AI tutors. Only UnMask gates mastery at the retrieval layer.}
+\caption{Socratic AI tutor comparison. Only UnMask gates at retrieval layer.}
 \label{tab:related}
 \end{table}
 
@@ -199,7 +199,7 @@ enforced by a pure-Python orchestrator node that makes zero LLM calls.
 We chose rule-based phase transitions after reading Mao et al.\ \cite{diaggpt2023},
 who found that rule-based controllers beat LLM routers for deterministic transitions.
 
-\begin{table}[ht]
+\begin{table}
 \centering
 \small
 \begin{tabularx}{\columnwidth}{@{}l l X r@{}}
@@ -228,23 +228,23 @@ Table~\ref{tab:models} lists all models used. All LLM calls go through
 OpenRouter (\texttt{openrouter.ai/api/v1}), so the base URL is the only
 setting that changes when swapping providers.
 
-\begin{table}[ht]
+\begin{table}
 \centering
-\small
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{@{}lll@{}}
-\toprule
+\setlength{\tabcolsep}{3pt}
+\scriptsize
+\begin{tabular}{lll}
+\hline
 \textbf{Component} & \textbf{Model} & \textbf{Purpose} \\
-\midrule
-Supervisor            & Mercury-2             & Phase routing \\
-Tutoring/Assessment   & Mercury-2             & Socratic output \\
-Wrapup summary        & Mercury-2             & Session report \\
-Embeddings            & Gemini Emb.\ 2 (3072d) & Dense retrieval \\
-CRAG relevance        & Mercury-2             & Chunk grading \\
-Image verification    & Gemini 2.0 Flash Lite & Diagram filtering \\
-Student image VLM     & Gemini 2.0 Flash Lite & Upload identification \\
-\bottomrule
-\end{tabular}}
+\hline
+Supervisor            & Mercury-2          & Phase routing \\
+Tutoring/Assessment   & Mercury-2          & Socratic output \\
+Wrapup summary        & Mercury-2          & Session report \\
+Embeddings            & Gemini Emb.\ 2     & Dense retrieval \\
+CRAG relevance        & Mercury-2          & Chunk grading \\
+Image verification    & Gemini Flash Lite  & Diagram filtering \\
+Student image VLM     & Gemini Flash Lite  & Upload identification \\
+\hline
+\end{tabular}
 \caption{Models per component. All LLM calls via OpenRouter.}
 \label{tab:models}
 \end{table}
@@ -595,7 +595,7 @@ identical generation (Mercury-2, structured output):
 
 \subsection{Full System (30 QA Questions)}
 
-\begin{table}[ht]
+\begin{table}
 \centering
 \small
 \begin{tabular}{@{}llll@{}}
@@ -634,7 +634,7 @@ mode there is no answer chunk in context to leak.
 
 \subsection{Ablation Results}
 
-\begin{table}[ht]
+\begin{table}
 \centering
 \small
 \resizebox{\columnwidth}{!}{%
