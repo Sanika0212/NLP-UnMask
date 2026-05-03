@@ -229,7 +229,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .phase.active .pdesc { display: block; }
 
 /* Topics list */
-.topics { padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 4px; }
+.topics { padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 4px; flex: 1; overflow-y: auto; min-height: 0; }
 .topic {
   display: grid; grid-template-columns: 1fr auto; gap: 8px;
   padding: 10px 12px; border-radius: var(--r);
