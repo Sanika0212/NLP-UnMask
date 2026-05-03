@@ -149,8 +149,8 @@ export default function ChatPage() {
         />
       )}
 
-      {/* Simulation panel — floating 🤖 button */}
-      <SimulationPanel />
+      {/* Simulation panel — only in local dev (NEXT_PUBLIC_SHOW_SIMULATOR=1) */}
+      {process.env.NEXT_PUBLIC_SHOW_SIMULATOR === '1' && <SimulationPanel />}
     </div>
   );
 }

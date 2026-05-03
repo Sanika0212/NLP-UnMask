@@ -70,7 +70,8 @@ def build_graph() -> StateGraph:
     return builder
 
 
-_DB_PATH = "unmask_sessions.db"
+import os as _os
+_DB_PATH = str(_os.path.join(_os.getenv("DATA_DIR", "."), "unmask_sessions.db"))
 _db_conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
 checkpointer = SqliteSaver(_db_conn)
 graph = build_graph().compile(checkpointer=checkpointer)

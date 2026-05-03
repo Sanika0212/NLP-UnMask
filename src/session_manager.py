@@ -7,7 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-_DB_PATH = Path("unmask_sessions.db")
+import os as _os
+_DB_PATH = Path(_os.getenv("DATA_DIR", ".")) / "unmask_sessions.db"
 
 # Bulk LangGraph fields are checkpointed by SqliteSaver — we only store lightweight metadata here.
 _SLIM_KEYS = frozenset({
