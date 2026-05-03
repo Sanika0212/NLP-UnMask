@@ -242,14 +242,21 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             set({ isThinking: true, avatarState: 'thinking' });
 
           } else if (type === 'visual_hint') {
-            get().updateLastBotMessage({
-              visualHint: {
-                concept: evt.concept as string,
-                imageUrl: evt.image_url as string | undefined,
-                caption: evt.caption as string | undefined,
-                hintText: (evt.study_notes || evt.hint_text) as string | undefined,
-              },
-            });
+            const hint = {
+              concept: evt.concept as string,
+              imageUrl: evt.image_url as string | undefined,
+              caption: evt.caption as string | undefined,
+              hintText: (evt.study_notes || evt.hint_text) as string | undefined,
+            };
+            // If the last bot message is a live streaming placeholder, patch it.
+            // Otherwise create a new message so the diagram appears as its own turn.
+            const msgs = get().messages;
+            const lastBot = [...msgs].reverse().find((m) => m.role === 'bot' && !m.supervisorStep);
+            if (lastBot?._streaming) {
+              get().updateLastBotMessage({ visualHint: hint });
+            } else {
+              get().addMessage({ role: 'bot', content: '', avatarState: 'speaking', visualHint: hint });
+            }
 
           } else if (type === 'youtube_resources') {
             set({ youtubeResources: (evt.resources as YouTubeResource[]) ?? [] });
