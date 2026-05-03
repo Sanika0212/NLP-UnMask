@@ -85,7 +85,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const res = await fetch(`/api/sessions/${sessionId}/setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, mode }),
+      body: JSON.stringify({ topic, mode, mastery: get().mastery }),
     });
     const data = await res.json();
     set({

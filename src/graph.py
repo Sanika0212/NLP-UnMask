@@ -14,7 +14,7 @@ import uuid
 from typing import Literal
 
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 from src.state import TutoringState
 from src.agents.supervisor import supervisor_agent
@@ -69,7 +69,8 @@ def build_graph() -> StateGraph:
     return builder
 
 
-checkpointer = MemorySaver()
+_DB_PATH = "unmask_sessions.db"
+checkpointer = SqliteSaver.from_conn_string(_DB_PATH)
 graph = build_graph().compile(checkpointer=checkpointer)
 
 

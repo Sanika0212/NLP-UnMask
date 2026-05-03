@@ -13,10 +13,14 @@ export default function WelcomePage() {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<LearningMode | null>(null);
   const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleStartSession = async () => {
-    if (!selectedTopic || !selectedMode) return;
-
+    if (!selectedTopic) { setError('Please select a topic first.'); return; }
+    if (!selectedMode)  { setError('Please select a learning mode.'); return; }
+    setError('');
+    setLoading(true);
     try {
       store.setStudentName(name || 'Student');
       await store.createSession();
@@ -28,12 +32,15 @@ export default function WelcomePage() {
         quickReplies: ["Let's start →"],
       });
       router.push('/chat');
-    } catch (error) {
-      console.error('Failed to start session:', error);
+    } catch (err) {
+      console.error('Failed to start session:', err);
+      setError('Could not connect to the tutor — is the backend running?');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const isDisabled = !selectedTopic || !selectedMode;
+  const isDisabled = !selectedTopic || !selectedMode || loading;
 
   return (
     <div
@@ -133,14 +140,20 @@ export default function WelcomePage() {
           </div>
         </div>
 
+        {error && (
+          <p style={{ color: 'var(--red, #c0392b)', fontSize: '13px', marginBottom: '12px', textAlign: 'center' }}>
+            ⚠️ {error}
+          </p>
+        )}
+
         <div className="start-row">
           <button
             className="start-btn primary"
             onClick={handleStartSession}
             disabled={isDisabled}
-            style={isDisabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+            style={isDisabled ? { opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
           >
-            <span className="t">Start session →</span>
+            <span className="t">{loading ? 'Starting…' : 'Start session →'}</span>
             <span className="d">Begin NBCOT prep</span>
           </button>
           <button

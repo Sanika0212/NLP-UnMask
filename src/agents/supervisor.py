@@ -239,15 +239,21 @@ def supervisor_agent(state: TutoringState) -> dict:
         already_scheduled = state.get("revisit_scheduled", False)
         elapsed = state.get("elapsed_seconds", 0.0)
 
+        # Scope weak_topics to the current study focus so revisit never crosses topics
+        sf = (state.get("study_focus") or "").replace("topic:", "").strip()
+        scoped_weak = [t for t in weak_topics if not sf or t == sf or t.startswith(sf + ".")]
+        if not scoped_weak:
+            scoped_weak = weak_topics  # fallback: use all weak topics if none in focus
+
         if (
             elapsed >= revisit_after
-            and weak_topics
+            and scoped_weak
             and not already_scheduled
             and (elapsed - last_revisit) >= revisit_cooldown
         ):
             mastery_scores = state.get("mastery_scores", {})
             revisit_topic = min(
-                weak_topics,
+                scoped_weak,
                 key=lambda t: mastery_scores.get(t, _M["default_prior"])
             )
             result.update({

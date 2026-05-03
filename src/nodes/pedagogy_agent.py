@@ -480,6 +480,18 @@ def pedagogy_agent(state: TutoringState) -> dict:
         return {"mastery_scores": mastery, "consecutive_correct": consecutive_correct,
                 "consecutive_incorrect": consecutive_incorrect}
 
+    # Skip evaluation for meta/non-anatomy messages (diagram requests, short acknowledgments)
+    # These don't reflect anatomy knowledge and must not reset consecutive_correct.
+    _META_KW = frozenset({"diagram", "image", "picture", "figure", "visual",
+                          "show me", "illustrate", "another", "different", "show"})
+    _is_meta = (
+        any(kw in student_msg.lower() for kw in _META_KW)
+        and len(student_msg.split()) <= 8
+    )
+    if _is_meta:
+        return {"mastery_scores": mastery, "consecutive_correct": consecutive_correct,
+                "consecutive_incorrect": consecutive_incorrect, "current_topic": topic}
+
     if not topic:
         # Try to extract topic from conversation context
         topic = _extract_topic_from_message(student_msg)

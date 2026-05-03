@@ -38,81 +38,94 @@ with open("config.yaml") as f:
 _DIAGNOSTIC_QUESTIONS = cfg["session"]["diagnostic_questions"]
 
 
-async def search_anatomy_image(concept: str) -> dict:
-    """Fetch lead image from a Wikipedia anatomy article, verified by Gemini.
+async def search_anatomy_image(concept: str, skip_url: str = "") -> dict:
+    """Fetch an anatomy diagram from Wikipedia, verified by Gemini.
+    Tries multiple article variants so 'another diagram' finds a genuinely different image.
+    skip_url: URL to avoid (last shown image).
     Returns dict with image_url and caption, or empty dict on failure.
     """
     import urllib.request, urllib.parse, json as _json
+
+    # Build candidate article titles — limit to 2 to keep latency low
+    parts = concept.replace("_", " ").split(".")
+    parent, child = (parts[0], parts[1]) if len(parts) > 1 else ("", parts[0])
+    parent_hint = {"peripheral nerves": "nerve", "brachial plexus": "plexus",
+                   "rotator cuff": "muscle", "spinal cord": "spinal"}.get(parent, "")
+    base = f"{child} {parent_hint}".strip()
+    # Primary article + one fallback (e.g. parent topic). Never more than 2 to stay fast.
+    seen: set[str] = set()
+    articles: list[str] = []
+    for a in [base, parent if parent and parent != base else f"{base} anatomy"]:
+        if a and a not in seen:
+            seen.add(a)
+            articles.append(a)
+
+    loop = asyncio.get_event_loop()
+
     try:
-        # Build article title from concept ID
-        # "peripheral_nerves.axillary" → "axillary nerve"
-        # "brachial_plexus.trunks"     → "brachial plexus"
-        parts = concept.replace("_", " ").split(".")
-        parent, child = (parts[0], parts[1]) if len(parts) > 1 else ("", parts[0])
-        parent_hint = {"peripheral nerves": "nerve", "brachial plexus": "plexus",
-                       "rotator cuff": "muscle", "spinal cord": "spinal"}.get(parent, "")
-        article = f"{child} {parent_hint}".strip()
-
-        loop = asyncio.get_event_loop()
-
-        # Get page images from Wikipedia (lead image is almost always the anatomy diagram)
-        params = urllib.parse.urlencode({
-            "action": "query",
-            "titles": article,
-            "prop": "pageimages",
-            "piprop": "original",
-            "pilimit": "1",
-            "format": "json",
-            "redirects": "1",
-        })
-        wiki_url = f"https://en.wikipedia.org/w/api.php?{params}"
-
-        def _fetch():
-            req = urllib.request.Request(wiki_url, headers={"User-Agent": "UnMaskTutor/1.0"})
-            with urllib.request.urlopen(req, timeout=6) as r:
-                return _json.loads(r.read())
-
-        data = await loop.run_in_executor(None, _fetch)
-        pages = data.get("query", {}).get("pages", {})
-        img_url = ""
-        for page in pages.values():
-            original = page.get("original", {})
-            img_url = original.get("source", "")
-            break
-
-        if not img_url:
-            return {}
-
-        # Gemini vision check — confirm it's a relevant anatomy diagram without naming structures
-        # (keeps the image answer-safe for the Socratic context)
-        try:
-            from openai import OpenAI as _OAI
-            vc = _OAI(
-                api_key=os.environ["OPENAI_API_KEY"],
-                base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
-            )
-            vresp = vc.chat.completions.create(
-                model=os.getenv("VISION_MODEL", _cfg["llm"].get("vision_model", "google/gemini-2.0-flash-lite")),
-                max_tokens=4,
-                messages=[{"role": "user", "content": [
-                    {"type": "image_url", "image_url": {"url": img_url}},
-                    {"type": "text", "text": (
-                        f"Is this a clear medical or anatomical diagram showing human anatomy "
-                        f"related to '{article}'? "
-                        f"Answer YES only if it is a diagram/illustration (not a photo of a person, "
-                        f"not a book cover, not text only). Answer NO otherwise."
-                    )},
-                ]}],
-            )
-            verdict = vresp.choices[0].message.content.strip().upper()
-            if verdict.startswith("NO"):
-                return {}
-        except Exception:
-            pass  # on Gemini error, trust Wikipedia lead image
-
-        return {"image_url": img_url, "caption": f"{article.title()} — Wikipedia"}
+        from openai import OpenAI as _OAI
+        vc = _OAI(
+            api_key=os.environ["OPENAI_API_KEY"],
+            base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
+        )
     except Exception:
-        pass
+        vc = None
+
+    for article in articles:
+        try:
+            params = urllib.parse.urlencode({
+                "action": "query",
+                "titles": article,
+                "prop": "pageimages",
+                "piprop": "original",
+                "pilimit": "1",
+                "format": "json",
+                "redirects": "1",
+            })
+            wiki_url = f"https://en.wikipedia.org/w/api.php?{params}"
+
+            def _fetch(u=wiki_url):
+                req = urllib.request.Request(u, headers={"User-Agent": "UnMaskTutor/1.0"})
+                with urllib.request.urlopen(req, timeout=6) as r:
+                    return _json.loads(r.read())
+
+            data = await loop.run_in_executor(None, _fetch)
+            pages = data.get("query", {}).get("pages", {})
+            img_url = ""
+            for page in pages.values():
+                img_url = page.get("original", {}).get("source", "")
+                break
+
+            if not img_url or img_url == skip_url:
+                continue
+
+            # Gemini vision check — confirm it's a relevant anatomy diagram
+            if vc:
+                try:
+                    vresp = vc.chat.completions.create(
+                        model=os.getenv("VISION_MODEL", _cfg["llm"].get("vision_model", "google/gemini-2.0-flash-lite")),
+                        max_tokens=4,
+                        timeout=5.0,
+                        messages=[{"role": "user", "content": [
+                            {"type": "image_url", "image_url": {"url": img_url}},
+                            {"type": "text", "text": (
+                                f"Is this a clear medical or anatomical diagram showing human anatomy "
+                                f"related to '{base}'? "
+                                f"Answer YES only if it is a diagram/illustration (not a photo of a person, "
+                                f"not a book cover, not text only). Answer NO otherwise."
+                            )},
+                        ]}],
+                    )
+                    verdict = vresp.choices[0].message.content.strip().upper()
+                    if verdict.startswith("NO"):
+                        continue
+                except Exception:
+                    pass  # on Gemini error, trust Wikipedia lead image
+
+            return {"image_url": img_url, "caption": f"{article.title()} — Wikipedia"}
+        except Exception:
+            continue
+
     return {}
 
 
@@ -131,6 +144,7 @@ app.mount("/static/anatomy", StaticFiles(directory="public/anatomy"), name="anat
 class SetupBody(BaseModel):
     topic: str          # bare key e.g. "dermatomes"
     mode: str = "text"  # "visual" | "text"
+    mastery: dict = {}  # prior mastery from localStorage (keyed by concept ID)
 
 
 class MessageBody(BaseModel):
@@ -168,6 +182,8 @@ def setup_session(session_id: str, body: SetupBody):
     state = sess.state
     state["study_focus"] = study_focus
     state["learning_mode"] = body.mode
+    if body.mastery:
+        state["mastery_scores"] = {k: float(v) for k, v in body.mastery.items()}
 
     order = get_diagnostic_order(study_focus, n=_DIAGNOSTIC_QUESTIONS)
     sess.diag_order = order
@@ -248,6 +264,8 @@ async def stream_message(session_id: str, content: str):
             sess.state["turn_count"] = sess.state.get("turn_count", 0) + 1
             sess.state["diagnostic_complete"] = True
             save_session(session_id)
+            ack = _IDK_RESPONSES[(diag_idx - 1) % len(_IDK_RESPONSES)]
+            yield f"data: {json.dumps({'type': 'message', 'content': ack, 'author': 'UnMask'})}\n\n"
             # Fall through to the normal flow which handles the tutoring transition
 
     state = sess.state
@@ -337,6 +355,12 @@ async def stream_message(session_id: str, content: str):
         "tutoring": "📖 Tutor",
     }
     author = author_map.get(phase, "UnMask")
+    # Emit phase transition banner BEFORE the first response so it appears above it in the UI
+    if prev_phase != phase and not (diagnostic_complete and phase == "rapport"):
+        banner_early = _PHASE_TRANSITION_MSGS.get((prev_phase, phase), "")
+        if banner_early:
+            yield f"data: {json.dumps({'type': 'phase_change', 'from': prev_phase, 'to': phase, 'banner': banner_early})}\n\n"
+
     # In tutoring, a diagram request suppresses the text — but still resolve the streaming placeholder
     if response:
         if explicit_image_req and phase == "tutoring":
@@ -396,11 +420,6 @@ async def stream_message(session_id: str, content: str):
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
 
-    if prev_phase != phase:
-        banner = _PHASE_TRANSITION_MSGS.get((prev_phase, phase), "")
-        if banner:
-            yield f"data: {json.dumps({'type': 'phase_change', 'from': prev_phase, 'to': phase, 'banner': banner})}\n\n"
-
     visual_hint = result.get("visual_hint")
     if explicit_image_req and not visual_hint:
         # Use textbook section from internal analysis if available (most specific)
@@ -456,12 +475,25 @@ async def stream_message(session_id: str, content: str):
             diagram_text = img_data.get("diagram", "")
 
         # Web search: always try when student asks for "new diagram", or when no local file
+        # Pass skip_url so the search skips the image that was already shown
+        _skip_url = image_url if skip_local else ""
         if (not image_url or skip_local) and hint_concept:
-            web = await search_anatomy_image(hint_concept)
+            web = await search_anatomy_image(hint_concept, skip_url=_skip_url)
             if web:
                 image_url = web.get("image_url", "")
                 if not caption:
                     caption = web.get("caption", hint_concept)
+
+        # Safety fallback — if web search also failed, always use local diagram rather than showing placeholder
+        if not image_url and local_img_data:
+            fallback_file = local_img_data.get("image_file", "")
+            if fallback_file:
+                if fallback_file.endswith(".png"):
+                    html_equiv = fallback_file.replace(".png", ".html")
+                    if os.path.exists(f"public/anatomy/{html_equiv}"):
+                        fallback_file = html_equiv
+                image_url = f"/static/anatomy/{fallback_file}"
+            caption = caption or local_img_data.get("caption", "")
 
         sess.last_diagram_concept = hint_concept
 

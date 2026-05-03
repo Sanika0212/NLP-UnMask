@@ -1,6 +1,6 @@
 # UnMask — Project Context
 
-> Onboarding doc. Read this first. Last updated: May 2026 (rev 2).
+> Onboarding doc. Read this first. Last updated: May 2026 (rev 3).
 
 ## What is this?
 
@@ -215,7 +215,7 @@ The supervisor also handles proactive revisit scheduling and the rapport→tutor
 | `_last_agent` | none | Which specialist ran last turn |
 | `_supervisor_reasoning` | none | Shown in UI supervisor step badge |
 
-**Critical**: `conversation_history` uses `operator.add` with MemorySaver checkpointer. Always pass `state["conversation_history"] = []` before `graph.invoke` — passing the full history doubles it.
+**Critical**: `conversation_history` uses `operator.add` with SqliteSaver checkpointer. Always pass `state["conversation_history"] = []` before `graph.invoke` — passing the full history doubles it.
 
 ---
 
@@ -307,7 +307,7 @@ Set secrets at https://huggingface.co/spaces/Gustav-Proxi/UnmaskTutor/settings:
 ```
 app.py                          Chainlit entry point (HF Spaces / legacy)
 src/api.py                      FastAPI entry point (Next.js frontend)
-src/session_manager.py          Session registry (thread_id, state per session)
+src/session_manager.py          Session registry — SQLite-backed, slim-key persistence, 2h TTL
 config.yaml                     All thresholds, model names, session timing
 src/
   graph.py                      LangGraph state machine definition

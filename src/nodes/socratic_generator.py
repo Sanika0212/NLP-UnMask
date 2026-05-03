@@ -490,49 +490,64 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
         response_format=SessionSummary,
         temperature=0.3,
     )
-    summary: SessionSummary = resp.choices[0].message.parsed
+    summary: SessionSummary | None = resp.choices[0].message.parsed
+
+    if summary is None:
+        fallback = "## 📋 Session Report\n\nSession complete. Great work today — review your weak topics before next time."
+        return fallback, SessionSummary(
+            overall_assessment="Session complete.",
+            topic_reports=[], mistake_highlights=[], study_recommendations=[],
+            resources=[], youtube_resources=[], diagram_suggestions=[],
+            flashcards=[], next_session_questions=[], closing_reflection="Keep reviewing!",
+        )
 
     # ── Format as readable markdown ────────────────────────────────────────
     lines = ["## 📋 Session Report\n"]
-    lines.append(f"{summary.overall_assessment}\n")
+    lines.append(f"{summary.overall_assessment or ''}\n")
 
     # Per-topic report card
-    lines.append("### Topic Breakdown\n")
-    status_icon = {"mastered": "✅", "progressing": "🟡", "needs_review": "❌"}
-    for tr in summary.topic_reports:
-        icon = status_icon.get(tr.status, "⬜")
-        concept_readable = tr.concept.replace("_", " ").replace(".", " › ")
-        lines.append(
-            f"{icon} **{concept_readable}** — mastery {tr.mastery_score:.0%}\n"
-            f"> {tr.honest_feedback}\n"
-        )
+    topic_reports = summary.topic_reports or []
+    if topic_reports:
+        lines.append("### Topic Breakdown\n")
+        status_icon = {"mastered": "✅", "progressing": "🟡", "needs_review": "❌"}
+        for tr in topic_reports:
+            icon = status_icon.get(tr.status, "⬜")
+            concept_readable = tr.concept.replace("_", " ").replace(".", " › ")
+            lines.append(
+                f"{icon} **{concept_readable}** — mastery {tr.mastery_score:.0%}\n"
+                f"> {tr.honest_feedback}\n"
+            )
 
     # Mistake highlights
-    if summary.mistake_highlights:
-        lines.append("### ⚠️ Misconceptions to Address\n")
-        for m in summary.mistake_highlights:
-            lines.append(f"- {m}")
+    for m in (summary.mistake_highlights or []):
+        if not lines[-1].startswith("### ⚠️"):
+            lines.append("### ⚠️ Misconceptions to Address\n")
+        lines.append(f"- {m}")
+    if any("Misconceptions" in l for l in lines):
         lines.append("")
 
     # Study recommendations
-    if summary.study_recommendations:
+    study_recs = summary.study_recommendations or []
+    if study_recs:
         lines.append("### 📚 Study Recommendations\n")
-        for tip in summary.study_recommendations:
+        for tip in study_recs:
             lines.append(f"- {tip}")
         lines.append("")
 
     # Resources
-    if summary.resources:
+    resources = summary.resources or []
+    if resources:
         lines.append("### 📖 Study Resources\n")
-        for r in summary.resources:
+        for r in resources:
             lines.append(f"- {r}")
         lines.append("")
 
     # YouTube recommendations
-    if summary.youtube_resources:
+    youtube = summary.youtube_resources or []
+    if youtube:
         lines.append("### 🎬 Recommended Videos\n")
-        for yt in summary.youtube_resources:
-            search_url = "https://www.youtube.com/results?search_query=" + yt.search_query.replace(" ", "+")
+        for yt in youtube:
+            search_url = "https://www.youtube.com/results?search_query=" + (yt.search_query or "").replace(" ", "+")
             lines.append(
                 f"- **{yt.title}** — *{yt.creator}*\n"
                 f"  {yt.description}\n"
@@ -540,18 +555,17 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
             )
         lines.append("")
 
-    # Flashcards and diagrams are sent as separate SSE events by api.py
-    # (_send_followup_resources) — omit them here to avoid duplication.
-
     # Next session questions
-    if summary.next_session_questions:
+    next_qs = summary.next_session_questions or []
+    if next_qs:
         lines.append("### 🔁 Practice Questions for Next Session\n")
-        for i, q in enumerate(summary.next_session_questions, 1):
+        for i, q in enumerate(next_qs, 1):
             lines.append(f"**{i}.** {q}")
         lines.append("")
 
     # Closing reflection
-    lines.append(f"---\n**Before next session:** {summary.closing_reflection}")
+    if summary.closing_reflection:
+        lines.append(f"---\n**Before next session:** {summary.closing_reflection}")
 
     return "\n".join(lines), summary
 
