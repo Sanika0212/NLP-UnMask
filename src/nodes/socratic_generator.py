@@ -860,15 +860,16 @@ def socratic_generator(state: TutoringState) -> dict:
             clean = _re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=_re.DOTALL).strip()
             data = _json.loads(clean)
             return SocraticOutput(**data)
-        except Exception:
-            pass
+        except Exception as _e:
+            import logging as _logging
+            _logging.warning(f"[socratic_generator] JSON parse failed (attempt): {_e!r} | raw[:300]={raw[:300]!r}")
 
         # Fallback: regex-extract socratic_question, never return raw JSON
         m_fallback = _re.search(r'"socratic_question"\s*:\s*"((?:[^"\\]|\\.)*)"', raw)
         if m_fallback:
             question = m_fallback.group(1).replace('\\"', '"').replace('\\n', ' ')
         else:
-            question = "What do you think is the key anatomical structure involved here?"
+            question = "Let's try a different angle — what movement or sensation would be affected if this structure were damaged?"
         return SocraticOutput(
             internal_analysis=InternalAnalysis(
                 correct_answer="", student_misconception="",
