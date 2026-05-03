@@ -697,6 +697,9 @@ def socratic_generator(state: TutoringState) -> dict:
         "give me the answer", "i give up", "i have no idea", "no idea whatsoever",
         "i don't know at all", "i dont know at all", "i'm clueless", "im clueless",
         "i don't have time", "dont have time",
+        "explain this to me", "can you explain", "explain this", "explain it to me",
+        "explain in detail", "explain to me", "help me understand", "break it down",
+        "walk me through", "just explain", "please explain",
     )
     consecutive_incorrect = state.get("consecutive_incorrect", 0)
     _student_msg_lower = (state.get("student_message") or "").lower()
