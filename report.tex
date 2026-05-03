@@ -231,8 +231,8 @@ Tutoring / Assessment & GPT-4o & Structured Socratic output \\
 Wrapup summary & GPT-4o & \texttt{SessionSummary} + YouTube recs \\
 Embeddings & Gemini Emb.\ 2 (3072d) & Dense retrieval \\
 CRAG relevance & GPT-4o-mini & Binary chunk grading \\
-Image verification & Claude Haiku (vision) & Web diagram filtering \\
-Student image VLM & GPT-4o Vision & Upload identification \\
+Image verification & Gemini 2.0 Flash Lite (vision) & Web diagram filtering \\
+Student image VLM & Gemini 2.0 Flash Lite & Upload identification \\
 \bottomrule
 \end{tabular}
 \caption{Models used per component. All LLM calls via OpenRouter.}
@@ -313,7 +313,7 @@ The UI renders a \texttt{DiagramCard} once
 22 self-contained animated SVG/HTML files in \texttt{public/anatomy/} cover
 every concept (brachial plexus, peripheral nerves, rotator cuff, spinal cord);
 for concepts without a local file, a DuckDuckGo image search queries trusted
-anatomy domains (Wikipedia, Radiopaedia, Kenhub), and Claude Haiku (vision)
+anatomy domains (Wikipedia, Radiopaedia, Kenhub), and Gemini 2.0 Flash Lite (vision)
 verifies the top-3 results before displaying the first verified URL.
 
 \subsection{Progressive Context Revelation (PCR)}

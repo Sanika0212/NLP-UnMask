@@ -261,7 +261,7 @@ OPENAI_MODEL=openai/gpt-4o
 GOOGLE_API_KEY=...
 QDRANT_COLLECTION=unmask_anatomy
 EMBEDDING_PROVIDER=gemini
-ANTHROPIC_API_KEY=...   # for Claude Haiku vision (web search fallback)
+GOOGLE_API_KEY=...      # for Gemini vision (web diagram verification + student image VLM)
 ```
 
 ---

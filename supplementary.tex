@@ -268,7 +268,7 @@ phase (consecutive\_incorrect $= 1$, PCR mode: \texttt{context\_only}).
 The image is base64-encoded by the frontend and POSTed to
 \texttt{/api/sessions/\{id\}/upload}; the backend calls \texttt{analyze\_uploaded\_image}.
 
-\noindent\textbf{System action} (\texttt{analyze\_uploaded\_image}, GPT-4o Vision via OpenRouter):
+\noindent\textbf{System action} (\texttt{analyze\_uploaded\_image}, Gemini 2.0 Flash Lite via OpenRouter):
 \begin{lstlisting}
 Image received: student_upload_brachial.jpg (base64)
 VLM internal: "Identified structure: Brachial plexus diagram
@@ -283,7 +283,7 @@ VLM output (Socratic, structure unnamed):
    at different levels would produce different symptoms?"
 \end{lstlisting}
 
-\noindent\textbf{Turn 1} $|$ Source: student image upload $|$ VLM: GPT-4o Vision $|$ Leak: None\\
+\noindent\textbf{Turn 1} $|$ Source: student image upload $|$ VLM: Gemini 2.0 Flash Lite $|$ Leak: None\\
 \textit{Student:} [uploads anatomical image]\\
 \textit{UnMask (VLM):} ``I can see a nerve network diagram here --- look at the connections between the spinal levels at the top and the groupings below them. What do you notice about how the upper levels combine compared to the lower ones, and what might that tell you about how injury at different levels would produce different symptoms?''\\
 {\small\textit{[Structure identified internally: brachial plexus roots/trunks --- not named in response]}}
