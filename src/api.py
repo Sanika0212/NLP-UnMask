@@ -291,14 +291,28 @@ async def stream_message(session_id: str, content: str):
         )
 
         # Drain token queue — yield SSE token events as they arrive
-        streaming_started = False
+        # Dict items are phase-change markers pushed by supervisor_agent before tokens stream.
+        _PHASE_TRANSITION_MSGS_INLINE = {
+            ("rapport", "tutoring"): "## 🎓 Diagnostic Complete — Starting Tutoring\n\nI've calibrated your starting point. We'll now use the Socratic method — I'll guide you with questions rather than answers. Let's go!",
+            ("tutoring", "assessment"): "## 🧪 Tutoring Complete — Moving to Assessment\n\nStrong work! Now let's test your knowledge with a clinical scenario.",
+            ("assessment", "wrapup"): "## 📋 Assessment Complete — Generating Your Report\n\nCompiling your performance report...",
+            ("tutoring", "wrapup"): "## 📋 Session Time Up — Generating Your Report\n\nTime's up! Compiling your session report...",
+        }
+        _phase_banner_emitted = False
         while True:
             try:
                 token = token_q.get(timeout=0.05)
                 if token is None:
                     break  # end sentinel
-                if not streaming_started:
-                    streaming_started = True
+                if isinstance(token, dict) and token.get("_phase_change"):
+                    # Banner fires here — before any tokens from socratic_generator
+                    banner_msg = _PHASE_TRANSITION_MSGS_INLINE.get(
+                        (token["from"], token["to"]), ""
+                    )
+                    if banner_msg and not _phase_banner_emitted:
+                        _phase_banner_emitted = True
+                        yield f"data: {json.dumps({'type': 'phase_change', 'from': token['from'], 'to': token['to'], 'banner': banner_msg})}\n\n"
+                    continue
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
             except Exception:
                 # No token yet — check if invoke finished (shouldn't happen before sentinel)
@@ -333,7 +347,10 @@ async def stream_message(session_id: str, content: str):
 
     msg_lower = content.lower()
     diagram_kw = ("diagram", "image", "picture", "figure", "visual", "show me", "illustrate")
-    explicit_image_req = phase in ("tutoring", "assessment") and any(w in msg_lower for w in diagram_kw)
+    # Use prev_phase: if the session timer crosses 840s during an LLM call, result phase may
+    # already be "wrapup" even though the student sent the request while in tutoring.
+    _req_phase = prev_phase if prev_phase in ("tutoring", "assessment") else phase
+    explicit_image_req = _req_phase in ("tutoring", "assessment") and any(w in msg_lower for w in diagram_kw)
 
     if phase == "rapport" and not diagnostic_complete:
         diag_idx = sess.diag_q_index
@@ -355,15 +372,10 @@ async def stream_message(session_id: str, content: str):
         "tutoring": "📖 Tutor",
     }
     author = author_map.get(phase, "UnMask")
-    # Emit phase transition banner BEFORE the first response so it appears above it in the UI
-    if prev_phase != phase and not (diagnostic_complete and phase == "rapport"):
-        banner_early = _PHASE_TRANSITION_MSGS.get((prev_phase, phase), "")
-        if banner_early:
-            yield f"data: {json.dumps({'type': 'phase_change', 'from': prev_phase, 'to': phase, 'banner': banner_early})}\n\n"
 
     # In tutoring, a diagram request suppresses the text — but still resolve the streaming placeholder
     if response:
-        if explicit_image_req and phase == "tutoring":
+        if explicit_image_req and _req_phase == "tutoring":
             yield f"data: {json.dumps({'type': 'message', 'content': '', 'author': author})}\n\n"
         else:
             yield f"data: {json.dumps({'type': 'message', 'content': response, 'author': author})}\n\n"
@@ -439,7 +451,7 @@ async def stream_message(session_id: str, content: str):
     if visual_hint:
         sess.state["visual_hint"] = None
 
-    if visual_hint and phase in ("tutoring", "assessment"):
+    if visual_hint and _req_phase in ("tutoring", "assessment"):
         hint_text = visual_hint
         hint_concept = result.get("current_topic") or ""
         if visual_hint.startswith("__concept__:"):

@@ -43,6 +43,13 @@ def _get_token_queue(session_id: str) -> Optional[queue.Queue]:
     with _token_queues_lock:
         return _token_queues.get(session_id)
 
+
+def push_phase_event(session_id: str, from_phase: str, to_phase: str) -> None:
+    """Push a phase-change marker into the token queue before any tokens stream."""
+    q = _get_token_queue(session_id)
+    if q is not None:
+        q.put({"_phase_change": True, "from": from_phase, "to": to_phase})
+
 with open("config.yaml") as f:
     _cfg = yaml.safe_load(f)
 
@@ -52,9 +59,9 @@ with open("config.yaml") as f:
 class InternalAnalysis(BaseModel):
     """Stripped by app layer — never shown to student."""
     correct_answer: str
-    student_misconception: str
-    planned_hint_sequence: list[str]
-    relevant_textbook_section: str
+    student_misconception: Optional[str] = ""
+    planned_hint_sequence: list[str] = []
+    relevant_textbook_section: str = ""
 
 
 class VisibleResponse(BaseModel):
@@ -475,22 +482,59 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
     weak_topics_str = ", ".join(f"{k} ({v:.0%})" for k, v in weak_topics)
 
     client = _get_client()
+    # Cap mistake_log to avoid prompt bloat on long sessions
+    capped_mistakes = mistake_log[-30:] if len(mistake_log) > 30 else mistake_log
     prompt = _SUMMARY_PROMPT.format(
         mastery_json=json.dumps(visited_mastery, indent=2),
-        mistakes_json=json.dumps(mistake_log, indent=2) if mistake_log else "[]",
+        mistakes_json=json.dumps(capped_mistakes, indent=2) if capped_mistakes else "[]",
         topics_covered=", ".join(topics_visited) or "none",
         weak_topics=weak_topics_str,
         duration_min=elapsed / 60,
         total_turns=turn,
     )
 
-    resp = client.beta.chat.completions.parse(
+    # Use plain create + manual JSON parse to avoid schema serialization overhead.
+    # (beta.parse embeds the full Pydantic JSON schema, exceeding Mercury-2's 128K limit.)
+    # Embed a compact schema stub in the prompt so the model knows the exact keys.
+    import re as _re
+    _SCHEMA_STUB = (
+        "\n\nRespond ONLY with a JSON object (no markdown, no prose) with these exact keys:\n"
+        '{"overall_assessment": "...", '
+        '"topic_reports": [{"concept": "...", "mastery_score": 0.5, "status": "mastered|progressing|needs_review", "honest_feedback": "..."}], '
+        '"mistake_highlights": ["..."], '
+        '"study_recommendations": ["..."], '
+        '"resources": ["..."], '
+        '"youtube_resources": [{"concept": "...", "title": "...", "creator": "...", "search_query": "...", "description": "..."}], '
+        '"diagram_suggestions": ["..."], '
+        '"flashcards": [{"concept": "...", "front": "...?", "back": "..."}], '
+        '"next_session_questions": ["...?"], '
+        '"closing_reflection": "...?"}'
+    )
+    resp_raw = client.chat.completions.create(
         model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
-        messages=[{"role": "user", "content": prompt}],
-        response_format=SessionSummary,
+        messages=[{"role": "user", "content": prompt + _SCHEMA_STUB}],
+        max_tokens=2500,
         temperature=0.3,
     )
-    summary: SessionSummary | None = resp.choices[0].message.parsed
+    raw_content = (resp_raw.choices[0].message.content or "").strip()
+    raw_content = _re.sub(r"^```(?:json)?\s*|\s*```$", "", raw_content, flags=_re.DOTALL).strip()
+    summary: SessionSummary | None = None
+    try:
+        data = json.loads(raw_content)
+        # Fill in any missing optional fields before validation
+        data.setdefault("topic_reports", [])
+        data.setdefault("mistake_highlights", [])
+        data.setdefault("study_recommendations", [])
+        data.setdefault("resources", [])
+        data.setdefault("youtube_resources", [])
+        data.setdefault("diagram_suggestions", [])
+        data.setdefault("flashcards", [])
+        data.setdefault("next_session_questions", [])
+        data.setdefault("closing_reflection", "Keep reviewing!")
+        summary = SessionSummary(**data)
+    except Exception as _parse_err:
+        import logging as _logging
+        _logging.warning(f"[session_summary] JSON parse failed: {_parse_err!r} | raw[:300]={raw_content[:300]!r}")
 
     if summary is None:
         fallback = "## 📋 Session Report\n\nSession complete. Great work today — review your weak topics before next time."
@@ -587,23 +631,30 @@ def _generate_assessment_feedback(state: TutoringState, scenario: str, student_r
     """Generate explicit structured feedback on a student's assessment answer."""
     import json
     chunks = state.get("retrieved_chunks", [])
-    context_text = "\n\n".join(
+    _raw_ctx2 = "\n\n".join(
         f"[{c.get('chunk_type','ctx').upper()}] {c['text']}" for c in chunks
     ) or "(no context)"
+    context_text = _raw_ctx2[:8000] + ("\n...[truncated]" if len(_raw_ctx2) > 8000 else "")
 
+    import re as _re2, json as _json2
     client = _get_client()
     prompt = _ASSESSMENT_FEEDBACK_SYSTEM.format(
         scenario=scenario,
         student_response=student_response,
         context=context_text,
     )
-    resp = client.beta.chat.completions.parse(
+    resp_fb = client.chat.completions.create(
         model=os.getenv("OPENAI_MODEL", _cfg["llm"]["model"]),
-        messages=[{"role": "user", "content": prompt}],
-        response_format=AssessmentFeedback,
+        messages=[
+            {"role": "system", "content": "You are a JSON-only assistant. Respond ONLY with a valid JSON object. No markdown, no prose."},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=600,
         temperature=0.3,
+        response_format={"type": "json_object"},
     )
-    fb: AssessmentFeedback = resp.choices[0].message.parsed
+    raw_fb = _re2.sub(r"^```(?:json)?\s*|\s*```$", "", (resp_fb.choices[0].message.content or "").strip(), flags=_re2.DOTALL).strip()
+    fb: AssessmentFeedback = AssessmentFeedback(**_json2.loads(raw_fb))
 
     score_icon = {"excellent": "✅", "good": "🟢", "partial": "🟡", "needs_work": "❌"}.get(fb.score, "⬜")
     lines = [
@@ -634,10 +685,11 @@ def socratic_generator(state: TutoringState) -> dict:
 
     _max_turns = _cfg["llm"].get("max_history_turns", 8)
 
-    context_text = "\n\n".join(
+    _raw_ctx = "\n\n".join(
         f"[{c.get('chunk_type','context').upper()}] {c['text']}"
         for c in chunks
     ) or "(No context retrieved)"
+    context_text = _raw_ctx[:12000] + ("\n...[truncated]" if len(_raw_ctx) > 12000 else "")
 
     recent_history = "\n".join(
         f"{m['role'].capitalize()}: {m['content']}" for m in history[-_max_turns:]

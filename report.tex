@@ -90,7 +90,7 @@ Corrective RAG \cite{crag2024} adds a self-assessment step after retrieval
 (+19\% PopQA, +36.6\% PubHealth); no prior work applies CRAG in educational tutoring.
 Closest to our retrieval approach is TutorLLM \cite{tutorllm2024}, which combines knowledge tracing with RAG for personalized learning, but does not specify a mastery-gated metadata filtering mechanism. Dinucu-Jianu et al.\ \cite{tutorrl2025} show that RL reward shaping for pedagogical alignment outperforms prompt-based suppression on GPT-4o, consistent with our finding that prompt-level safety fails under adversarial attack.
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
 \small
 \setlength{\tabcolsep}{4pt}
@@ -168,7 +168,7 @@ Figure~\ref{fig:architecture} shows the end-to-end query path.
 \node[sub, below=0.5cm of gen]  (sout)
   {Structured Output\\hidden: \textit{InternalAnalysis}\\shown: \textit{SocraticQ}};
 \node[sub, below=0.28cm of sout, fill=yellow!18] (llm)
-  {GPT-4o (tutor/assess/wrap)\\GPT-4o-mini (supervisor)};
+  {Inception Mercury-2 (all LLM calls)\\Gemini 2.0 Flash Lite (vision)};
 \draw[darr] (gen)  -- (sout);
 \draw[darr] (sout) -- (llm);
 
@@ -178,7 +178,7 @@ Figure~\ref{fig:architecture} shows the end-to-end query path.
 \draw[darr] (ped) -- (mast);
 
 \end{tikzpicture}
-\caption{End-to-end query flow through UnMask. The student message enters the LangGraph state machine via a Next.js frontend (SSE stream); the Supervisor (GPT-4o-mini rule/LLM hybrid) routes tutoring/assessment turns through the Retrieval Planner (PCR-gated hybrid RAG + CRAG), then the Socratic Generator (GPT-4o via OpenRouter, structured output with hidden \texttt{InternalAnalysis}), then the Pedagogy Agent (mastery update, concept DAG, mistake log). Rapport and wrapup bypass retrieval.}
+\caption{End-to-end query flow through UnMask. The student message enters the LangGraph state machine via a Next.js frontend (SSE stream); the Supervisor (Mercury-2, rule-based) routes tutoring/assessment turns through the Retrieval Planner (PCR-gated hybrid RAG + CRAG), then the Socratic Generator (Mercury-2 via OpenRouter, structured output with hidden \texttt{InternalAnalysis}), then the Pedagogy Agent (mastery update, concept DAG, mistake log). Rapport and wrapup bypass retrieval.}
 \label{fig:architecture}
 \end{figure*}
 
@@ -189,7 +189,7 @@ ceilings enforced by a pure-Python orchestrator node (zero LLM calls),
 following Mao et al.\ \cite{diaggpt2023}'s finding that rule-based controllers outperform
 LLM routers for deterministic transitions.
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
 \small
 \begin{tabularx}{\columnwidth}{@{}l l X r@{}}
@@ -218,24 +218,24 @@ Table~\ref{tab:models} lists all models used. All LLM calls route through
 OpenRouter (\texttt{openrouter.ai/api/v1}) so the base URL is the only config
 change needed to swap providers.
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
 \small
-\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{@{}lll@{}}
 \toprule
 \textbf{Component} & \textbf{Model} & \textbf{Purpose} \\
 \midrule
-Supervisor & GPT-4o-mini & Phase routing (LLM branch) \\
-Tutoring / Assessment & GPT-4o & Structured Socratic output \\
-Wrapup summary & GPT-4o & \texttt{SessionSummary} + YouTube recs \\
-Embeddings & Gemini Emb.\ 2 (3072d) & Dense retrieval \\
-CRAG relevance & GPT-4o-mini & Binary chunk grading \\
-Image verification & Gemini 2.0 Flash Lite (vision) & Web diagram filtering \\
-Student image VLM & Gemini 2.0 Flash Lite & Upload identification \\
+Supervisor            & Mercury-2             & Phase routing \\
+Tutoring/Assessment   & Mercury-2             & Socratic output \\
+Wrapup summary        & Mercury-2             & Session report \\
+Embeddings            & Gemini Emb.\ 2 (3072d) & Dense retrieval \\
+CRAG relevance        & Mercury-2             & Chunk grading \\
+Image verification    & Gemini 2.0 Flash Lite & Diagram filtering \\
+Student image VLM     & Gemini 2.0 Flash Lite & Upload identification \\
 \bottomrule
-\end{tabular}
-\caption{Models used per component. All LLM calls via OpenRouter.}
+\end{tabular}}
+\caption{Models per component. All LLM calls via OpenRouter.}
 \label{tab:models}
 \end{table}
 
@@ -262,7 +262,7 @@ Q\&A learners after the second.
 Figure~\ref{fig:onboarding} shows the full parse-to-render pipeline.
 
 %% ── Onboarding + visual aid pipeline ───────────────────────────
-\begin{figure}[h]
+\begin{figure}[ht]
 \centering
 \begin{tikzpicture}[
   >=Stealth,
@@ -303,7 +303,7 @@ Figure~\ref{fig:onboarding} shows the full parse-to-render pipeline.
 \caption{Personalized onboarding and visual aid pipeline.
 First message parsed before \texttt{graph.invoke}: \texttt{study\_focus}
 reorders diagnostics; \texttt{learning\_mode} sets the threshold
-that triggers an inline Gray's Anatomy plate via \texttt{cl.Image}.}
+that triggers an inline anatomy diagram via SSE \texttt{visual\_hint} event $\to$ \texttt{DiagramCard}.}
 \label{fig:onboarding}
 \end{figure}
 
@@ -336,7 +336,7 @@ else:                # full_reveal
 \end{lstlisting}
 
 %% ── PCR mastery gating diagram ───────────────────────────────────
-\begin{figure}[h]
+\begin{figure}[ht]
 \centering
 \begin{tikzpicture}[>=Stealth, font=\small]
 %% Coloured mastery bands
@@ -386,14 +386,14 @@ The PCR filter applies to both legs before merging.
 After retrieval, an LLM grades document relevance (binary yes/no).
 If all documents fail, the query is reformulated via synonym expansion and
 retried (max 2 retries; Yan et al.\ \cite{crag2024} show diminishing returns beyond 2).
-This is the first application of CRAG in educational tutoring.
+To our knowledge, this is the first application of CRAG in educational tutoring.
 Ablation timing confirms CRAG fires in practice: the full variant stalled at
 question 18 (${\sim}186$s vs.\ typical ${\sim}8$s), which confirmed a live re-query;
 the \texttt{no\_crag} variant never stalled.
 
 \subsection{Dual Knowledge Masking via Structured Output}
 
-The Socratic Generator calls GPT-4o with
+The Socratic Generator calls Mercury-2 with
 \texttt{response\_format=SocraticOutput}:
 
 \begin{lstlisting}[language=Python]
@@ -421,13 +421,12 @@ If the student asks for an explicit explanation (``can you explain'',
 instructs the model to explain directly rather than question again.
 
 \textbf{Wrapup summary and YouTube recommendations.}
-At Wrapup, GPT-4o structured output produces a \texttt{SessionSummary}:
+At Wrapup, Mercury-2 structured output produces a \texttt{SessionSummary}:
 per-concept mastery status, misconceptions from \texttt{mistake\_log},
 actionable study tips, and 2--4 \texttt{YouTubeResource} objects for the
 weakest concepts, rendered as clickable search cards in the frontend
 Progress tab.
-\textbf{Cost:} GPT-4o for Tutoring, Assessment, and Wrapup summary;
-GPT-4o-mini for Supervisor and CRAG grading (${\sim}\$0.08$--$0.10$/session).
+\textbf{Cost:} Mercury-2 for all LLM components (Supervisor, Tutoring, Assessment, CRAG grading, and Wrapup summary); Gemini 2.0 Flash Lite for vision tasks (${\sim}\$0.01$--$0.02$/session).
 
 \subsection{Concept Prerequisite Graph}
 
@@ -445,7 +444,8 @@ giving the PCR filter meaningful priors within 90 seconds.
 \paragraph{Mastery update.}
 After each response, the LLM judges correctness against
 \texttt{internal\_analysis.correct\_answer}, then updates:
-$m' = m + 0.15(1-m)$ if correct; $m' = m - 0.05m$ if incorrect.
+$m' = m + 0.15(1-m)$ if correct; $m' = m - 0.05m$ if incorrect
+\cite{corbett1994}.
 Consecutive correct $\geq 2$ and coverage $\geq 0.80$ triggers phase advance.
 
 \subsection{Session Mistake Memory and Proactive Revisit}
@@ -466,23 +466,33 @@ The Pedagogy Agent clears \texttt{revisit\_scheduled} after one turn.
 \subsection{Multimodal Diagram Tutoring (Task 4)}
 \label{sec:vlm}
 
-When a student uploads an anatomical image via Chainlit's file upload, UnMask
-invokes GPT-4o Vision to identify the depicted structure and generate a Socratic
-question \emph{without naming it}:
+When a student uploads an anatomical image via the Next.js frontend,
+UnMask invokes Gemini 2.0 Flash Lite (vision) via OpenRouter in a two-step pipeline:
+first identify the structure internally, then generate a Socratic question
+\emph{without naming it}:
 
 \begin{lstlisting}[language=Python]
-# app.py — image upload handler
-if message.elements:
-    img_el = next((e for e in message.elements
-                   if hasattr(e,'path')), None)
-    if img_el:
-        response = analyze_uploaded_image(img_el.path)
-        # response ends with "?" — structure unnamed
+# api.py  -  POST /api/sessions/{id}/image
+vision_model = cfg["llm"].get("vision_model",
+    "google/gemini-2.0-flash-lite")
+# Step 1: internal identification (never shown)
+id_resp = vision_client.chat.completions.create(
+    model=vision_model, max_tokens=50,
+    messages=[image_url + "Reply with ONLY the
+              anatomical name, nothing else."])
+identified = id_resp.choices[0].message.content
+# Step 2: Socratic question (structure not named)
+q_resp = tutor_client.chat.completions.create(
+    model=openai_model,  # Mercury-2
+    system=f"Student uploaded image of {identified}.
+    Ask ONE Socratic question. Do NOT name the
+    structure. End with '?'")
+# response ends with "?"  -  structure unnamed
 \end{lstlisting}
 
-The \texttt{analyze\_uploaded\_image} helper base64-encodes the image and calls
-GPT-4o Vision with a constrained prompt: identify the structure internally,
-then ask one Socratic question that does not name it.
+The vision model identifies the structure in a separate call (max 50 tokens,
+name only), keeping the identification internal while the tutor model generates
+the Socratic question without ever having the structure name in the user-visible prompt.
 This completes the multimodal loop: static Gray's Anatomy plates
 (Task 1 visual mode) for system-triggered diagrams, plus VLM interpretation
 (Task 4) for student-submitted images.
@@ -491,7 +501,7 @@ This completes the multimodal loop: static Gray's Anatomy plates
 \section{Dataset and Knowledge Base}
 
 \paragraph{Corpus.}
-OpenStax Anatomy \& Physiology 2e, Chapters 11 and 13--16, covering NBCOT
+OpenStax Anatomy \& Physiology 2e \cite{openstax2019}, Chapters 11 and 13--16, covering NBCOT
 brachial plexus and peripheral nerve topics.
 Indexed into Qdrant (48 chunks across all 16 concepts) with per-chunk metadata:
 \texttt{is\_answer\_chunk}, \texttt{chunk\_type}, \texttt{concept}.
@@ -532,7 +542,7 @@ $\geq$4 significant-word overlap with the gold answer (keyword leak); is
 cosine similarity $>$ 0.92 (semantic leak)?
 A confirmed leak (both layers) hard-caps the score at 2.0; missing ``?''
 penalizes $-1.0$.
-\emph{LLM-as-Judge}: GPT-4o rates 1--5 where 5 = perfect Socratic (gold
+\emph{LLM-as-Judge}: Mercury-2 rates 1--5 where 5 = perfect Socratic (gold
 answer absent, student must reason) and 1 = direct answer stated.
 
 \paragraph{Answer Leak Rate (target = 0).}
@@ -555,7 +565,7 @@ the \texttt{ragas} library~\cite{es2023ragas}.
 \subsection{Ablation Design}
 
 Four variants on the same 30 questions, identical cold-start mastery (0.20),
-identical generation (GPT-4o, structured output):
+identical generation (Mercury-2, structured output):
 
 \begin{center}
 \small
@@ -576,7 +586,7 @@ identical generation (GPT-4o, structured output):
 
 \subsection{Full System (30 QA Questions)}
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
 \small
 \begin{tabular}{@{}llll@{}}
@@ -616,7 +626,7 @@ mode there is no answer chunk to leak.
 
 \subsection{Ablation Results}
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
 \small
 \resizebox{\columnwidth}{!}{%
@@ -630,9 +640,12 @@ Avg Purity & \textbf{4.70}  & 4.83  & 4.87  & 4.93  \\
 Ends ``?'' & 1.000 & 1.000 & 1.000 & 1.000 \\
 \bottomrule
 \end{tabular}}
-\caption{Ablation results (30 questions/variant, mastery=0.20).
+\caption{Ablation results (30 questions/variant, mastery pinned at 0.20 for all turns).
 $^\dagger$Ans.\ Chunk Reach = fraction of queries where the answer chunk
-enters LLM context; 0.000 is \emph{correct} PCR behavior at cold-start mastery.}
+enters LLM context; 0.000 is \emph{correct} PCR behavior at cold-start mastery.
+Note: Table~\ref{tab:main_results} (full system, mastery free to evolve) reports
+Avg Purity 4.87 vs.\ 4.70 here because the pinned-mastery ablation holds all 30
+questions in \texttt{context\_only} mode, producing broader guiding questions.}
 \label{tab:ablation}
 \end{table}
 
@@ -644,7 +657,7 @@ always reach the LLM (reach rate 1.000).
 
 \paragraph{Zero leaks, but not equally safe.}
 All four variants show 0.000 leak rate under benign evaluation.
-This is the same failure mode Dinucu-Jianu et al.\ \cite{tutorrl2025} found: GPT-4o's
+This is the same failure mode Dinucu-Jianu et al.\ \cite{tutorrl2025} found: sufficiently capable models'
 instruction following holds on benign inputs, so prompt-based suppression
 looks sufficient until you actually attack it.
 Our adversarial battery (100\% hold rate, not included in the ablation) shows
@@ -695,69 +708,61 @@ Overall, UnMask is a working, evaluable OT anatomy tutor that runs at about
 
 
 %% ─────────────────────────────────────────────────────────────
-\bibliographystyle{acl_natbib}
 \begin{thebibliography}{10}
+\providecommand{\natexlab}[1]{#1}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi:\discretionary{}{}{}#1}\else
+  \providecommand{\doi}{doi:\discretionary{}{}{}\begingroup
+  \urlstyle{rm}\Url}\fi
 
-\bibitem{crag2024}
-Shi-Qi Yan, Jia-Chen Gu, Yun Zhu, and Zhen-Hua Ling. 2024.
-\newblock Corrective Retrieval Augmented Generation.
-\newblock In \emph{Proceedings of ACL 2024}.
-
-\bibitem{tutorrl2025}
-David Dinucu-Jianu, Jakub Macina, et al. 2025.
-\newblock From Problem-Solving to Teaching Problem-Solving: Aligning LLMs with
-  Pedagogy using RL.
-\newblock In \emph{Proceedings of EMNLP 2025} (Oral). ETH Zurich.
-
-\bibitem{socraticlm2024}
-Jiaqi Liu et al. 2024.
-\newblock SocraticLM: Exploring Socratic Personalized Teaching with LLMs.
-\newblock In \emph{Proceedings of NeurIPS 2024} (Spotlight).
-
-\bibitem{kele2025}
-Xuanyu Peng et al. 2025.
-\newblock KELE: A Multi-Agent Framework for Structured Socratic Teaching with
-  LLMs.
-\newblock In \emph{Proceedings of EMNLP 2025 Findings}.
-
-\bibitem{tutorllm2024}
-Zhi Li, Jifan Wang, Weijie Gu, et al. 2024.
-\newblock TutorLLM: Customizing Learning Recommendations with Knowledge Tracing
-  and Retrieval-Augmented Generation.
-\newblock In \emph{RecSys 2024 / INTERACT 2025}.
-
-\bibitem{mwptutor2024}
-Subhankar Chowdhury et al. 2024.
-\newblock MWPTutor: A Multi-Turn Math Word Problem Tutor with Functional
-  Slot-based Guardrails.
-\newblock In \emph{AIED 2024}.
-
-\bibitem{corbett1994}
-Albert T.\ Corbett and John R.\ Anderson. 1994.
+\bibitem[Corbett and Anderson(1994)]{corbett1994}
+Albert~T. Corbett and John~R. Anderson. 1994.
 \newblock Knowledge tracing: Modeling the acquisition of procedural knowledge.
 \newblock \emph{User Modeling and User-Adapted Interaction}, 4(4):253--278.
 
-\bibitem{chi2014}
-Michelene T.\ H.\ Chi and Ruth Wylie. 2014.
-\newblock The ICAP framework: Linking cognitive engagement to active learning
-  outcomes.
-\newblock \emph{Educational Psychologist}, 49(4):219--243.
+\bibitem[Dinucu-Jianu et~al.(2025)Dinucu-Jianu, Macina, et~al.]{tutorrl2025}
+David Dinucu-Jianu, Jakub Macina, et~al. 2025.
+\newblock From problem-solving to teaching problem-solving: Aligning {LLMs}
+  with pedagogy using {RL}.
+\newblock In \emph{Proceedings of EMNLP 2025} (Oral). ETH Zurich.
 
-\bibitem{es2023ragas}
-Shahul Es et al. 2023.
-\newblock RAGAS: Automated Evaluation of Retrieval Augmented Generation.
+\bibitem[Es et~al.(2023)Es et~al.]{es2023ragas}
+Shahul Es et~al. 2023.
+\newblock {RAGAS}: Automated evaluation of retrieval augmented generation.
 \newblock \emph{arXiv preprint arXiv:2309.15217}.
 
-\bibitem{diaggpt2023}
-Junyuan Mao et al. 2023.
-\newblock DiagGPT: An LLM-based Chatbot with Automatic Topic Management for
-  Task-Oriented Dialogue.
+\bibitem[Li et~al.(2024)Li, Wang, Gu, et~al.]{tutorllm2024}
+Zhi Li, Jifan Wang, Weijie Gu, et~al. 2024.
+\newblock {TutorLLM}: Customizing learning recommendations with knowledge
+  tracing and retrieval-augmented generation.
+\newblock In \emph{RecSys 2024 / INTERACT 2025}.
+
+\bibitem[Liu et~al.(2024)Liu et~al.]{socraticlm2024}
+Jiaqi Liu et~al. 2024.
+\newblock {SocraticLM}: Exploring Socratic personalized teaching with {LLMs}.
+\newblock In \emph{Proceedings of NeurIPS 2024} (Spotlight).
+
+\bibitem[Mao et~al.(2023)Mao et~al.]{diaggpt2023}
+Junyuan Mao et~al. 2023.
+\newblock {DiagGPT}: An {LLM}-based chatbot with automatic topic management
+  for task-oriented dialogue.
 \newblock \emph{arXiv preprint arXiv:2308.08043}.
 
-\bibitem{openstax2019}
-OpenStax. 2019.
+\bibitem[{OpenStax}(2019)]{openstax2019}
+{OpenStax}. 2019.
 \newblock \emph{Anatomy \& Physiology 2e}.
 \newblock OpenStax, Rice University.
+
+\bibitem[Peng et~al.(2025)Peng et~al.]{kele2025}
+Xuanyu Peng et~al. 2025.
+\newblock {KELE}: A multi-agent framework for structured Socratic teaching with
+  {LLMs}.
+\newblock In \emph{Proceedings of EMNLP 2025 Findings}.
+
+\bibitem[Yan et~al.(2024)Yan, Gu, Zhu, and Ling]{crag2024}
+Shi-Qi Yan, Jia-Chen Gu, Yun Zhu, and Zhen-Hua Ling. 2024.
+\newblock Corrective retrieval augmented generation.
+\newblock In \emph{Proceedings of ACL 2024}.
 
 \end{thebibliography}
 

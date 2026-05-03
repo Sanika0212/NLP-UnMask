@@ -218,6 +218,14 @@ def supervisor_agent(state: TutoringState) -> dict:
         "_supervisor_reasoning": decision.reasoning,
     }
 
+    # Push phase-change marker into token queue BEFORE socratic_generator streams tokens
+    # so the banner appears above the first response in the UI.
+    if prev_phase != decision.new_phase:
+        from src.nodes.socratic_generator import push_phase_event
+        session_id = state.get("session_id", "")
+        if session_id:
+            push_phase_event(session_id, prev_phase, decision.new_phase)
+
     # When transitioning rapport → tutoring (loopback after diagnostic completion),
     # inject the synthetic trigger message so socratic_generator knows what topic to open.
     if prev_phase == "rapport" and decision.new_phase == "tutoring":
