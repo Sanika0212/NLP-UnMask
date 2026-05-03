@@ -547,7 +547,38 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
         data.setdefault("flashcards", [])
         data.setdefault("next_session_questions", [])
         data.setdefault("closing_reflection", "Keep reviewing!")
-        # Tolerate extra keys and coerce types the model may have gotten wrong
+
+        # Normalize list[str] fields — model often returns list[dict] for these
+        def _coerce_str_list(items: list, *keys: str) -> list[str]:
+            result = []
+            for item in items:
+                if isinstance(item, str):
+                    result.append(item)
+                elif isinstance(item, dict):
+                    # Try common keys the model uses, fall back to joined values
+                    text = next((item[k] for k in keys if k in item and isinstance(item[k], str)), None)
+                    if text is None:
+                        text = " — ".join(str(v) for v in item.values() if v)
+                    result.append(text)
+            return result
+
+        data["mistake_highlights"] = _coerce_str_list(
+            data["mistake_highlights"], "description", "text", "misconception", "highlight"
+        )
+        data["resources"] = _coerce_str_list(
+            data["resources"], "title", "description", "text", "resource"
+        )
+        data["study_recommendations"] = _coerce_str_list(
+            data["study_recommendations"], "recommendation", "text", "tip", "description"
+        )
+        data["diagram_suggestions"] = _coerce_str_list(
+            data["diagram_suggestions"], "description", "text", "suggestion", "diagram"
+        )
+        data["next_session_questions"] = _coerce_str_list(
+            data["next_session_questions"], "question", "text", "description"
+        )
+
+        # Tolerate extra keys
         summary = SessionSummary.model_validate(data)
     except Exception as _parse_err:
         _logging.warning(f"[session_summary] JSON parse failed: {_parse_err!r} | raw[:400]={raw_content[:400]!r}")
