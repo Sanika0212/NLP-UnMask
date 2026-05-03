@@ -1,7 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSessionStore } from '@/lib/store';
-import { TOPICS } from '@/lib/topics';
+import { TOPICS, getTopicMastery, isWeakTopic } from '@/lib/topics';
 import Avatar from './Avatar';
 
 const PHASES = [
@@ -19,7 +19,14 @@ export default function Rail({ onCollapse, paused }: { onCollapse?: () => void; 
   const mastery      = useSessionStore((s) => s.mastery);
   const avatarState  = useSessionStore((s) => s.avatarState);
   const studyFocus   = useSessionStore((s) => s.studyFocus);
+  const weakTopics   = useSessionStore((s) => s.weakTopics);
+  const currentTopic = useSessionStore((s) => s.currentTopic);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  const topicScores = useMemo(
+    () => Object.fromEntries(TOPICS.map((t) => [t.key, getTopicMastery(mastery, t.key)])),
+    [mastery]
+  );
 
   useEffect(() => {
     if (paused) return;
@@ -81,9 +88,10 @@ export default function Rail({ onCollapse, paused }: { onCollapse?: () => void; 
 
       <div className="topics">
         {TOPICS.map((topic) => {
-          const m = mastery[topic.key] ?? 0;
-          const isWeak = m > 0 && m < 0.35;
-          const isActive = studyFocus === `topic:${topic.key}`;
+          const m = topicScores[topic.key] ?? 0;
+          const isWeak = isWeakTopic(weakTopics, topic.key);
+          const isActive = studyFocus === `topic:${topic.key}` ||
+            (currentTopic != null && (currentTopic === topic.key || currentTopic.startsWith(topic.key + '.')));
           return (
             <button
               key={topic.key}

@@ -12,3 +12,13 @@ export const TOPICS = [
 ];
 
 export type TopicKey = (typeof TOPICS)[number]['key'];
+
+export function getTopicMastery(mastery: Record<string, number>, topicKey: string): number {
+  const entries = Object.entries(mastery).filter(([k]) => k.startsWith(topicKey + '.'));
+  if (entries.length === 0) return mastery[topicKey] ?? 0;
+  return entries.reduce((s, [, v]) => s + v, 0) / entries.length;
+}
+
+export function isWeakTopic(weakTopics: string[], topicKey: string): boolean {
+  return weakTopics.some((wt) => wt === topicKey || wt.startsWith(topicKey + '.'));
+}

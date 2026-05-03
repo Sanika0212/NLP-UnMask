@@ -1,6 +1,7 @@
 'use client';
+import { useMemo } from 'react';
 import { useSessionStore } from '@/lib/store';
-import { TOPICS } from '@/lib/topics';
+import { TOPICS, getTopicMastery, isWeakTopic } from '@/lib/topics';
 
 export default function ProgressView() {
   const mastery    = useSessionStore((s) => s.mastery);
@@ -10,10 +11,10 @@ export default function ProgressView() {
   const diagComplete = useSessionStore((s) => s.diagnosticComplete);
   const youtubeResources = useSessionStore((s) => s.youtubeResources);
 
-  const masteryTopics = TOPICS.map((t) => ({
+  const masteryTopics = useMemo(() => TOPICS.map((t) => ({
     ...t,
-    score: mastery[t.key] ?? 0,
-  }));
+    score: getTopicMastery(mastery, t.key),
+  })), [mastery]);
 
   const phaseColors: Record<string, string> = {
     rapport: 'var(--ink-3)',
@@ -59,7 +60,7 @@ export default function ProgressView() {
         <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {masteryTopics.map((t) => {
             const pct = Math.round(t.score * 100);
-            const isWeak = weakTopics.includes(t.key);
+            const isWeak = isWeakTopic(weakTopics, t.key);
             const barColor = pct >= 75 ? 'var(--good)' : pct >= 40 ? 'var(--accent)' : 'var(--warn)';
             return (
               <div key={t.key}>
