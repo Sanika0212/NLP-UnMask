@@ -183,10 +183,14 @@ of the brachial plexus?''\\
 consecutive_incorrect = 1  # >= threshold (1)
 \end{lstlisting}
 
-\noindent\textbf{System action} (Gray809, public domain, 108~KB PNG):
+\noindent\textbf{System action} (animated HTML diagram, served via FastAPI \texttt{/static/anatomy/}):
 \begin{lstlisting}
-cl.Image(path="public/anatomy/brachial_plexus.png",
-         display="inline")  # appended to reply
+# api.py emits SSE event:
+{"type": "visual_hint",
+ "concept": "brachial_plexus",
+ "image_url": "/static/anatomy/brachial_plexus.html",
+ "caption": "Brachial Plexus (C5-T1)"}
+# Frontend DiagramCard renders as animated <iframe>
 \end{lstlisting}
 
 \noindent\textbf{UnMask reply with inline plate:}\\
@@ -229,6 +233,16 @@ study_recommendations:
   - "Draw RTTDC (Roots-Trunks-Divisions-Cords)."
   - "Practice Phalen's and Tinel's sign sequences."
 
+youtube_resources:
+  - {concept: "brachial_plexus.trunks",
+     title: "Brachial Plexus in 5 Minutes",
+     creator: "Ninja Nerd Science",
+     search_query: "brachial plexus trunks anatomy NBCOT"}
+  - {concept: "brachial_plexus.origin",
+     title: "Spinal Nerves and the Brachial Plexus",
+     creator: "Armando Hasudungan",
+     search_query: "spinal nerve roots brachial plexus C5 T1"}
+
 closing_reflection:
   "Patient has deltoid weakness and lateral arm
    numbness post-dislocation. Which nerve and cord
@@ -239,7 +253,9 @@ closing_reflection:
 \texttt{mistake\_log} entries whose \texttt{misconception} strings were
 captured at the time of each incorrect answer (hidden
 \texttt{InternalAnalysis.student\_misconception}).
-The \texttt{closing\_reflection} ends with ``?'' -- the session ends on a
+The \texttt{youtube\_resources} field contains 2--4 resources for the weakest
+concepts, rendered as clickable YouTube search cards in the frontend Progress tab.
+The \texttt{closing\_reflection} ends with ``?'' --- the session ends on a
 Socratic note, not a declarative summary.
 
 %% ─────────────────────────────────────────────────────────────
@@ -247,12 +263,14 @@ Socratic note, not a declarative summary.
 \label{app:vlm}
 
 \noindent\textbf{Context:} Student uploads a photo of a labeled anatomical diagram
-of the brachial plexus during the tutoring phase (consecutive\_incorrect $= 1$,
-PCR mode: \texttt{context\_only}).
+of the brachial plexus via the Next.js frontend file picker during the tutoring
+phase (consecutive\_incorrect $= 1$, PCR mode: \texttt{context\_only}).
+The image is base64-encoded by the frontend and POSTed to
+\texttt{/api/sessions/\{id\}/upload}; the backend calls \texttt{analyze\_uploaded\_image}.
 
-\noindent\textbf{System action} (\texttt{analyze\_uploaded\_image}, GPT-4o Vision):
+\noindent\textbf{System action} (\texttt{analyze\_uploaded\_image}, GPT-4o Vision via OpenRouter):
 \begin{lstlisting}
-Image received: student_upload_brachial.jpg
+Image received: student_upload_brachial.jpg (base64)
 VLM internal: "Identified structure: Brachial plexus diagram
   showing C5-T1 roots, three trunks (upper/middle/lower),
   and lateral/medial/posterior cords."

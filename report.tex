@@ -47,15 +47,17 @@ we moved this to the \emph{retrieval layer} using \textbf{Progressive Context Re
 a metadata-filtered Qdrant query that withholds answer chunks until
 the student demonstrates prerequisite mastery.
 We also added \textbf{Corrective RAG (CRAG)} (to our knowledge the first use in
-educational tutoring), dual-layer structured output masking, and
-\textbf{session mistake memory}, a log of wrong answers that triggers a
-proactive revisit at 8 minutes using the student's stored misconception.
+educational tutoring), dual-layer structured output masking,
+\textbf{session mistake memory} (proactive revisit at 8 min using stored misconceptions),
+and a \textbf{multimodal Next.js frontend} with VLM-based image upload, animated anatomy
+diagrams, and session YouTube recommendations.
 We evaluated on 30 QA triples with a four-variant ablation: Hit Rate 0.900,
-Leak Rate 0.000, Socratic Purity 4.77/5, 100\% adversarial hold rate.
+Leak Rate 0.000, Socratic Purity 4.87/5, 100\% adversarial hold rate.
 All variants show 0.000 leak under benign conditions, but only PCR
 provides safety by design at a measured 0.23-point purity cost (4.70 vs.\ 4.93).
-RAGAS Faithfulness (0.779) shows a metric mismatch: RAGAS penalizes
+RAGAS Faithfulness (0.838) shows a metric mismatch: RAGAS penalizes
 Socratic questions that make no factual claims, which is expected here.
+Live demo: \url{https://huggingface.co/spaces/Gustav-Proxi/UnmaskTutor}
 \end{abstract}
 
 %% ─────────────────────────────────────────────────────────────
@@ -130,7 +132,7 @@ Figure~\ref{fig:architecture} shows the end-to-end query path.
   darr/.style={->, thick, dashed, gray!65},
 ]
 %% ─── Top-level pipeline ───────────────────────────────────────────────────────
-\node[main=green!22]              (ui)   {Student\\(Chainlit)};
+\node[main=green!22]              (ui)   {Student\\(Next.js)};
 \node[main=blue!14, right=1.05cm of ui]   (orch) {Orchestrator};
 \node[main=blue!14, right=1.05cm of orch] (ret)  {Retrieval\\Planner};
 \node[main=blue!14, right=1.05cm of ret]  (gen)  {Socratic\\Generator};
@@ -166,7 +168,7 @@ Figure~\ref{fig:architecture} shows the end-to-end query path.
 \node[sub, below=0.5cm of gen]  (sout)
   {Structured Output\\hidden: \textit{InternalAnalysis}\\shown: \textit{SocraticQ}};
 \node[sub, below=0.28cm of sout, fill=yellow!18] (llm)
-  {GPT-4o (tutor/assess)\\Ollama (rapport/wrap)};
+  {GPT-4o (tutor/assess/wrap)\\GPT-4o-mini (supervisor)};
 \draw[darr] (gen)  -- (sout);
 \draw[darr] (sout) -- (llm);
 
@@ -176,7 +178,7 @@ Figure~\ref{fig:architecture} shows the end-to-end query path.
 \draw[darr] (ped) -- (mast);
 
 \end{tikzpicture}
-\caption{End-to-end query flow through UnMask. The student message enters the LangGraph state machine; the Orchestrator performs phase transitions and routes tutoring/assessment turns through the Retrieval Planner (PCR-gated hybrid RAG + CRAG), then the Socratic Generator (GPT-4o structured output with hidden \texttt{InternalAnalysis}), then the Pedagogy Agent (mastery update, concept DAG, mistake log). Rapport and wrapup phases bypass retrieval entirely.}
+\caption{End-to-end query flow through UnMask. The student message enters the LangGraph state machine via a Next.js frontend (SSE stream); the Supervisor (GPT-4o-mini rule/LLM hybrid) routes tutoring/assessment turns through the Retrieval Planner (PCR-gated hybrid RAG + CRAG), then the Socratic Generator (GPT-4o via OpenRouter, structured output with hidden \texttt{InternalAnalysis}), then the Pedagogy Agent (mastery update, concept DAG, mistake log). Rapport and wrapup bypass retrieval.}
 \label{fig:architecture}
 \end{figure*}
 
@@ -209,13 +211,43 @@ The \texttt{TutoringState} TypedDict flows through four nodes
 A conditional edge in the orchestrator bypasses retrieval for Rapport
 and Wrapup phases.
 
-\subsection{Student Interface (Chainlit)}
+\subsection{Models}
+\label{sec:models}
 
-Students interact via Chainlit web UI.
-A backend debug panel (instructor-visible) displays per-turn: PCR retrieval
-mode, chunk scores before/after re-ranking, mastery state per concept, and
-NLI verdict, which directly satisfies the requirement that the UI show how
-chunks are being processed.
+Table~\ref{tab:models} lists all models used. All LLM calls route through
+OpenRouter (\texttt{openrouter.ai/api/v1}) so the base URL is the only config
+change needed to swap providers.
+
+\begin{table}[h]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Component} & \textbf{Model} & \textbf{Purpose} \\
+\midrule
+Supervisor & GPT-4o-mini & Phase routing (LLM branch) \\
+Tutoring / Assessment & GPT-4o & Structured Socratic output \\
+Wrapup summary & GPT-4o & \texttt{SessionSummary} + YouTube recs \\
+Embeddings & Gemini Emb.\ 2 (3072d) & Dense retrieval \\
+CRAG relevance & GPT-4o-mini & Binary chunk grading \\
+Image verification & Claude Haiku (vision) & Web diagram filtering \\
+Student image VLM & GPT-4o Vision & Upload identification \\
+\bottomrule
+\end{tabular}
+\caption{Models used per component. All LLM calls via OpenRouter.}
+\label{tab:models}
+\end{table}
+
+\subsection{Student Interface (Next.js)}
+
+Students interact via a Next.js 14 App Router frontend (live at
+\url{https://huggingface.co/spaces/Gustav-Proxi/UnmaskTutor}).
+The UI streams responses via SSE from the FastAPI backend.
+A right-hand inspector panel (instructor-visible) displays per-turn: PCR
+retrieval mode, mastery state per concept, and misconception log, directly
+satisfying the requirement that the UI show how chunks are being processed.
+A Chainlit interface (\texttt{app.py}) is retained for backward compatibility.
 
 \paragraph{Personalized onboarding.}
 A single conversational opening prompt is parsed by the Orchestrator to
@@ -276,11 +308,13 @@ that triggers an inline Gray's Anatomy plate via \texttt{cl.Image}.}
 \end{figure}
 
 \paragraph{Inline anatomical diagrams.}
-The UI appends a \texttt{cl.Image} element (Chainlit inline display) once
-\texttt{consecutive\_incorrect} $\geq$ threshold, showing the relevant
-Gray's Anatomy plate from \texttt{public/anatomy/} (8 public-domain PNGs
-sourced via the Wikimedia Commons API), replacing the ASCII diagram fallback
-with an actual anatomical illustration.
+The UI renders a \texttt{DiagramCard} once
+\texttt{consecutive\_incorrect} $\geq$ threshold.
+22 self-contained animated SVG/HTML files in \texttt{public/anatomy/} cover
+every concept (brachial plexus, peripheral nerves, rotator cuff, spinal cord);
+for concepts without a local file, a DuckDuckGo image search queries trusted
+anatomy domains (Wikipedia, Radiopaedia, Kenhub), and Claude Haiku (vision)
+verifies the top-3 results before displaying the first verified URL.
 
 \subsection{Progressive Context Revelation (PCR)}
 \label{sec:pcr}
@@ -379,13 +413,21 @@ A post-generation leak guard additionally checks for $\geq$4 significant-word
 overlap between \texttt{socratic\_question} and \texttt{correct\_answer},
 triggering a retry if fired.
 
-\textbf{Honest encouragement and summary.}
+\textbf{Honest encouragement and break-Socratic mode.}
 When \texttt{consecutive\_incorrect} $> 0$, hollow praise is forbidden.
+If the student asks for an explicit explanation (``can you explain'',
+``walk me through'', etc.) or hits 4 consecutive incorrect answers,
+\texttt{break\_socratic=True} swaps to a \texttt{\_REVEAL\_SYSTEM} prompt that
+instructs the model to explain directly rather than question again.
+
+\textbf{Wrapup summary and YouTube recommendations.}
 At Wrapup, GPT-4o structured output produces a \texttt{SessionSummary}:
-per-concept mastery status, misconceptions from \texttt{mistake\_log}, and
-actionable study tips.
-\textbf{Cost routing:} Rapport via local Llama 3.1 8B (65--75\%, \$0);
-GPT-4o for Tutoring, Assessment, and Wrapup summary (${\sim}\$0.08$--$0.10$/session).
+per-concept mastery status, misconceptions from \texttt{mistake\_log},
+actionable study tips, and 2--4 \texttt{YouTubeResource} objects for the
+weakest concepts, rendered as clickable search cards in the frontend
+Progress tab.
+\textbf{Cost:} GPT-4o for Tutoring, Assessment, and Wrapup summary;
+GPT-4o-mini for Supervisor and CRAG grading (${\sim}\$0.08$--$0.10$/session).
 
 \subsection{Concept Prerequisite Graph}
 
@@ -546,12 +588,12 @@ MRR             & \textbf{0.604} & ---        & --- \\
 Leak Rate       & \textbf{0.000} & 0\%        & \checkmark \\
 Soft Flags      & \textbf{0.000} & ---        & \checkmark \\
 Ends with ``?'' & \textbf{1.000} & $\geq$95\% & \checkmark \\
-Avg Purity      & \textbf{4.77/5}& $\geq$4.0  & \checkmark \\
+Avg Purity      & \textbf{4.87/5}& $\geq$4.0  & \checkmark \\
 Purity Pass Rate& \textbf{0.967} & ---        & --- \\
 Adversarial Hold& \textbf{1.000} & $\geq$90\% & \checkmark \\
 \midrule
-RAGAS Faithful. & \textbf{0.779} & $\geq$0.85 & $\times$ \\
-RAGAS Relevancy & \textbf{0.521} & $\geq$0.80 & $\times$ \\
+RAGAS Faithful. & \textbf{0.838} & $\geq$0.85 & $\times$ \\
+RAGAS Relevancy & \textbf{0.622} & $\geq$0.80 & $\times$ \\
 \bottomrule
 \end{tabular}
 \caption{Full system evaluation results (30 questions, mastery = 0.20).}
@@ -618,12 +660,12 @@ This 0.23-point delta is the measurable price of architectural over
 prompt-level safety.
 
 \paragraph{RAGAS mismatch.}
-Both RAGAS scores fall below target (Faithfulness 0.779, Relevancy 0.521), but
+Both RAGAS scores fall below target (Faithfulness 0.838, Relevancy 0.622), but
 this is expected: RAGAS is designed for factual QA, not Socratic tutoring.
 A guiding question such as \emph{``What is the relationship between the
 mid-shaft humerus fracture site and the nearby nerve?''} makes zero factual
 claims, so RAGAS scores it as unfaithful.
-Socratic Purity (4.93/5, LLM-as-Judge) is the appropriate groundedness proxy.
+Socratic Purity (4.87/5, LLM-as-Judge) is the appropriate groundedness proxy.
 
 \paragraph{Why benign testing is not enough.}
 All ablation variants show 0.000 leak rate on benign inputs, which would lead us
