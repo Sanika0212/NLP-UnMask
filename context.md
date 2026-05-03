@@ -1,6 +1,6 @@
 # UnMask — Project Context
 
-> Onboarding doc. Read this first. Last updated: May 2026.
+> Onboarding doc. Read this first. Last updated: May 2026 (rev 2).
 
 ## What is this?
 
@@ -186,6 +186,8 @@ class YouTubeResource(BaseModel):
 ```
 
 Post-generation: if `socratic_question` contains ≥4 significant words from `correct_answer`, response is rejected and regenerated at temperature=0.
+
+**Break-Socratic mode** (`_REVEAL_SYSTEM`): when the student has 4+ consecutive incorrect answers or explicitly asks for an explanation ("can you explain", "help me understand", "walk me through", etc.), `break_socratic=True` and `_REVEAL_SYSTEM` replaces the tutoring prompt. The model is explicitly instructed to **give the answer directly** — not ask another clinical question. The `socratic_question` field holds a plain explanation ending with a soft check ("Does that make sense?").
 
 ---
 
