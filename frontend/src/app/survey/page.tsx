@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Avatar from '@/components/Avatar';
-import { useSessionStore } from '@/lib/store';
+import { useSessionStore, apiBase } from '@/lib/store';
 
 type Step = 'post_quiz' | 'likert' | 'done';
 
@@ -102,7 +102,7 @@ export default function SurveyPage() {
         session_duration_min: 0,
       };
 
-      const res = await fetch(`/api/sessions/${store.sessionId}/survey`, {
+      const res = await fetch(`${apiBase()}/api/sessions/${store.sessionId}/survey`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

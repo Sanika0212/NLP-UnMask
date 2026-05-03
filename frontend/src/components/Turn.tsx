@@ -3,7 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { Message } from '@/lib/types';
 import Avatar from './Avatar';
 import DiagramCard from './DiagramCard';
-import { useSessionStore } from '@/lib/store';
+import { useSessionStore, apiBase } from '@/lib/store';
 
 const audioRef = { current: null as HTMLAudioElement | null };
 
@@ -55,7 +55,7 @@ function useTTS() {
 
     // Try backend neural TTS first
     try {
-      const res = await fetch(`/api/tts?${new URLSearchParams({ text: clean, voice: 'nova' })}`);
+      const res = await fetch(`${apiBase()}/api/tts?${new URLSearchParams({ text: clean, voice: 'nova' })}`);
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);

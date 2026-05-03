@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useSessionStore } from '@/lib/store';
+import { useSessionStore, apiBase } from '@/lib/store';
 
 export default function Composer() {
   const [text, setText] = useState('');
@@ -107,7 +107,7 @@ export default function Composer() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch(`/api/sessions/${sessionId}/image`, {
+      const res = await fetch(`${apiBase()}/api/sessions/${sessionId}/image`, {
         method: 'POST',
         body: formData,
       });

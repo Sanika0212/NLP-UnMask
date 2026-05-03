@@ -3,6 +3,10 @@ import { create } from 'zustand';
 import { SessionStore, Message, AvatarState, Phase, LearningMode, YouTubeResource } from './types';
 import { saveMastery, loadUser } from './userStore';
 
+// Returns the HF Space origin when deployed on Vercel, empty string on same-origin
+export const apiBase = (): string =>
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_BACKEND_URL) || '';
+
 const AGENT_AVATAR: Record<string, AvatarState> = {
   diagnostic: 'asking',
   tutor: 'speaking',
@@ -77,7 +81,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   createSession: async () => {
-    const res = await fetch('/api/sessions', { method: 'POST' });
+    const res = await fetch(`${apiBase()}/api/sessions`, { method: 'POST' });
     const data = await res.json();
     set({ sessionId: data.session_id });
   },
@@ -85,7 +89,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setupSession: async (topic, mode) => {
     const { sessionId } = get();
     if (!sessionId) throw new Error('No session');
-    const res = await fetch(`/api/sessions/${sessionId}/setup`, {
+    const res = await fetch(`${apiBase()}/api/sessions/${sessionId}/setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ topic, mode, mastery: get().mastery }),
@@ -112,7 +116,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set({ isThinking: true, avatarState: 'thinking' });
 
     try {
-      const resp = await fetch(`/api/sessions/${sessionId}/messages`, {
+      const resp = await fetch(`${apiBase()}/api/sessions/${sessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
@@ -280,7 +284,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
                 await get().setupSession(topic, mode);
                 // Retry the message with the new session
                 const newSessionId = get().sessionId!;
-                const retryResp = await fetch(`/api/sessions/${newSessionId}/messages`, {
+                const retryResp = await fetch(`${apiBase()}/api/sessions/${newSessionId}/messages`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ content }),
