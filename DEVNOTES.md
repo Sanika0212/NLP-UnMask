@@ -212,6 +212,9 @@ Key finding: zero leaks across all variants under benign conditions is the **ben
 - **LaTeX natbib warning** — `report.tex` uses `\begin{thebibliography}` with numbered citations but `acl.sty` loads natbib in author-year mode. Warning is harmless; PDF compiles correctly.
 - **`result.get("_internal_analysis", {})` returns None** — when key exists but value is None, the default arg is ignored. Fix: use `result.get("_internal_analysis") or {}` to safely handle None. This bug silently blocked the `youtube_resources` SSE event.
 - **HF Spaces disk is ephemeral** — survey CSVs saved to `survey_results/` are lost on space restart. Use stdout logging as backup: `[SURVEY_RESULT] {...}` lines persist in HF Space logs across restarts.
+- **`_REVEAL_SYSTEM` hallucination — generates another question** — the `socratic_question` field name biases the model toward questions even when `break_socratic=True`. Old prompt only said "give the correct answer … End with ONE simple check question" — model interpreted this as license to ask a new clinical scenario. Fix: added `CRITICAL: Do NOT respond with another Socratic question. The student asked for an explanation — give it.` to `_REVEAL_SYSTEM`. The field still named `socratic_question` (schema change too invasive) but instruction overrides.
+- **`visual_hint` SSE updates wrong message card** — `updateLastBotMessage` was patching the previous bot card when no streaming placeholder existed (e.g., diagram sent after a completed message). Fix: check `lastBot?._streaming` first; if False, create a new message instead of patching.
+- **Rail footer timer hidden by topics overflow** — `.topics` list with many items overflowed `.rail` (which has `overflow: hidden`). Fix in `globals.css`: `.topics { flex: 1; overflow-y: auto; min-height: 0; }` — makes the list scrollable and footer always visible.
 
 ---
 
@@ -362,6 +365,27 @@ The mapping `concept → image_file` lives in `src/anatomy_images.py` (10 concep
 
 ---
 
+## Session Log — May 2026 (Vaishak + Claude)
+
+Full set of fixes and features shipped in this session. Each item links to the relevant code location.
+
+### Features Added
+- **YouTube Recommendations** (`src/nodes/socratic_generator.py` — `_generate_session_summary`, `SessionSummary.youtube_resources`): wrapup phase generates 2–4 `YouTubeResource` objects for weakest topics. Receives `youtube_resources` SSE event in `store.ts`, renders clickable cards in `ProgressView.tsx`.
+- **End Session button** (`frontend/src/components/Composer.tsx`): button next to Send that sends `"end session"` message, hidden when `phase === 'wrapup'`.
+- **Quit phrase expansion** (`src/agents/supervisor.py`, `src/nodes/orchestrator.py` — `_QUIT_PHRASES`): added "lets end", "let's end", "end the session", "end now", "can we end", "stop the session", "wrap up", "wrapup", "wrap it up", "i'm ready to end" and variants.
+- **Explain triggers for break_socratic** (`src/nodes/socratic_generator.py` — `_GIVE_ANSWER_TRIGGERS`): "can you explain", "explain this to me", "help me understand", "walk me through", "break it down", "just explain", "please explain" now trigger `break_socratic=True`.
+- **Survey persistence** (`src/api.py` — `/api/survey`): saves `mastery_json`, `mistake_count`, `session_report` (first 2000 chars) to CSV; also prints `[SURVEY_RESULT] {...}` to stdout so HF Space log capture survives disk resets.
+
+### Bugs Fixed
+- **`_internal_analysis` None crash** (`src/api.py`): `result.get("_internal_analysis", {})` silently returned `None` when key was present but `None`. Changed to `result.get("_internal_analysis") or {}`. Root cause: blocked `youtube_resources` SSE event from ever firing.
+- **YouTube recommendations missing for brief sessions** (`src/nodes/socratic_generator.py` — `_generate_session_summary`): `weak_topics` empty when no mastery data → fallback to `study_focus` topic so at least 2 videos always generated.
+- **Assess tab badge inflated (showed 15)** (`frontend/src/lib/store.ts`): `mistake_log` is append-only via `operator.add`, so every wrong answer on the same concept stacked up. Fixed by deduplicating by `(topic, misconception)` pair before storing in `misconceptions`.
+- **Diagram card updates previous message** (`frontend/src/lib/store.ts` — `visual_hint` handler): `updateLastBotMessage` was patching whatever the last bot message was, not the streaming placeholder. Fixed: only patch if `lastBot?._streaming === true`; otherwise create a new message.
+- **Rail footer timer hidden** (`frontend/src/app/globals.css` — `.topics`): topics list overflowed `.rail` (which has `overflow: hidden`). Fix: `.topics { flex: 1; overflow-y: auto; min-height: 0; }`.
+- **`_REVEAL_SYSTEM` generates Socratic question instead of explanation**: `socratic_question` field name biased model output even with break_socratic=True. Added `CRITICAL: Do NOT respond with another Socratic question` to `_REVEAL_SYSTEM` prompt.
+
+---
+
 ## TODO / Outstanding
 
 - [x] YouTube Recommendations: 2–4 videos per session wrapup, generated by `socratic_generator`, rendered in `ProgressView.tsx`
@@ -370,6 +394,9 @@ The mapping `concept → image_file` lives in `src/anatomy_images.py` (10 concep
 - [x] Misconception deduplication: frontend `store.ts` dedupes by `(topic, note)` pair
 - [x] Survey persistence: `submit_survey` saves `mastery_json`, `mistake_count`, `session_report` (first 2000 chars) to CSV; also prints `[SURVEY_RESULT] {...}` to stdout
 - [x] `_internal_analysis` None bug fix: `result.get("_internal_analysis") or {}` prevents crash
+- [x] `_REVEAL_SYSTEM` hallucination fix: added CRITICAL instruction to prevent Socratic question when `break_socratic=True`
+- [x] `visual_hint` fix: creates new message when no streaming placeholder, not patch-in-place
+- [x] Rail footer timer fix: `.topics` scrollable via `flex:1; overflow-y:auto; min-height:0`
 - [ ] Task 4 (Multimodal VLM): Anatomical PNG diagrams render inline via `cl.Image`; remaining gap is VLM interpretation of student-uploaded images (GPT-4o Vision backend wired in `analyze_uploaded_image()` but not fully tested end-to-end)
 - [ ] Cross-session persistence: `mistake_log` and mastery live in-memory (MemorySaver). For multi-session tracking, swap to SQLite checkpointer.
 - [ ] Pilot study: 10 UB students (5 OT, 5 CS), 15-min sessions, pre/post quiz for learning gain — in progress
