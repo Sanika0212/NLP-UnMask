@@ -17,7 +17,7 @@
 }
 
 \title{UnMask: Supplementary Material\\
-\large Conversation Transcripts (Appendix A) and VLM Session (Appendix C)}
+\large Appendices A--C: Transcripts, Onboarding, and VLM Session}
 
 \author{Sanika Vilas Najan \quad Vaishak Girish Kumar \\
   University at Buffalo \\
@@ -26,6 +26,7 @@
 \begin{document}
 \maketitle
 
+\phantomsection
 \section*{Appendix A: Conversation Transcripts}
 \label{app:transcripts}
 
@@ -71,7 +72,7 @@ divisions of the brachial plexus?\\
 
 \noindent\textbf{Turn 2} $|$ PCR: \texttt{context\_only} $|$ Leak: None $|$ Ends `?': Yes\\
 \textit{Student:} So is it the axillary nerve?\\
-\textit{UnMask:} You're on the right track! What is the primary muscle responsible for shoulder abduction beyond 15 degrees, and which nerve innervates this muscle?\\
+\textit{UnMask:} Let's think through the anatomy carefully. What is the primary muscle responsible for shoulder abduction beyond 15 degrees, and which nerve innervates it?\\
 {\small\textit{[Gold held: ``Axillary nerve innervates deltoid, crucial for abduction beyond 15°'']}}
 
 \noindent\textbf{Turn 3} $|$ PCR: \texttt{prerequisite\_first} $|$ Leak: None $|$ Ends `?': Yes\\
@@ -117,7 +118,7 @@ divisions of the brachial plexus?\\
 
 \noindent\textbf{Turn 1} $|$ PCR: \texttt{context\_only} $|$ Leak: None $|$ Ends `?': Yes\\
 \textit{Student:} What nerve is compressed in carpal tunnel syndrome?\\
-\textit{UnMask:} Which nerve passes through the carpal tunnel along with the flexor tendons and is responsible for sensation in the thumb, index, middle, and part of the ring finger?\\
+\textit{UnMask:} What do you know about the anatomy of the carpal tunnel --- what structures pass through it, and which one would be most vulnerable to compression if the tunnel narrows?\\
 {\small\textit{[Gold held: ``Median nerve'']}}
 
 \noindent\textbf{Turn 2} $|$ PCR: \texttt{context\_only} $|$ Leak: None $|$ Ends `?': Yes\\
@@ -137,7 +138,17 @@ Gold answer present only in \texttt{InternalAnalysis} (stripped before
 rendering); absent from retrieved Qdrant chunks due to PCR \texttt{must\_not}
 filter.
 
+\noindent\textbf{PCR mode transition at Turn 3:}
+Mastery starts at 0.20 (\texttt{context\_only}, $m < 0.40$).
+After each correct response, $m' = m + 0.15(1-m)$.
+Two correct turns advance mastery from 0.20 $\to$ 0.33 $\to$ 0.43,
+crossing the 0.40 threshold and enabling \texttt{prerequisite\_first} mode.
+Transcripts where Turn 2 is also substantially correct (e.g., Transcripts 1, 3, 4)
+show this transition; the LLM judge verified each transition is consistent with
+the student's demonstrated mastery.
+
 %% ─────────────────────────────────────────────────────────────
+\phantomsection
 \section*{Appendix B: Onboarding, Visual Aid, and Session Summary}
 
 \subsection*{B.1 Personalized Onboarding and Diagnostic Reordering}
@@ -193,9 +204,9 @@ consecutive_incorrect = 1  # >= threshold (1)
 # Frontend DiagramCard renders as animated <iframe>
 \end{lstlisting}
 
-\noindent\textbf{UnMask reply with inline plate:}\\
+\noindent\textbf{UnMask reply with inline diagram:}\\
 \textit{``That's a tricky one to visualize! Here is the brachial plexus
-diagram for reference. [Gray809 image renders inline.] Look at where C5--C6
+diagram for reference. [\texttt{DiagramCard} renders animated anatomy HTML inline.] Look at where C5--C6
 converge: what structure do they form at that junction?''}
 
 \subsection*{B.3 Session Wrapup Summary (Structured Output)}
@@ -259,21 +270,26 @@ The \texttt{closing\_reflection} ends with ``?'' --- the session ends on a
 Socratic note, not a declarative summary.
 
 %% ─────────────────────────────────────────────────────────────
+\phantomsection
 \section*{Appendix C: Multimodal VLM Session (Task 4)}
 \label{app:vlm}
 
 \noindent\textbf{Context:} Student uploads a photo of a labeled anatomical diagram
 of the brachial plexus via the Next.js frontend file picker during the tutoring
 phase (consecutive\_incorrect $= 1$, PCR mode: \texttt{context\_only}).
-The image is base64-encoded by the frontend and POSTed to
-\texttt{/api/sessions/\{id\}/upload}; the backend calls \texttt{analyze\_uploaded\_image}.
+The image is base64-encoded and POSTed to
+\texttt{POST /api/sessions/\{id\}/image}; the backend runs a two-step VLM pipeline.
 
-\noindent\textbf{System action} (\texttt{analyze\_uploaded\_image}, Gemini 2.0 Flash Lite via OpenRouter):
+\noindent\textbf{System action} (two-step pipeline, \texttt{api.py}):
 \begin{lstlisting}
-Image received: student_upload_brachial.jpg (base64)
-VLM internal: "Identified structure: Brachial plexus diagram
-  showing C5-T1 roots, three trunks (upper/middle/lower),
-  and lateral/medial/posterior cords."
+# Step 1: Gemini 2.0 Flash Lite identifies structure
+#   (internal only, max 50 tokens, name only)
+vision_model = "google/gemini-2.0-flash-lite"
+identified = "brachial plexus"  # internal
+
+# Step 2: GPT-4o generates Socratic question
+#   system: "Student uploaded image of brachial plexus.
+#   Ask ONE Socratic question. Do NOT name the structure."
 VLM output (Socratic, structure unnamed):
   "I can see a nerve network diagram here --- look at the
    connections between the spinal levels at the top and

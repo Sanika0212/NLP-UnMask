@@ -517,7 +517,13 @@ def _generate_session_summary(state: TutoringState) -> tuple[str, SessionSummary
         temperature=0.3,
     )
     raw_content = (resp_raw.choices[0].message.content or "").strip()
-    raw_content = _re.sub(r"^```(?:json)?\s*|\s*```$", "", raw_content, flags=_re.DOTALL).strip()
+    # Strip markdown code fences — model may add leading whitespace/newline before ```json
+    raw_content = _re.sub(r"```(?:json)?\s*", "", raw_content).replace("```", "").strip()
+    # If the model still wrapped prose around the JSON, extract the first {...} block
+    _brace = raw_content.find("{")
+    _rbrace = raw_content.rfind("}")
+    if _brace != -1 and _rbrace != -1 and _rbrace > _brace:
+        raw_content = raw_content[_brace : _rbrace + 1]
     summary: SessionSummary | None = None
     try:
         data = json.loads(raw_content)

@@ -7,6 +7,7 @@ import Aside from '@/components/Aside';
 import TopBar from '@/components/TopBar';
 import Thread from '@/components/Thread';
 import Composer from '@/components/Composer';
+import SimulationPanel from '@/components/SimulationPanel';
 
 export default function ChatPage() {
   const router = useRouter();
@@ -147,6 +148,9 @@ export default function ChatPage() {
           onCollapse={() => setAsideCollapsed(!asideCollapsed)}
         />
       )}
+
+      {/* Simulation panel — floating 🤖 button */}
+      <SimulationPanel />
     </div>
   );
 }
