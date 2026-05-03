@@ -992,6 +992,72 @@ All arise from scapula → insert on humerus → stabilise GH joint""",
   • Elbow extension powers push in transfers, dressing, weight-bearing
   • Triceps grade 3+ needed for functional transfers in SCI""",
     },
+
+    "hand_intrinsics": {
+        "caption": "Intrinsic hand muscles — thenar, hypothenar, lumbricals, interossei",
+        "image_file": "hand_intrinsics.html",
+        "diagram": "",
+    },
+
+    "upper_limb_muscles.fdp": {
+        "caption": "Flexor digitorum profundus — deep finger flexors, FDP/FDS anatomy",
+        "image_file": "hand_intrinsics.html",
+        "diagram": "",
+    },
+
+    "upper_limb_muscles.fds": {
+        "caption": "Flexor digitorum superficialis — finger flexor anatomy",
+        "image_file": "hand_intrinsics.html",
+        "diagram": "",
+    },
+
+    "upper_limb_muscles.hand": {
+        "caption": "Intrinsic hand muscles — thenar, hypothenar, lumbricals, interossei",
+        "image_file": "hand_intrinsics.html",
+        "diagram": "",
+    },
+
+    "upper_limb_muscles.intrinsic": {
+        "caption": "Intrinsic hand muscles — thenar, hypothenar, lumbricals, interossei",
+        "image_file": "hand_intrinsics.html",
+        "diagram": "",
+    },
+
+    "upper_limb_muscles.thenar": {
+        "caption": "Thenar muscles — opponens pollicis, abductor pollicis brevis, flexor pollicis brevis",
+        "image_file": "hand_intrinsics.html",
+        "diagram": "",
+    },
+
+    "upper_limb_muscles.hypothenar": {
+        "caption": "Hypothenar muscles — opponens digiti minimi, abductor/flexor digiti minimi",
+        "image_file": "hand_intrinsics.html",
+        "diagram": "",
+    },
+
+    "upper_limb_muscles.lumbrical": {
+        "caption": "Lumbrical muscles — MCP flexion + IP extension",
+        "image_file": "hand_intrinsics.html",
+        "diagram": "",
+    },
+
+    "upper_limb_muscles.interossei": {
+        "caption": "Interossei — dorsal (abduct) and palmar (adduct) intrinsic hand muscles",
+        "image_file": "hand_intrinsics.html",
+        "diagram": "",
+    },
+
+    "upper_limb_muscles.wrist_flexors": {
+        "caption": "Wrist flexors — FCR, FCU, palmaris longus",
+        "image_file": "wrist_joint.html",
+        "diagram": "",
+    },
+
+    "upper_limb_muscles.wrist_extensors": {
+        "caption": "Wrist extensors — ECRL, ECRB, ECU and extensor compartments",
+        "image_file": "wrist_joint.html",
+        "diagram": "",
+    },
 }
 
 
@@ -999,15 +1065,32 @@ def get_image_for_topic(topic: str) -> dict | None:
     """Return best matching diagram dict for a topic/concept ID."""
     if not topic:
         return None
+    # Exact match
     if topic in ANATOMY_DIAGRAMS:
         return ANATOMY_DIAGRAMS[topic]
-    # Try top-level prefix
-    top = topic.split(".")[0]
-    if top in ANATOMY_DIAGRAMS:
-        return ANATOMY_DIAGRAMS[top]
-    # Keyword scan
+    # Longest-prefix match (e.g. upper_limb_muscles.fdp -> upper_limb_muscles.hand)
     topic_lower = topic.lower()
+    best_key = None
+    best_len = 0
+    for key in ANATOMY_DIAGRAMS:
+        key_lower = key.lower()
+        # key is a prefix of topic (e.g. key=upper_limb_muscles.hand, topic=upper_limb_muscles.hand_flexors)
+        if topic_lower.startswith(key_lower) and len(key_lower) > best_len:
+            best_key = key
+            best_len = len(key_lower)
+        # topic is a prefix of key
+        elif key_lower.startswith(topic_lower) and len(topic_lower) > best_len:
+            best_key = key
+            best_len = len(topic_lower)
+    if best_key:
+        return ANATOMY_DIAGRAMS[best_key]
+    # Top-level prefix (e.g. upper_limb_muscles)
+    top = topic.split(".")[0].lower()
+    for key in ANATOMY_DIAGRAMS:
+        if key.lower() == top or key.lower().startswith(top + "."):
+            return ANATOMY_DIAGRAMS[key]
+    # Keyword scan — partial substring
     for key, val in ANATOMY_DIAGRAMS.items():
-        if key in topic_lower or topic_lower in key:
+        if key.lower() in topic_lower or topic_lower in key.lower():
             return val
     return None
