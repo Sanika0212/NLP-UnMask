@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/lib/store';
+import { loadUser } from '@/lib/userStore';
 import Avatar from '@/components/Avatar';
 import { TOPICS } from '@/lib/topics';
 
@@ -15,6 +16,32 @@ export default function WelcomePage() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isResume, setIsResume] = useState(false);
+  const [prevMastery, setPrevMastery] = useState<Record<string, number>>({});
+
+  // Load previous mastery whenever name changes
+  useEffect(() => {
+    if (!name.trim() || name.trim() === 'Student') {
+      setPrevMastery({});
+      return;
+    }
+    const userData = loadUser(name.trim());
+    setPrevMastery(userData.mastery ?? {});
+  }, [name]);
+
+  // Topics with meaningful prior mastery (>5%)
+  const resumeTopics = TOPICS.filter(t => (prevMastery[t.key] ?? 0) > 0.05)
+    .sort((a, b) => (prevMastery[b.key] ?? 0) - (prevMastery[a.key] ?? 0));
+
+  const handleResumeTopic = (topicKey: string) => {
+    setSelectedTopic(topicKey);
+    setIsResume(true);
+  };
+
+  const handleSelectTopic = (topicKey: string) => {
+    setSelectedTopic(topicKey);
+    setIsResume(false);
+  };
 
   const handleStartSession = async () => {
     if (!selectedTopic) { setError('Please select a topic first.'); return; }
@@ -24,12 +51,12 @@ export default function WelcomePage() {
     try {
       store.setStudentName(name || 'Student');
       await store.createSession();
-      const result = await store.setupSession(selectedTopic, selectedMode);
+      const result = await store.setupSession(selectedTopic, selectedMode, isResume);
       store.addMessage({
         role: 'bot',
         content: result.welcomeMessage,
         avatarState: 'speaking',
-        quickReplies: ["Let's start →"],
+        quickReplies: isResume ? ["Let's continue →"] : ["Let's start →"],
       });
       router.push('/chat');
     } catch (err) {
@@ -78,6 +105,64 @@ export default function WelcomePage() {
           />
         </div>
 
+        {/* ── Resume section ── */}
+        {resumeTopics.length > 0 && (
+          <div style={{ marginBottom: '28px', width: '100%' }}>
+            <label style={{ display:'block', fontSize:'11px', fontWeight:600, color:'var(--ink-3)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:'10px' }}>
+              Continue where you left off
+            </label>
+            <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+              {resumeTopics.map(t => {
+                const pct = Math.round((prevMastery[t.key] ?? 0) * 100);
+                const isSelected = selectedTopic === t.key && isResume;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => handleResumeTopic(t.key)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--r)',
+                      border: isSelected ? '1.5px solid var(--accent)' : '1px solid var(--rule-2)',
+                      background: isSelected ? 'var(--accent-soft)' : 'var(--paper-2)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all .15s',
+                    }}
+                  >
+                    {/* mastery bar */}
+                    <div style={{ position:'relative', width:'40px', height:'40px', flexShrink:0 }}>
+                      <svg width="40" height="40" style={{ transform:'rotate(-90deg)' }}>
+                        <circle cx="20" cy="20" r="16" fill="none" stroke="var(--rule)" strokeWidth="4" />
+                        <circle
+                          cx="20" cy="20" r="16" fill="none"
+                          stroke={pct >= 70 ? '#10b981' : pct >= 40 ? 'var(--accent)' : '#f59e0b'}
+                          strokeWidth="4"
+                          strokeDasharray={`${2 * Math.PI * 16}`}
+                          strokeDashoffset={`${2 * Math.PI * 16 * (1 - pct / 100)}`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <span style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', fontWeight:700, color:'var(--ink-2)' }}>
+                        {pct}%
+                      </span>
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:'13px', fontWeight:600, color: isSelected ? 'var(--accent-ink)' : 'var(--ink)', marginBottom:'2px' }}>{t.label}</div>
+                      <div style={{ fontSize:'11px', color:'var(--ink-3)' }}>{t.desc}</div>
+                    </div>
+                    <span style={{ fontSize:'12px', color: isSelected ? 'var(--accent)' : 'var(--ink-3)', fontWeight: isSelected ? 700 : 400, flexShrink:0 }}>
+                      {isSelected ? 'Selected ✓' : 'Resume →'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div style={{ marginBottom: '28px' }}>
           <label
             style={{
@@ -90,14 +175,14 @@ export default function WelcomePage() {
               marginBottom: '12px',
             }}
           >
-            Choose a topic
+            {resumeTopics.length > 0 ? 'Or start a new topic' : 'Choose a topic'}
           </label>
           <div className="topic-grid">
             {TOPICS.map((topic) => (
               <button
                 key={topic.key}
-                className={`topic-btn ${selectedTopic === topic.key ? 'selected' : ''}`}
-                onClick={() => setSelectedTopic(topic.key)}
+                className={`topic-btn ${selectedTopic === topic.key && !isResume ? 'selected' : ''}`}
+                onClick={() => handleSelectTopic(topic.key)}
               >
                 <div style={{ marginBottom: '4px' }}>
                   {topic.label}
@@ -153,8 +238,12 @@ export default function WelcomePage() {
             disabled={isDisabled}
             style={isDisabled ? { opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
           >
-            <span className="t">{loading ? 'Starting…' : 'Start session →'}</span>
-            <span className="d">Begin NBCOT prep</span>
+            <span className="t">
+              {loading ? 'Starting…' : isResume ? 'Resume session →' : 'Start session →'}
+            </span>
+            <span className="d">
+              {isResume ? 'Skip diagnostic, continue tutoring' : 'Begin NBCOT prep'}
+            </span>
           </button>
           <button
             className="start-btn"

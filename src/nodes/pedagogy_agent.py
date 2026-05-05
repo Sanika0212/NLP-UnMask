@@ -497,7 +497,10 @@ def pedagogy_agent(state: TutoringState) -> dict:
         topic = _extract_topic_from_message(student_msg)
 
     diag_keywords = state.get("current_diagnostic_answer_hint") or []
-    is_correct, _ = _evaluate_response(student_msg, internal, diagnostic_keywords=diag_keywords)
+    if state.get("force_eval_correct"):
+        is_correct = True
+    else:
+        is_correct, _ = _evaluate_response(student_msg, internal, diagnostic_keywords=diag_keywords)
 
     if topic:
         current_mastery = mastery.get(topic, _M["default_prior"])

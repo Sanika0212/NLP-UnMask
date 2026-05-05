@@ -145,10 +145,14 @@ class SetupBody(BaseModel):
     topic: str          # bare key e.g. "dermatomes"
     mode: str = "text"  # "visual" | "text"
     mastery: dict = {}  # prior mastery from localStorage (keyed by concept ID)
+    resume: bool = False  # skip diagnostic and jump straight to tutoring
+    prior_weak_topics: list = []    # weak topics from previous session
+    prior_misconceptions: list = [] # [{topic, note, turn}] from previous session
 
 
 class MessageBody(BaseModel):
     content: str
+    force_eval_correct: bool = False
 
 
 class SurveyBody(BaseModel):
@@ -196,13 +200,49 @@ def setup_session(session_id: str, body: SetupBody):
     topic_label = body.topic.replace("_", " ").title()
     mode_note = " I'll include diagrams as we go." if body.mode == "visual" else ""
 
-    welcome = (
-        f"Welcome! I'm UnMask — your Socratic anatomy tutor for NBCOT prep. "
-        f"We'll be focusing on **{topic_label}** today.{mode_note} "
-        f"I won't just hand you answers; I'll guide you with questions so the knowledge actually sticks. "
-        f"We'll start with a quick {sess.diag_total}-question diagnostic to calibrate where you are — "
-        f"no penalties for thinking aloud, no wrong answers."
-    )
+    if body.resume and body.mastery:
+        state["diagnostic_complete"] = True
+        state["phase"] = "tutoring"
+        state["current_topic"] = body.topic
+        sess.diag_q_index = sess.diag_total  # mark diagnostic as exhausted
+
+        # Restore prior session context so the model knows what was covered
+        if body.prior_weak_topics:
+            state["weak_topics"] = body.prior_weak_topics
+        if body.prior_misconceptions:
+            # Rebuild mistake_log from saved misconceptions
+            state["mistake_log"] = [
+                {"topic": m.get("topic", ""), "misconception": m.get("note", ""),
+                 "turn": m.get("turn", 0), "elapsed_sec": 0.0}
+                for m in body.prior_misconceptions
+            ]
+            # Inject a silent context briefing into conversation history so the
+            # model knows what was already discussed without re-asking those questions
+            weak_str = ", ".join(body.prior_weak_topics) if body.prior_weak_topics else "none noted"
+            misc_lines = "\n".join(
+                f"- {m.get('topic','')}: {m.get('note','')}"
+                for m in body.prior_misconceptions[:5]
+            )
+            briefing = (
+                f"[PRIOR SESSION CONTEXT — not shown to student]\n"
+                f"Weak topics from last session: {weak_str}\n"
+                f"Specific misconceptions to revisit:\n{misc_lines}\n"
+                f"Do not re-ask diagnostic questions. Start tutoring from where the student left off."
+            )
+            state["conversation_history"] = [{"role": "system", "content": briefing}]
+
+        welcome = (
+            f"Welcome back! Picking up where you left off on **{topic_label}**.{mode_note} "
+            f"Your previous mastery scores are loaded — we'll skip the diagnostic and jump straight into tutoring."
+        )
+    else:
+        welcome = (
+            f"Welcome! I'm UnMask — your Socratic anatomy tutor for NBCOT prep. "
+            f"We'll be focusing on **{topic_label}** today.{mode_note} "
+            f"I won't just hand you answers; I'll guide you with questions so the knowledge actually sticks. "
+            f"We'll start with a quick {sess.diag_total}-question diagnostic to calibrate where you are — "
+            f"no penalties for thinking aloud, no wrong answers."
+        )
 
     save_session(session_id)
     return {
@@ -212,7 +252,7 @@ def setup_session(session_id: str, body: SetupBody):
     }
 
 
-async def stream_message(session_id: str, content: str):
+async def stream_message(session_id: str, content: str, force_eval_correct: bool = False):
     """Stream responses from the graph execution."""
     sess = get_session(session_id)
     if not sess:
@@ -271,6 +311,7 @@ async def stream_message(session_id: str, content: str):
     state = sess.state
     state["elapsed_seconds"] = time.time() - sess.session_start
     state["student_message"] = content
+    state["force_eval_correct"] = force_eval_correct
     # Preserve history — only inject new user turn; graph nodes append assistant reply
     history = state.get("conversation_history", [])
     state["conversation_history"] = history
@@ -545,7 +586,7 @@ async def stream_message(session_id: str, content: str):
 async def send_message(session_id: str, body: MessageBody):
     """Stream messages from graph execution."""
     return StreamingResponse(
-        stream_message(session_id, body.content),
+        stream_message(session_id, body.content, body.force_eval_correct),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

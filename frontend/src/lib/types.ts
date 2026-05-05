@@ -72,8 +72,8 @@ export interface SessionState {
 
 export interface SessionStore extends SessionState {
   createSession: () => Promise<void>;
-  setupSession: (topic: string, mode: LearningMode) => Promise<{ firstQuestion: string; welcomeMessage: string; diagTotal: number }>;
-  sendMessage: (content: string) => Promise<void>;
+  setupSession: (topic: string, mode: LearningMode, resume?: boolean) => Promise<{ firstQuestion: string; welcomeMessage: string; diagTotal: number }>;
+  sendMessage: (content: string, forceEvalCorrect?: boolean) => Promise<void>;
   setAvatarState: (s: AvatarState) => void;
   addMessage: (msg: Omit<Message, 'id' | 'timestamp'>) => void;
   updateLastBotMessage: (patch: Partial<Message>) => void;

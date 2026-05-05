@@ -8,6 +8,9 @@ interface UserData {
   cardRatings: Record<string, Record<number, 'known' | 'review'>>;
   // topic -> array of scores
   quizScores: Record<string, number[]>;
+  // last known weak topics and misconceptions — restored on resume
+  weakTopics: string[];
+  misconceptions: { topic: string; note: string; turn: number }[];
 }
 
 function key(name: string) {
@@ -55,6 +58,15 @@ export function saveQuizScore(name: string, topic: string, score: number, total:
   saveUser(name, { quizScores: { ...current.quizScores, [topic]: scores } });
 }
 
+export function saveSessionContext(
+  name: string,
+  weakTopics: string[],
+  misconceptions: { topic: string; note: string; turn: number }[],
+) {
+  if (!name || name === 'Student') return;
+  saveUser(name, { weakTopics, misconceptions });
+}
+
 function empty(): UserData {
-  return { mastery: {}, cardRatings: {}, quizScores: {} };
+  return { mastery: {}, cardRatings: {}, quizScores: {}, weakTopics: [], misconceptions: [] };
 }

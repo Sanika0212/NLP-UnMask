@@ -1,7 +1,7 @@
 'use client';
 import { create } from 'zustand';
 import { SessionStore, Message, AvatarState, Phase, LearningMode, YouTubeResource } from './types';
-import { saveMastery, loadUser } from './userStore';
+import { saveMastery, saveSessionContext, loadUser } from './userStore';
 
 // Returns the HF Space origin when deployed on Vercel, empty string on same-origin
 export const apiBase = (): string =>
@@ -51,7 +51,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   setStudentName: (name) => {
     const userData = loadUser(name);
-    set({ studentName: name, mastery: Object.keys(userData.mastery).length > 0 ? userData.mastery : get().mastery });
+    set({
+      studentName: name,
+      mastery: Object.keys(userData.mastery).length > 0 ? userData.mastery : get().mastery,
+      weakTopics: userData.weakTopics ?? [],
+      misconceptions: userData.misconceptions ?? [],
+    });
   },
 
   setParticipantInfo: (id, role) => set({ participantId: id, participantRole: role }),
@@ -86,13 +91,17 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set({ sessionId: data.session_id });
   },
 
-  setupSession: async (topic, mode) => {
+  setupSession: async (topic, mode, resume = false) => {
     const { sessionId } = get();
     if (!sessionId) throw new Error('No session');
     const res = await fetch(`${apiBase()}/api/sessions/${sessionId}/setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, mode, mastery: get().mastery }),
+      body: JSON.stringify({
+        topic, mode, mastery: get().mastery, resume,
+        prior_weak_topics: get().weakTopics,
+        prior_misconceptions: get().misconceptions,
+      }),
     });
     const data = await res.json();
     set({
@@ -108,7 +117,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     };
   },
 
-  sendMessage: async (content) => {
+  sendMessage: async (content, forceEvalCorrect = false) => {
     const { sessionId } = get();
     if (!sessionId) return;
 
@@ -119,7 +128,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const resp = await fetch(`${apiBase()}/api/sessions/${sessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, force_eval_correct: forceEvalCorrect }),
       });
 
       if (!resp.body) throw new Error('No response body');
@@ -186,6 +195,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
               : get().misconceptions;
             const newMastery = (su.mastery as Record<string, number>) ?? get().mastery;
             saveMastery(get().studentName, newMastery);
+            const newWeakTopics = (su.weak_topics as string[]) ?? get().weakTopics;
+            saveSessionContext(get().studentName, newWeakTopics, newMisconceptions);
             const newPhase = (su.phase as Phase) ?? get().phase;
             const pcrMap: Record<string, string> = {
               rapport: 'diagnostic',
@@ -200,7 +211,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
               diagnosticComplete: (su.diagnostic_complete as boolean) ?? false,
               consecutiveIncorrect: (su.consecutive_incorrect as number) ?? 0,
               currentTopic: (su.current_topic as string | null) ?? null,
-              weakTopics: (su.weak_topics as string[]) ?? [],
+              weakTopics: newWeakTopics,
               misconceptions: newMisconceptions,
             });
 

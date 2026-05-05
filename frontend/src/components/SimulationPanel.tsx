@@ -247,7 +247,7 @@ export default function SimulationPanel() {
   }), []);
 
   /* ── type message into Composer textarea, then send ─────────────────────── */
-  const typeAndSend = useCallback(async (msg: string) => {
+  const typeAndSend = useCallback(async (msg: string, forceCorrect = false) => {
     const store = useSessionStore.getState();
     // Type characters one by one
     for (let i = 1; i <= msg.length; i++) {
@@ -259,7 +259,7 @@ export default function SimulationPanel() {
     await sleep(500);
     // Clear draft, then send
     store.setComposerDraft('');
-    await store.sendMessage(msg);
+    await store.sendMessage(msg, forceCorrect);
   }, [typingSpeed]);
 
   /* ── setup fresh session ─────────────────────────────────────────────── */
@@ -328,7 +328,7 @@ export default function SimulationPanel() {
       }
 
       try {
-        await typeAndSend(script[i].msg);
+        await typeAndSend(script[i].msg, script[i].tag === 'correct');
         await sleep(300);
         await waitReply();
         setLog((l) => [...l, { idx: i, ok: true, note: 'ok' }]);
