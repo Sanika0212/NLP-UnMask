@@ -52,7 +52,7 @@ Lewis et al. (2020) introduced RAG as a general architecture combining a dense r
 
 ### 2.5  Multimodal Vision-Language Models
 
-Liu et al. (2024) introduced LLaVA (Large Language and Vision Assistant), demonstrating that visual instruction tuning on GPT-4-generated multimodal data produces strong VLMs capable of spatial and scientific visual reasoning. Achiam et al. (2023) describe GPT-4's multimodal capabilities including diagram interpretation. For medical domains specifically, Sellergren et al. (2025) introduce MedGemma, an open-source medical VLM (4B/27B parameters) achieving competitive performance on medical reasoning benchmarks — UnMask uses MedGemma 4B as its primary diagram analysis model, with GPT-4o as fallback.
+Liu et al. (2024) introduced LLaVA (Large Language and Vision Assistant), demonstrating that visual instruction tuning on GPT-4-generated multimodal data produces strong VLMs capable of spatial and scientific visual reasoning. Achiam et al. (2023) describe GPT-4's multimodal capabilities including diagram interpretation. For medical domains specifically, Sellergren et al. (2025) introduce MedGemma, an open-source medical VLM (4B/27B parameters) achieving competitive performance on medical reasoning benchmarks — UnMask uses MedGemma 4B as its primary diagram analysis model, with Gemini 2.0 Flash Lite as fallback.
 
 ### 2.6  Groundedness Verification
 
@@ -101,7 +101,7 @@ The critical property: in `context_only` mode, the `must_not` filter executes se
 
 ### 3.5  Layer 4: Structured Output — Dual Knowledge Masking
 
-The Socratic Generator calls GPT-4o with `response_format=SocraticOutput` enforcing a two-envelope structure:
+The Socratic Generator calls Mercury-2 with `response_format=SocraticOutput` enforcing a two-envelope structure:
 
 ```python
 class InternalAnalysis(BaseModel):
@@ -117,7 +117,7 @@ class VisibleResponse(BaseModel):
 
 `InternalAnalysis` is stripped before rendering. A post-generation leak guard additionally checks for ≥4 significant-word overlap between `socratic_question` and `correct_answer`, triggering a retry with explicit non-reveal instructions if fired.
 
-**Cost routing:** Rapport and Wrapup phases route to local Llama 3.1 8B via Ollama (65–75% of turns). GPT-4o handles Tutoring and Assessment. Total session cost: ~$0.08–0.10.
+**Cost routing:** Rapport and Wrapup phases route to local Llama 3.1 8B via Ollama (65–75% of turns). Mercury-2 handles Tutoring and Assessment. Total session cost: ~$0.08–0.10.
 
 ### 3.6  Concept Prerequisite Graph (NetworkX DAG)
 
@@ -145,8 +145,8 @@ Rather than flat mastery scores, we maintain a directed acyclic graph (e.g., `br
 |---------|-------------|----------------------|--------|
 | **Task 1: Content Retrieval + Masking** | RAG pipeline; mask answers; progressive hints | Hybrid Qdrant retrieval (dense+BM25+RRF); PCR excludes answer chunks at retrieval; structured output schema separates `internal_analysis`/`visible_response`; hint calibration via concept graph mastery | ✅ |
 | **Task 2: Adaptive Conversation** | Rapport → Tutoring phases; Manager Agent | LangGraph 4-phase state machine; pure-Python orchestrator; diagnostic probe initializes mastery; phase transitions by learning events + time ceilings | ✅ |
-| **Task 3: Synthesis & Assessment** | Clinical scenario; compare to gold-standard; mastery summary | Assessment phase triggers at coverage ≥ 80% or t ≥ 12min; GPT-4o evaluates against retrieved textbook chunk; concept graph exports mastery + prerequisite gaps + weak topics | ✅ |
-| **Task 4: Multimodal Diagram Tutoring** | VLM for anatomy diagrams; identify → ask function/insertion | Chainlit UI accepts image uploads; VLM backend (MedGemma 4B / GPT-4o Vision) planned for final milestone; PCR architecture supports image-chunk metadata | ⚠️ Partial |
+| **Task 3: Synthesis & Assessment** | Clinical scenario; compare to gold-standard; mastery summary | Assessment phase triggers at coverage ≥ 80% or t ≥ 12min; Mercury-2 evaluates against retrieved textbook chunk; concept graph exports mastery + prerequisite gaps + weak topics | ✅ |
+| **Task 4: Multimodal Diagram Tutoring** | VLM for anatomy diagrams; identify → ask function/insertion | Chainlit UI accepts image uploads; VLM backend (MedGemma 4B / Gemini 2.0 Flash Lite) planned for final milestone; PCR architecture supports image-chunk metadata | ⚠️ Partial |
 | **Task 5: Interactive Memory** | Session memory; proactively revisit mistakes | NetworkX concept DAG tracks mastery across session; Pedagogy Agent flags `weak_topics` (mastery < 0.4); proactive revisit scheduled after 8 min | ✅ |
 | **Bonus: Personalization Dashboard** | Show "weak spots" | Per-turn backend panel shows mastery scores (🔴/🟡/🟢); session-end weak topic summary | ✅ |
 | **Generalizability** | Swap vector DB for different subject | Single `config.yaml` field change; zero code changes required | ✅ |
@@ -157,7 +157,7 @@ Rather than flat mastery scores, we maintain a directed acyclic graph (e.g., `br
 
 ### 6.1  Metrics
 
-**Socratic Purity** (target ≥ 4.0/5.0): two-layer combined score. Layer 1 (rule-based): does the response end with "?"? does it contain ≥4 significant-word overlap with the gold answer (keyword leak)? is cosine similarity > 0.92 (semantic leak)? Confirmed leak (both layers) hard-caps at 2.0; no "?" penalizes −1.0. Layer 2 (LLM-as-Judge): GPT-4o rates 1–5 on a rubric where 5 = perfect Socratic (gold answer absent, student must think) and 1 = direct answer stated.
+**Socratic Purity** (target ≥ 4.0/5.0): two-layer combined score. Layer 1 (rule-based): does the response end with "?"? does it contain ≥4 significant-word overlap with the gold answer (keyword leak)? is cosine similarity > 0.92 (semantic leak)? Confirmed leak (both layers) hard-caps at 2.0; no "?" penalizes −1.0. Layer 2 (LLM-as-Judge): Mercury-2 rates 1–5 on a rubric where 5 = perfect Socratic (gold answer absent, student must think) and 1 = direct answer stated.
 
 **Answer Leak Rate** (target = 0): fraction of responses where both leak layers fire simultaneously. Single-layer fires are reported as "soft flags."
 
@@ -169,7 +169,7 @@ Rather than flat mastery scores, we maintain a directed acyclic graph (e.g., `br
 
 ### 6.2  Controlled Ablation Study
 
-Four variants on the same 30 questions, identical cold-start mastery (0.20), identical generation (GPT-4o, structured output):
+Four variants on the same 30 questions, identical cold-start mastery (0.20), identical generation (Mercury-2, structured output):
 
 | Variant | PCR | CRAG | Concept Graph |
 |---------|-----|------|---------------|
@@ -212,7 +212,7 @@ Adversarial results: all 20 prompts deflected across four attack categories — 
 
 **PCR works as designed.** The full system's 0.000 reach rate confirms that PCR's server-side filter excludes answer chunks at cold-start mastery. This is the architectural guarantee PCR was built to provide.
 
-**Zero leaks across all variants — but not equivalently safe.** All four variants show 0.000 leak rate under benign evaluation. This is precisely the TutorRL failure mode: GPT-4o's instruction following holds under benign conditions, making prompt-based suppression appear sufficient. Our adversarial battery (100% hold rate, not included in the ablation) demonstrates the difference: under active attack, architectural enforcement holds; prompt-based enforcement would degrade.
+**Zero leaks across all variants — but not equivalently safe.** All four variants show 0.000 leak rate under benign evaluation. This is precisely the TutorRL failure mode: strong LLM instruction following holds under benign conditions, making prompt-based suppression appear sufficient. Our adversarial battery (100% hold rate, not included in the ablation) demonstrates the difference: under active attack, architectural enforcement holds; prompt-based enforcement would degrade.
 
 **Purity cost of safety: 0.23 points.** The full system scores 4.70/5 vs. no_graph at 4.93/5. When the answer chunk is excluded from context, the model generates slightly broader guiding questions (it cannot see precisely what to guide toward). The no_pcr variant achieves 4.83 — paradoxically better purity — because seeing the answer enables more targeted Socratic scaffolding. This 0.23-point delta is the measurable price of architectural safety over prompt-level safety.
 
@@ -241,7 +241,7 @@ These results reveal a measurement mismatch between RAGAS (designed for factual 
 
 **CRAG's educational motivation.** In open-domain QA, CRAG prevents factually irrelevant documents from grounding incorrect answers. In educational tutoring, an additional failure mode applies: irrelevant retrievals produce off-topic Socratic questions that break the clinical reasoning thread. A student asking about the axillary nerve should not receive a Socratic question about the median nerve due to a retrieval misfire. CRAG prevents this. The ablation timing evidence (186s stall at q18) confirms CRAG fires in realistic deployment, not only in theory.
 
-**Multimodal gap and path forward.** Task 4 (VLM diagram tutoring) is the primary outstanding gap. The Chainlit interface accepts image uploads; the missing piece is a VLM backend (MedGemma 4B local or GPT-4o Vision via OpenRouter) that identifies anatomical structures and generates image-grounded Socratic follow-ups. PCR applies identically to image-associated chunks via `concept` metadata — no architectural changes required.
+**Multimodal gap and path forward.** Task 4 (VLM diagram tutoring) is the primary outstanding gap. The Chainlit interface accepts image uploads; the missing piece is a VLM backend (MedGemma 4B local or Gemini 2.0 Flash Lite) that identifies anatomical structures and generates image-grounded Socratic follow-ups. PCR applies identically to image-associated chunks via `concept` metadata — no architectural changes required.
 
 ---
 

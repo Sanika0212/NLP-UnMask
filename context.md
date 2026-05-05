@@ -36,7 +36,7 @@ LangGraph State Machine  (src/graph.py)
     │       Qdrant local file mode — dense (Gemini 3072d) + BM25, merged by RRF(k=60)
     │
     ├── socratic_generator     Structured output knowledge masking  (src/nodes/socratic_generator.py)
-    │       GPT-4o via OpenRouter — generates question WITHOUT answer in schema
+    │       Mercury-2 via Inception API — generates question WITHOUT answer in schema
     │
     └── pedagogy_agent         Mastery update + concept DAG + mistake log  (src/nodes/pedagogy_agent.py)
             NetworkX DAG, 16 concepts, Bayesian mastery update
@@ -196,7 +196,7 @@ Post-generation: if `socratic_question` contains ≥4 significant words from `co
 `supervisor_agent` (src/agents/supervisor.py) runs on every turn:
 
 1. **Rule engine** (`_rule_based_decision`) — pure Python, handles time limits, quit intent, mastery milestones. Always runs.
-2. **LLM decision** (`_llm_decision`) — GPT-4o-mini, human-readable reasoning, shown in UI via supervisor SSE event. Runs concurrently.
+2. **LLM decision** (`_llm_decision`) — Mercury-2, human-readable reasoning, shown in UI via supervisor SSE event. Runs concurrently.
 3. **Merge**: if LLM agrees with rule → use LLM decision (better reasoning text). If they disagree → use rule (safety).
 
 The supervisor also handles proactive revisit scheduling and the rapport→tutoring transition (picking the weakest concept).
@@ -257,7 +257,7 @@ Required env vars (`.env` in project root):
 ```
 OPENAI_API_KEY=...
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
-OPENAI_MODEL=openai/gpt-4o
+OPENAI_MODEL=inception/mercury-2
 GOOGLE_API_KEY=...
 QDRANT_COLLECTION=unmask_anatomy
 EMBEDDING_PROVIDER=gemini

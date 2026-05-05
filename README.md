@@ -139,7 +139,7 @@ Used by the Pedagogy Agent (`nx.ancestors()`) to trace prerequisite gaps when a 
 - **Source:** Gray's Anatomy public-domain plates via Wikimedia Commons API (8 PNG files, `public/anatomy/`)
 - Displayed inline in the frontend via a `visual_hint` SSE event when `consecutive_incorrect ≥ threshold`
 - Threshold adapts to `learning_mode`: visual learners → 1 incorrect, Q&A learners → 2 incorrect
-- VLM interpretation of student-uploaded images (MedGemma / GPT-4o Vision) not yet connected
+- VLM interpretation of student-uploaded images (MedGemma / Gemini 2.0 Flash Lite) not yet connected
 
 ---
 
@@ -173,7 +173,7 @@ cp .env.example .env
 **.env values:**
 ```
 OPENAI_API_KEY=<your-openai-key>
-OPENAI_MODEL=gpt-4o
+OPENAI_MODEL=inception/mercury-2
 ANTHROPIC_API_KEY=<your-anthropic-key>
 EMBEDDING_PROVIDER=gemini
 GOOGLE_API_KEY=<your-google-api-key>
@@ -284,7 +284,7 @@ eval/
 
 | Component | Per session |
 |-----------|------------|
-| GPT-4o | ~$0.05–0.08 |
+| Mercury-2 | ~$0.05–0.08 |
 | Qdrant (local) | $0 |
 | DeBERTa (local, HuggingFace) | $0 |
 | **Total** | **~$0.08–0.10** |

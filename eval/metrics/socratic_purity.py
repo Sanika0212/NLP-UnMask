@@ -3,7 +3,7 @@ Socratic Purity Metric.
 
 Two components:
   1. Rule-based: response ends with "?", no direct answer leak (from answer_leak.py)
-  2. LLM-as-Judge: GPT-4o rates the response 1-5 on a Socratic quality rubric
+  2. LLM-as-Judge: Mercury-2 rates the response 1-5 on a Socratic quality rubric
 
 Combined score = (llm_score / 5.0) penalized by rule violations.
 Target: ≥ 4.0 / 5.0 average.

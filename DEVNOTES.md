@@ -23,7 +23,7 @@ Student Input (Next.js UI or Chainlit fallback)
         │
         ▼
   LangGraph State Machine (4 nodes, SqliteSaver checkpointer — unmask_sessions.db)
-  ├── supervisor_agent     LLM router (gpt-4o-mini) + rule-based fallback
+  ├── supervisor_agent     LLM router (Mercury-2) + rule-based fallback
   ├── retrieval_planner    PCR filter + hybrid RAG (dense+BM25+RRF) + CRAG loop
   ├── socratic_generator   structured output masking + YouTube recommendations
   └── pedagogy_agent       mastery update + concept DAG + mistake log
@@ -34,8 +34,7 @@ Student Input (Next.js UI or Chainlit fallback)
     pedagogy_agent → [diagnostic_complete, phase=rapport] → supervisor (loopback, same invoke)
         │
   LLM Routing (all OpenRouter):
-    GPT-4o-mini  — supervisor routing
-    GPT-4o       — tutoring, assessment, wrapup
+    Mercury-2    — supervisor routing, tutoring, assessment, wrapup
   Vector DB: Qdrant (local file mode, ./qdrant_data)
   Embeddings: Gemini Embedding 2 (3072d) + BM25 sparse, merged by RRF (k=60)
 ```
@@ -212,6 +211,8 @@ Key finding: zero leaks across all variants under benign conditions is the **ben
 - **LaTeX natbib warning** — `report.tex` uses `\begin{thebibliography}` with numbered citations but `acl.sty` loads natbib in author-year mode. Warning is harmless; PDF compiles correctly.
 - **`result.get("_internal_analysis", {})` returns None** — when key exists but value is None, the default arg is ignored. Fix: use `result.get("_internal_analysis") or {}` to safely handle None. This bug silently blocked the `youtube_resources` SSE event.
 - **HF Spaces disk is ephemeral** — survey CSVs saved to `survey_results/` are lost on space restart. Use stdout logging as backup: `[SURVEY_RESULT] {...}` lines persist in HF Space logs across restarts.
+- **HF Space `/app` is read-only** — `sqlite3.connect("unmask_sessions.db")` at module import time crashes uvicorn immediately (RuntimeError on open). Fix: use `DATA_DIR` env var → `Path(os.getenv("DATA_DIR", ".")) / "unmask_sessions.db"`. Set `environment=DATA_DIR="/data"` in `docker/supervisord.conf` `[program:api]`. The `/data` dir is created during Docker build with `chmod 777`.
+- **`python-multipart` missing crashes FastAPI at startup** — FastAPI requires `python-multipart` for any `File`/`UploadFile` route. Absence raises `RuntimeError: Form data requires "python-multipart" to be installed` when the router registers (import time, not request time), killing uvicorn on boot. Add to `requirements.txt`.
 - **`_REVEAL_SYSTEM` hallucination — generates another question** — the `socratic_question` field name biases the model toward questions even when `break_socratic=True`. Old prompt only said "give the correct answer … End with ONE simple check question" — model interpreted this as license to ask a new clinical scenario. Fix: added `CRITICAL: Do NOT respond with another Socratic question. The student asked for an explanation — give it.` to `_REVEAL_SYSTEM`. The field still named `socratic_question` (schema change too invasive) but instruction overrides.
 - **`visual_hint` SSE updates wrong message card** — `updateLastBotMessage` was patching the previous bot card when no streaming placeholder existed (e.g., diagram sent after a completed message). Fix: check `lastBot?._streaming` first; if False, create a new message instead of patching.
 - **Rail footer timer hidden by topics overflow** — `.topics` list with many items overflowed `.rail` (which has `overflow: hidden`). Fix in `globals.css`: `.topics { flex: 1; overflow-y: auto; min-height: 0; }` — makes the list scrollable and footer always visible.
@@ -222,7 +223,7 @@ Key finding: zero leaks across all variants under benign conditions is the **ben
 
 ### End-of-session Summary
 
-The `wrapup` phase now generates a structured `SessionSummary` via GPT-4o structured output instead of plain Ollama free-text.
+The `wrapup` phase now generates a structured `SessionSummary` via Mercury-2 structured output instead of plain Ollama free-text.
 
 **Models** (in `socratic_generator.py`):
 ```python
@@ -417,7 +418,7 @@ Full set of fixes and features shipped in this session. Each item links to the r
 - [x] `_REVEAL_SYSTEM` hallucination fix: added CRITICAL instruction to prevent Socratic question when `break_socratic=True`
 - [x] `visual_hint` fix: creates new message when no streaming placeholder, not patch-in-place
 - [x] Rail footer timer fix: `.topics` scrollable via `flex:1; overflow-y:auto; min-height:0`
-- [ ] Task 4 (Multimodal VLM): Anatomical PNG diagrams render inline via `cl.Image`; remaining gap is VLM interpretation of student-uploaded images (GPT-4o Vision backend wired in `analyze_uploaded_image()` but not fully tested end-to-end)
+- [ ] Task 4 (Multimodal VLM): Anatomical PNG diagrams render inline via `cl.Image`; remaining gap is VLM interpretation of student-uploaded images (Gemini 2.0 Flash Lite backend wired in `analyze_uploaded_image()` but not fully tested end-to-end)
 - [x] Cross-session persistence: session_manager rewritten from pickle to SQLite (`unmask_sessions.db`). LangGraph checkpointer swapped to `SqliteSaver`. Slim-key filtering prevents session cache bloat. TTL-based purge (2h) keeps DB clean.
 - [ ] Pilot study: 10 UB students (5 OT, 5 CS), 15-min sessions, pre/post quiz for learning gain — in progress
 - [ ] Mistake memory evaluation: no current eval metric measures whether the revisit actually improves post-revisit performance

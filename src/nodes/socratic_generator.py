@@ -338,7 +338,7 @@ def _call_ollama(system: str, user: str, history: list[dict] | None = None) -> s
 
 def analyze_uploaded_image(image_path: str) -> str:
     """
-    Analyze a student-uploaded anatomical image using GPT-4o Vision.
+    Analyze a student-uploaded anatomical image using Gemini 2.0 Flash Lite.
     Returns a Socratic question about the structure WITHOUT naming it directly.
 
     Args:
@@ -793,7 +793,7 @@ def socratic_generator(state: TutoringState) -> dict:
             "turn_count": turn + 1,
         }
 
-    # ── Wrapup: structured SessionSummary via GPT-4o ────────────────────────
+    # ── Wrapup: structured SessionSummary via Mercury-2 ────────────────────────
     if phase == "wrapup":
         formatted, summary_obj = _generate_session_summary(state)
         return {
