@@ -424,3 +424,35 @@ Full set of fixes and features shipped in this session. Each item links to the r
 - [ ] Mistake memory evaluation: no current eval metric measures whether the revisit actually improves post-revisit performance
 - [ ] SessionSummary not yet included in eval metrics — could add a "summary quality" LLM judge pass
 - [ ] RAGAS Answer Relevancy (0.622) below target — expected for Socratic system, but could add a custom metric that rewards question-asking over factual answering
+
+---
+
+## Session Log — May 2026 (Session 3)
+
+### Features Added
+
+- **Two-step welcome flow** (`frontend/src/app/page.tsx`): Step 1 = name only (logo + tagline + name input + "Continue →", Enter key supported, autoFocus). Step 2 = full topic/resume/history page with "Hi, {name}" header and back arrow.
+
+- **Resume topic cards** (`frontend/src/app/page.tsx`): On step 2, topics with prior mastery > 5% appear as resume cards above the topic grid (sorted by mastery desc). Each card shows a circular SVG progress ring (green ≥70%, accent ≥40%, amber otherwise), mastery %, topic label. Selecting a card sets `isResume=true`; the start button changes to "Resume session →" and skips diagnostic on backend.
+
+- **Last session notes box** (`frontend/src/app/page.tsx`): Step 2 shows a card with prior weak topics (dot-separated) and up to 4 misconceptions (accent left-border, topic + note). Header shows topic name + date of last session. Appears when either `weakTopics.length > 0` or `lastSession !== null`.
+
+- **"View chat →" — previous session chat history modal** (`frontend/src/app/page.tsx`, `frontend/src/lib/userStore.ts`): Button in session notes header opens a modal overlay with the full scrollable prior chat. User messages right-aligned (accent), bot messages left-aligned (paper-2) with author label. Click outside or ✕ to close.
+
+- **Chat history persistence** (`frontend/src/lib/userStore.ts` — `saveLastSession`, `frontend/src/app/chat/page.tsx`): Last 60 non-empty messages saved to localStorage as `lastSession: { topic, date, messages }`. Saves on every phase change, on component unmount, and on `beforeunload` — not just wrapup.
+
+- **`userStore.ts` schema extended**: Added `weakTopics`, `misconceptions`, `lastSession` to `UserData`. Added `saveSessionContext()` and `saveLastSession()` exports.
+
+- **Resume context injection** (`src/api.py`): On `resume=true`, backend sets `diagnostic_complete=True`, phase=`tutoring`, restores `mistake_log`/`weak_topics`, injects silent `[PRIOR SESSION CONTEXT]` system message into `conversation_history` with specific prior misconceptions and weak topics.
+
+- **`force_eval_correct` flag** (`src/state.py`, `src/nodes/pedagogy_agent.py`, `frontend/src/components/SimulationPanel.tsx`): SimulationPanel passes `forceEvalCorrect=true` for `correct`-tagged script entries; pedagogy_agent short-circuits keyword evaluation when set.
+
+- **LLM model cleanup**: All GPT-4o refs replaced with Mercury-2 (generation/eval) and Gemini 2.0 Flash Lite (VLM) across all `.py`, `.md`, `.tex`, `.yaml` files.
+
+- **Presentation scripts**: `presentation_script_demo_8min.md` (Vaishak, 3-min UI narration) and `presentation_script_sanika_3min.md` (Sanika, 3-min architecture — KB stats, PCR Qdrant rationale, BKT vs IRT, Mercury-2 structured schema, question generation per phase, dual grounding, pilot survey design).
+
+### Bugs Fixed
+
+- **Simulation never entering assessment**: keyword overlap evaluation against Mercury-2's dynamic correct_answer caused `consecutive_correct` to never hit threshold. Fixed with `force_eval_correct` bypass.
+- **HF Space push rejected**: HF XET policy rejects LFS binaries in git history. Fixed by uploading changed source files directly via `huggingface_hub` Python API.
+- **Chat history not saving unless wrapup reached**: Now saves on every phase change + unmount + beforeunload.

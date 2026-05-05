@@ -85,6 +85,15 @@ After the Wrap-up phase generates a SessionSummary, it includes 2–4 `YouTubeRe
 
 The Composer.tsx has an "End Session" button next to Send. Clicking it sends `"end session"` to trigger the wrapup phase early, allowing students to exit and view their session summary at any time.
 
+### Cross-Session Memory and Resume
+
+Mastery scores, weak topics, misconceptions, and the last session's full chat log are persisted in `localStorage` keyed by student name (`unmask_user_<name>`). On the welcome page, returning students see a two-step flow:
+
+1. **Step 1 — Name entry**: logo, tagline, name input, "Continue →"
+2. **Step 2 — Topic selection**: shows prior session notes (weak topics + misconceptions) with a "View chat →" button that opens the previous conversation in a modal overlay; resume cards with mastery progress rings for topics already studied; topic grid for new sessions
+
+Selecting a resume card sets `isResume=true`. The backend receives `resume=true`, `prior_weak_topics`, and `prior_misconceptions` in the setup call, skips the diagnostic, restores mastery/mistake_log, and injects a silent `[PRIOR SESSION CONTEXT]` system message so Mercury-2 knows exactly where the student left off without re-running the diagnostic.
+
 ### RAG Pipeline (Layer 3: Corrective RAG)
 
 1. **RETRIEVE** — Hybrid search (Gemini dense + BM25 sparse, merged by RRF), top-5 results, PCR filter applied

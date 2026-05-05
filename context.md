@@ -1,6 +1,6 @@
 # UnMask — Project Context
 
-> Onboarding doc. Read this first. Last updated: May 2026 (rev 3).
+> Onboarding doc. Read this first. Last updated: May 2026 (rev 4).
 
 ## What is this?
 
@@ -73,7 +73,7 @@ The loopback (diagnostic → supervisor) runs entirely within a single `graph.in
 
 | Route | File | Purpose |
 |-------|------|---------|
-| `/` | `src/app/page.tsx` | Welcome — topic selection, PCR mode, student name |
+| `/` | `src/app/page.tsx` | Welcome — two-step: name entry → topic selection with resume cards + session history |
 | `/chat` | `src/app/chat/page.tsx` | 3-pane chat interface |
 | `/pilot` | `src/app/pilot/page.tsx` | Pilot study page |
 | `/survey` | `src/app/survey/page.tsx` | Post-session survey (Likert + open feedback) |
@@ -344,6 +344,7 @@ frontend/
     store.ts                    Zustand session store (dedupes misconceptions by topic+note)
     types.ts                    TypeScript interfaces
     topics.ts                   Topic list (key, label)
+    userStore.ts                localStorage persistence — mastery, weakTopics, misconceptions, lastSession (chat history)
 eval/
   run_eval.py                   Main eval runner
   ablation.py                   4-variant ablation

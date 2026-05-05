@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/lib/store';
+import { saveLastSession } from '@/lib/userStore';
 import Rail from '@/components/Rail';
 import Aside from '@/components/Aside';
 import TopBar from '@/components/TopBar';
@@ -25,6 +26,24 @@ export default function ChatPage() {
       router.push('/');
     }
   }, [store.setupDone, router]);
+
+  // Save chat to localStorage on every phase change and on unload
+  const doSave = () => {
+    const { studentName, studyFocus, messages } = useSessionStore.getState();
+    if (!studentName || studentName === 'Student' || messages.length < 2) return;
+    const topic = (studyFocus ?? '').replace('topic:', '') || 'unknown';
+    saveLastSession(studentName, topic, messages as Parameters<typeof saveLastSession>[2]);
+  };
+
+  useEffect(() => { doSave(); }, [phase]);
+
+  useEffect(() => {
+    window.addEventListener('beforeunload', doSave);
+    return () => {
+      doSave();
+      window.removeEventListener('beforeunload', doSave);
+    };
+  }, []);
 
   // Handle responsive collapse
   useEffect(() => {
