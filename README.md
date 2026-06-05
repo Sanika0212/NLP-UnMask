@@ -1,23 +1,43 @@
+<h1 align="center">UnMask</h1>
+<p align="center"><em>Socratic AI tutor for Occupational Therapy students — architecturally prevents answer leakage</em></p>
+
+<p align="center">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-58A6FF?style=flat-square&logo=python&logoColor=white"/>
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-58A6FF?style=flat-square&logo=nextdotjs&logoColor=white"/>
+  <img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-0.2+-7C3AED?style=flat-square&logo=python&logoColor=white"/>
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.109+-7C3AED?style=flat-square&logo=fastapi&logoColor=white"/>
+  <img alt="Qdrant" src="https://img.shields.io/badge/Qdrant-local-58A6FF?style=flat-square&logo=qdrant&logoColor=white"/>
+  <img alt="Course" src="https://img.shields.io/badge/CSE_635-UB_Spring_2026-7C3AED?style=flat-square"/>
+</p>
+
+<p align="center">
+  <a href="#overview">Overview</a> ·
+  <a href="#core-novelty-progressive-context-revelation">Core Novelty</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#evaluation">Evaluation</a> ·
+  <a href="#project-structure">Project Structure</a>
+</p>
+
 ---
-title: UnMask Anatomy Tutor
-emoji: 🧠
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-pinned: false
+
+## Overview
+
+UnMask is a multimodal AI tutor built for Occupational Therapy students preparing for the **NBCOT certification exam**. Unlike every existing Socratic AI tutor, it never gives direct answers — it guides students toward discovering knowledge themselves through Socratic questioning. Answer suppression is not prompt-based; it is **enforced at the retrieval layer**, making leakage architecturally impossible.
+
+<p align="center">
+  <img src="screenshots/01_welcome.png" width="720" alt="UnMask welcome screen"/>
+</p>
+
+**Key facts:**
+- Covers brachial plexus, peripheral nerves (axillary, radial, median, ulnar), and rotator cuff (SITS)
+- 15-minute structured sessions: diagnostic → Socratic tutoring → clinical assessment → wrap-up report
+- Cross-session memory: mastery scores, weak topics, and misconceptions persist in `localStorage`
+- Domain-agnostic: swap the Qdrant collection to retrain on any subject — zero code changes
+
 ---
 
-# UnMask — Socratic OT Anatomy Tutor
-
-**CSE 635: NLP and Text Mining · University at Buffalo · Spring 2026**
-
-A multimodal AI tutor for Occupational Therapy students preparing for the **NBCOT certification exam**. UnMask never gives direct answers — it guides students toward discovering answers themselves through Socratic questioning, enforced architecturally at the retrieval layer.
-
-*Built by Sanika Vilas Najan & Vaishak Girish Kumar — equal contribution*
-
----
-
-## Core Novelty: Progressive Context Revelation (PCR)
+## Core Novelty: Progressive Context Revelation
 
 Every existing Socratic AI tutor (Khanmigo, SocraticLM, TutorRL, KELE) retrieves the answer first and relies on prompting to suppress it. Sufficiently capable models bypass this. **UnMask never retrieves the answer until the student demonstrates prerequisite mastery** — a 10-line metadata filter in Qdrant that makes answer leakage architecturally impossible.
 
@@ -39,7 +59,7 @@ class SocraticOutput(BaseModel):
 
 ---
 
-## Architecture (4 Layers)
+## Architecture
 
 ```
 Browser (Next.js 14 — frontend/)
@@ -69,123 +89,66 @@ nginx (port 7860)  →  Next.js (port 3000)  →  FastAPI (port 8000)
 | Assessment | 12–14 min | `coverage ≥ 80%` or `t ≥ 720s` | Clinical scenario — student explains free-text reasoning |
 | Wrap-up | 14–15 min | `t ≥ 840s` | Structured `SessionSummary`: per-topic report card, misconceptions, study tips, YouTube recommendations |
 
-### Personalized Onboarding
-
-A single conversational opening question captures `study_focus` (e.g., brachial plexus, rotator cuff) and `learning_mode` (visual / Q&A). The diagnostic questions are reordered to start with the student's declared weak area, and the visual hint threshold adapts to learning mode.
-
-### Honest Encouragement
-
-The `encouragement` field in every tutoring response is calibrated to student performance. When `consecutive_incorrect > 0` the model is explicitly forbidden from saying "great job" or "well done" — it must acknowledge the difficulty directly. Controlled by `ENCOURAGEMENT RULES` in the tutoring system prompt and a `VisibleResponse.encouragement` field docstring constraint.
-
-### YouTube Recommendations
-
-After the Wrap-up phase generates a SessionSummary, it includes 2–4 `YouTubeResource` objects for the weakest topics. The frontend renders these as video cards with clickable YouTube search links in the Progress tab.
-
-### Session End Button
-
-The Composer.tsx has an "End Session" button next to Send. Clicking it sends `"end session"` to trigger the wrapup phase early, allowing students to exit and view their session summary at any time.
-
-### Cross-Session Memory and Resume
-
-Mastery scores, weak topics, misconceptions, and the last session's full chat log are persisted in `localStorage` keyed by student name (`unmask_user_<name>`). On the welcome page, returning students see a two-step flow:
-
-1. **Step 1 — Name entry**: logo, tagline, name input, "Continue →"
-2. **Step 2 — Topic selection**: shows prior session notes (weak topics + misconceptions) with a "View chat →" button that opens the previous conversation in a modal overlay; resume cards with mastery progress rings for topics already studied; topic grid for new sessions
-
-Selecting a resume card sets `isResume=true`. The backend receives `resume=true`, `prior_weak_topics`, and `prior_misconceptions` in the setup call, skips the diagnostic, restores mastery/mistake_log, and injects a silent `[PRIOR SESSION CONTEXT]` system message so Mercury-2 knows exactly where the student left off without re-running the diagnostic.
-
-### RAG Pipeline (Layer 3: Corrective RAG)
+### RAG Pipeline (Corrective RAG)
 
 1. **RETRIEVE** — Hybrid search (Gemini dense + BM25 sparse, merged by RRF), top-5 results, PCR filter applied
 2. **GRADE** — LLM scores each chunk for relevance; all-fail triggers re-query
 3. **RE-QUERY** — Synonym expansion or sub-question decomposition (max 2 retries)
-4. **VERIFY** — DeBERTa cross-encoder checks NLI entailment of every claim against retrieved chunks; unfaithful responses are blocked and regenerated (pre-delivery gate, not post-hoc)
+4. **VERIFY** — DeBERTa cross-encoder checks NLI entailment of every claim against retrieved chunks; unfaithful responses blocked and regenerated (pre-delivery gate, not post-hoc)
 
-### Concept Prerequisite Graph (Layer 4)
+### Concept Prerequisite Graph
 
-NetworkX DAG of anatomy concepts with prerequisite edges. BKT updates per node per student response. Cold-start solved in v4: diagnostic probe initializes mastery within the first 2 minutes (`correct → 0.5`, `incorrect → 0.1`, `skipped → 0.2`). After 8 min, the Orchestrator identifies the lowest-mastery concept and schedules a proactive revisit.
+NetworkX DAG of anatomy concepts with prerequisite edges. BKT updates per node per student response. Cold-start solved in v4: diagnostic probe initializes mastery within the first 2 minutes.
 
-### Session Mistake Memory (Layer 5)
-
-Every incorrect response appends a structured record to `mistake_log` in `TutoringState`:
-
-```python
-{"topic": "peripheral_nerves.radial", "misconception": "...", "turn": 7, "elapsed_sec": 312.4}
-```
-
-At 8 min (`revisit_after_sec: 480`), the Orchestrator picks the weakest topic and sets `revisit_scheduled=True`. The Retrieval Planner then augments the search query with the topic name, and the Socratic Generator injects the prior misconception into the tutoring prompt to approach the concept from a fresh angle. A 3-minute cooldown (`revisit_cooldown_sec: 180`) prevents re-triggering.
-
----
-
-## Knowledge Base and Datasets
-
-### Textual Knowledge Base
-
-- **Source:** OpenStax Anatomy & Physiology 2e, Chapters 11 and 13–16 (open access)
-- **Storage:** Qdrant collection `unmask_anatomy` (local file mode, no Docker needed)
-- **Per-chunk metadata:** `is_answer_chunk: bool`, `chunk_type` (`context` / `prerequisite` / `answer` / `figure`), `concept` (concept ID)
-
-### Concept Prerequisite Graph (`src/knowledge_base/concept_graph.json`)
-
-16 concepts across 3 topic areas, forming a DAG:
 ```
 spinal_cord → brachial_plexus (origin→trunks→divisions→cords→terminal_branches)
                               → peripheral_nerves (axillary, radial, median, ulnar)
                                                   → rotator_cuff (muscles→SITS)
 ```
-Used by the Pedagogy Agent (`nx.ancestors()`) to trace prerequisite gaps when a student struggles.
-
-### Evaluation Dataset (`eval/eval_dataset.json`)
-
-30 QA triples covering all 13 non-root concepts. Fields: `id`, `topic`, `concept`, `difficulty`, `question`, `expected_answer`, `answer_keywords`.
-
-### Adversarial Prompts (`eval/adversarial_prompts.json`)
-
-20 prompts across 5 attack types designed to elicit direct answers: `direct_request` (5), `jailbreak` (5), `social_engineering` (4), `off_topic` (4), `escalation` (2).
-
-### Visual Data
-
-- **Source:** Gray's Anatomy public-domain plates via Wikimedia Commons API (8 PNG files, `public/anatomy/`)
-- Displayed inline in the frontend via a `visual_hint` SSE event when `consecutive_incorrect ≥ threshold`
-- Threshold adapts to `learning_mode`: visual learners → 1 incorrect, Q&A learners → 2 incorrect
-- VLM interpretation of student-uploaded images (MedGemma / Gemini 2.0 Flash Lite) not yet connected
 
 ---
 
-## Generalizability
+## Screenshots
 
-Swap domain with a single config change — zero code changes:
+<p align="center">
+  <img src="screenshots/02_topic_buttons.png" width="700" alt="Topic selection"/>
+  <br/><em>Topic selection with prior-session mastery rings for returning students</em>
+</p>
 
-```yaml
-# config.yaml
-qdrant:
-  collection: physics   # was: unmask_anatomy
-```
+<p align="center">
+  <img src="screenshots/07_tutoring_starts.png" width="700" alt="Socratic tutoring in progress"/>
+  <br/><em>Socratic tutoring — the tutor always ends with a question, never a direct answer</em>
+</p>
 
-The concept graph auto-generates from the OpenStax Physics 2e table of contents (same algorithm). Demonstrated with 10 physics QA pairs (Chapters 4–6).
+<p align="center">
+  <img src="screenshots/09_visual_hint.png" width="700" alt="Visual hint with anatomy diagram"/>
+  <br/><em>Anatomy diagram shown after consecutive incorrect responses; threshold adapts to learning mode</em>
+</p>
 
 ---
 
-## Setup
+## Quick Start
 
 **Requirements:** Python 3.11+, Node 20+
 
 ```bash
-# 1. Install Python dependencies
+# 1. Clone and install Python dependencies
+git clone https://github.com/Gustav-Proxi/NLP-UnMask.git
+cd NLP-UnMask
 pip install -r requirements.txt
 
 # 2. Configure environment
 cp .env.example .env
-# Fill in: OPENAI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY
+# Fill in: OPENAI_API_KEY, GOOGLE_API_KEY
+# Set OPENAI_BASE_URL=https://openrouter.ai/api/v1 for OpenRouter
 ```
 
 **.env values:**
 ```
-OPENAI_API_KEY=<your-openai-key>
+OPENAI_API_KEY=sk-...
 OPENAI_MODEL=inception/mercury-2
-ANTHROPIC_API_KEY=<your-anthropic-key>
+GOOGLE_API_KEY=AIza...
 EMBEDDING_PROVIDER=gemini
-GOOGLE_API_KEY=<your-google-api-key>
 QDRANT_COLLECTION=unmask_anatomy
 ```
 
@@ -197,37 +160,43 @@ python scripts/index_kb.py --recreate  # drop and rebuild
 # 4. Start the FastAPI backend (port 8000)
 uvicorn src.api:app --reload --port 8000
 
-# 5. In a second terminal — install and start the Next.js frontend (port 3000)
-cd frontend
-npm install
-npm run dev
+# 5. In a second terminal — start the Next.js frontend (port 3000)
+cd frontend && npm install && npm run dev
 ```
 
 Open **http://localhost:3000** in your browser.
+
+#### Docker (optional)
+
+```bash
+docker build -t unmask .
+docker run -p 7860:7860 --env-file .env unmask
+```
 
 ---
 
 ## Evaluation
 
 ```bash
-python eval/run_eval.py              # full eval (50 QA + 30 adversarial)
+python eval/run_eval.py              # full eval (30 QA + 20 adversarial)
 python eval/run_eval.py --quick      # first 5 questions (smoke test)
 python eval/run_eval.py --skip-ragas # skip RAGAS for speed
 python eval/ablation.py              # 4-variant ablation study
 ```
 
-### Targets
+### Results
 
-| Metric | Target | Notes |
-|--------|--------|-------|
-| Socratic Purity (no leak by turn 3) | ≥ 95% | LLM-as-judge |
-| Answer Leak Rate (turns 1–2) | ≤ 5% | Dual-layer: keyword + semantic >0.92 |
-| RAGAS Faithfulness | ≥ 90% | Claims grounded in retrieved chunks |
-| RAGAS Answer Relevance | ≥ 85% | Addresses student's actual question |
-| Retrieval Precision@3 | ≥ 80% | Top-3 chunks relevant |
-| Multimodal Accuracy (blind diagrams) | ≥ 85% | 10 held-out anatomy diagrams |
-| Generalizability (Physics Socratic purity) | ≥ 75% | Same pipeline, swapped collection |
-| Latency (time-to-first-token) | ≤ 1.5s tutoring, ≤ 3s assessment | |
+| Metric | Score | Target | Pass |
+|--------|-------|--------|------|
+| Hit Rate @5 | **0.900** | ≥ 0.75 | ✓ |
+| Answer Leak Rate | **0.000** | 0% | ✓ |
+| Ends with `?` (Socratic form) | **1.000** | ≥ 95% | ✓ |
+| Avg Socratic Purity (LLM-as-judge) | **4.87/5** | ≥ 4.0 | ✓ |
+| Adversarial Hold Rate | **1.000** | ≥ 90% | ✓ |
+| RAGAS Faithfulness | 0.838 | ≥ 0.85 | ✗ |
+| RAGAS Answer Relevancy | 0.622 | ≥ 0.80 | ✗ |
+
+Zero answer leakage and perfect adversarial resistance across all 5 attack types (direct request, jailbreak, social engineering, off-topic, escalation).
 
 ### Ablation Study (4 Variants)
 
@@ -240,51 +209,65 @@ python eval/ablation.py              # 4-variant ablation study
 
 ### Pilot Study
 
-10 UB students (5 OT/health sciences, 5 CS) — 15-min sessions. Pre/post 5-question quiz for learning gain. IRB exempt under 45 CFR 46.104(d)(1). **Status: in progress**.
+10 UB students (5 OT/health sciences, 5 CS) — 15-min sessions. Pre/post 5-question quiz for learning gain. IRB exempt under 45 CFR 46.104(d)(1). **Status: in progress.**
 
 ---
 
-## Topics Covered
+## Knowledge Base
 
-- Brachial plexus (origin → trunks → cords → terminal branches)
-- Peripheral nerves: axillary, radial, median, ulnar
-- Rotator cuff muscles (SITS)
+- **Source:** OpenStax Anatomy & Physiology 2e, Chapters 11 and 13–16 (open access)
+- **Storage:** Qdrant collection `unmask_anatomy` (local file mode — no Docker required)
+- **Per-chunk metadata:** `is_answer_chunk: bool`, `chunk_type` (`context` / `prerequisite` / `answer` / `figure`), `concept`
+- **Visual data:** Gray's Anatomy public-domain plates via Wikimedia Commons (16 PNG files, `public/anatomy/`)
+- **Eval set:** 30 QA triples across all 13 non-root concepts + 20 adversarial prompts (5 attack types)
+
+### Generalizability
+
+Swap domain with a single config change — zero code changes:
+
+```yaml
+# config.yaml
+qdrant:
+  collection: physics   # was: unmask_anatomy
+```
+
+The concept graph auto-generates from the OpenStax Physics 2e table of contents. Demonstrated with 10 physics QA pairs (Chapters 4–6).
 
 ---
 
 ## Project Structure
 
 ```
-frontend/                   # Next.js 14 App Router (main UI)
-  src/app/                  # Pages and layout
-  src/components/           # Chat thread, aside panel, practice/assess views
-  src/lib/                  # Zustand store, per-user localStorage (userStore.ts)
+frontend/                   # Next.js 14 App Router
+  src/app/                  # Pages: chat, pilot, survey
+  src/components/           # Thread, Aside, Practice/AssessView, ProgressView
+  src/lib/                  # Zustand store + per-user localStorage (userStore.ts)
 src/                        # FastAPI backend + LangGraph pipeline
-  api.py                    # FastAPI entry point (uvicorn src.api:app)
-config.yaml                 # All tunable parameters (PCR thresholds, session timing)
-src/
+  api.py                    # FastAPI entry point
   graph.py                  # LangGraph state machine
-  state.py                  # TutoringState TypedDict (incl. mistake_log, revisit_scheduled)
+  state.py                  # TutoringState TypedDict
   nodes/
-    orchestrator.py         # Phase transition logic (pure Python, zero LLM calls)
+    orchestrator.py         # Phase transition logic (zero LLM calls)
     retrieval_planner.py    # PCR filter + hybrid RAG + CRAG loop
-    socratic_generator.py   # Structured output masking + YouTube recommendations
-    pedagogy_agent.py       # BKT + concept DAG + mastery update + mistake log
+    socratic_generator.py   # Structured output masking + YouTube recs
+    pedagogy_agent.py       # BKT + concept DAG + mastery update
   knowledge_base/
     chunks.json             # Anatomy chunks with PCR metadata
     concept_graph.json      # Prerequisite DAG (NetworkX-serialized)
+config.yaml                 # PCR thresholds, session timing, mastery params
 scripts/
   index_kb.py               # Index chunks.json into Qdrant
 eval/
-  eval_dataset.json         # 50 QA triples
-  adversarial_prompts.json  # 30 adversarial prompts (5 types)
+  eval_dataset.json         # 30 QA triples
+  adversarial_prompts.json  # 20 adversarial prompts
   run_eval.py               # Main evaluation runner
-  ablation.py               # 4-variant ablation study
+  ablation.py               # 4-variant ablation
   metrics/
     answer_leak.py          # Dual-layer leak detection
     socratic_purity.py      # LLM-as-judge purity score
     retrieval_precision.py  # Hit rate + MRR
     ragas_eval.py           # RAGAS faithfulness + relevancy
+public/anatomy/             # 16 anatomy PNGs (Gray's Anatomy, public domain)
 ```
 
 ---
@@ -293,32 +276,18 @@ eval/
 
 | Component | Per session |
 |-----------|------------|
-| Mercury-2 | ~$0.05–0.08 |
+| Mercury-2 (via OpenRouter) | ~$0.05–0.08 |
 | Qdrant (local) | $0 |
-| DeBERTa (local, HuggingFace) | $0 |
+| DeBERTa NLI gate (local) | $0 |
 | **Total** | **~$0.08–0.10** |
 
 Total project budget: ~$6–10.
 
 ---
 
-## Timeline
-
-| Week | Date | Milestone |
-|------|------|-----------|
-| 1 | Mar 25 | Data prep complete; Qdrant indexing done |
-| 2 | Apr 1 | LangGraph orchestration + Socratic Generator live |
-| 3 | Apr 8 | CRAG loop + NLI gate; ablation data collection |
-| 4 | Apr 15 | Threshold calibration; pilot study recruitment |
-| 5 | Apr 22 | Pilot study execution (live sessions) |
-| 6 | Apr 29 | Final metrics + paper draft |
-| 7 | May 6 | Final presentation + paper submission |
-
----
-
 ## Authors — Equal Contribution
 
-Sanika Vilas Najan and Vaishak Girish Kumar contributed equally to this project.
+**Sanika Vilas Najan** and **Vaishak Girish Kumar** — CSE 635, University at Buffalo, Spring 2026.
 
 - **Sanika:** PCR filter, Qdrant integration, diagnostic probe, image curation
 - **Vaishak:** LangGraph orchestration, Socratic Generator, evaluation framework, pilot study recruitment
